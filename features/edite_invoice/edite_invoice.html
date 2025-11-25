@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>تصميم توضيحي — إنشاء فاتورة / الفواتير المؤجلة</title>
+  <style>
+    /* ====== Reset & base ====== */
+    :root{--bg:#f4f6f8;--card:#fff;--muted:#6b7280;--accent:#0ea5a4;--danger:#ef4444;--primary:#3b82f6;--glass:rgba(255,255,255,0.6);--radius:10px}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, 'Noto Kufi Arabic', Tahoma, sans-serif;background:var(--bg);color:#0f172a}
+    .container{max-width:1200px;margin:24px auto;padding:16px}
+
+    /* ====== Top bar ====== */
+    header.app-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+    header h1{font-size:18px;margin:0}
+    .controls{display:flex;gap:8px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer;font-weight:700}
+    .btn.ghost{background:transparent;border:1px solid rgba(2,6,23,0.06);color:var(--accent)}
+    .btn.warn{background:var(--danger)}
+
+    /* ====== layout ====== */
+    .layout{display:grid;grid-template-columns:340px 1fr;gap:18px}
+    .panel{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:0 6px 18px rgba(15,23,42,0.04)}
+
+    /* ====== sidebar (add product / customer / payment) ====== */
+    .side-ctrl h3{margin:0 0 8px 0}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    select,input{width:100%;padding:10px;border-radius:8px;border:1px solid #eef2f7;background:#fbfdff}
+    .price-toggle{display:flex;gap:8px;margin-top:8px}
+    .small{padding:6px 8px;font-size:13px}
+
+    /* ====== invoice canvas ====== */
+    .canvas{display:flex;flex-direction:column;gap:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;text-align:right;border-bottom:1px solid #f1f5f9}
+    thead th{font-weight:800;color:var(--muted)}
+
+    .summary{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+    .summary .row{display:flex;justify-content:flex-end;gap:12px;width:320px}
+
+    /* ====== pending list page styles (card list) ====== */
+    .list-wrapper{display:flex;flex-direction:column;gap:12px}
+    .invoice-card{display:flex;justify-content:space-between;gap:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg,#fff,#fcfeff);border:1px solid #eef2f7;align-items:flex-start}
+    .invoice-card .left{display:flex;gap:12px;align-items:center}
+    .badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:8px 10px;border-radius:8px;font-weight:800}
+    .meta .name{font-weight:800}
+    .meta .extra{color:var(--muted);font-size:13px;margin-top:6px}
+    .card-actions{display:flex;gap:8px}
+    .pill{padding:6px 10px;border-radius:999px;background:#fffbeb;color:#92400e;font-weight:800}
+
+    /* ====== modal ====== */
+    .backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
+    .modal{background:var(--card);border-radius:10px;padding:16px;min-width:320px;max-width:900px;max-height:90vh;overflow:auto}
+    .modal h3{margin-top:0}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .table-small th, .table-small td{padding:8px;font-size:14px}
+
+    /* ====== small helpers ====== */
+    .muted{color:var(--muted)}
+    .right{text-align:left}
+    .hidden{display:none}
+
+    /* responsive */
+    @media (max-width:980px){.layout{grid-template-columns:1fr} .summary{align-items:stretch}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1>نموذج واجهة — إنشاء فاتورة / إدارة الفواتير المؤجلة</h1>
+      <div class="controls">
+        <button class="btn ghost" id="open-pending">الفواتير المؤجَّلة</button>
+        <button class="btn" id="save-draft">حفظ مسودة</button>
+        <button class="btn" id="confirm-invoice">تأكيد الفاتورة</button>
+      </div>
+    </header>
+
+    <!-- Main layout: sidebar + canvas -->
+    <div class="layout">
+      <!-- Sidebar: product select, qty, price, customer, payments -->
+      <aside class="panel side-ctrl">
+        <h3>إضافة منتج</h3>
+        <label for="product-select">اختر المنتج أو ابحث</label>
+        <select id="product-select"><option value="">-- اختر --</option></select>
+
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1">
+            <label>الكمية</label>
+            <input id="product-qty" type="number" min="1" value="1">
+          </div>
+          <div style="width:140px">
+            <label>سعر الوحدة</label>
+            <input id="product-price" type="number" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+
+        <div class="price-toggle">
+          <button class="btn ghost small" id="price-retail">قطاعي</button>
+          <button class="btn ghost small" id="price-wholesale">جملة</button>
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn" id="add-product-btn">أضف للفـاتورة</button>
+          <button class="btn ghost" id="open-products">فتح المنتجات</button>
+        </div>
+
+        <hr style="margin:12px 0">
+        <h3>العميل</h3>
+        <div id="selected-customer" style="padding:10px;background:#fbfdff;border-radius:8px">لم يتم اختيار عميل</div>
+        <div style="margin-top:8px"><button class="btn ghost small" id="select-customer">اختيار عميل</button></div>
+
+        <h3 style="margin-top:12px">المدفوعات</h3>
+        <label>حالة الدفع</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <label><input type="radio" name="paystatus" value="pending" checked> مؤجل</label>
+          <label><input type="radio" name="paystatus" value="partial"> جزئي</label>
+          <label><input type="radio" name="paystatus" value="paid"> مدفوع</label>
+        </div>
+        <label>إضافة دفعة</label>
+        <input id="payment-amount" type="number" placeholder="المبلغ">
+        <div style="margin-top:8px"><button class="btn small" id="add-payment">إضافة دفعة</button></div>
+      </aside>
+
+      <!-- Canvas: invoice table + summary -->
+      <main class="panel canvas">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>بنود الفاتورة</strong></div>
+          <div class="muted">رقم مؤقت: <strong>#DRAFT-001</strong></div>
+        </div>
+
+        <table aria-label="invoice lines">
+          <thead>
+            <tr><th>المنتج</th><th>الكمية</th><th>سعر الوحدة</th><th>نوع السعر</th><th>الإجمالي</th><th class="right">إجراءات</th></tr>
+          </thead>
+          <tbody id="invoice-items">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-top:12px">
+          <div style="flex:1">
+            <label>ملاحظات</label>
+            <textarea id="notes" rows="4" style="width:100%;padding:8px;border-radius:8px;border:1px solid #eef2f7"></textarea>
+          </div>
+
+          <aside style="width:320px">
+            <div class="summary">
+              <div class="row"><div>المجموع:</div><div id="subtotal">ج.م 0.00</div></div>
+              <div class="row"><div>الخصم:</div><div id="discount">ج.م 0.00</div></div>
+              <div class="row"><div>الضريبة (15%):</div><div id="tax">ج.م 0.00</div></div>
+              <div class="row" style="font-weight:800;font-size:16px"><div>الإجمالي:</div><div id="total">ج.م 0.00</div></div>
+
+              <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+                <button class="btn ghost" id="btn-open-return">ارجاع / تعديل</button>
+                <button class="btn" id="btn-additem-modal">اضافة بند</button>
+              </div>
+
+              <div style="margin-top:12px">
+                <div style="font-weight:700;margin-bottom:6px">سجل الأحداث</div>
+                <div id="audit-timeline" style="max-height:160px;overflow:auto;border-radius:8px;padding:8px;background:#fbfdff;border:1px solid #eef2f7"></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <!-- Pending invoices page (drawer) -->
+    <div id="pending-drawer" class="panel" style="margin-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><strong>قائمة الفواتير المؤجلة (كمثال)</strong></div>
+        <div class="muted">عرض سريع مع أزرار التعامل</div>
+      </div>
+
+      <div class="list-wrapper" id="pending-list">
+        <!-- invoice cards injected by JS for demo -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====== Modals ====== -->
+  <div id="modal-backdrop" class="backdrop">
+    <div class="modal" id="modal-content">
+      <!-- content injected by JS -->
+    </div>
+  </div>
+
+  <!-- Add-item quick modal template (hidden) -->
+  <template id="tpl-additem-modal">
+    <h3>اضافة بند جديد</h3>
+    <div class="grid-2">
+      <div>
+        <label>المنتج</label>
+        <select id="m_product"></select>
+      </div>
+      <div>
+        <label>الكمية</label>
+        <input id="m_qty" type="number" min="1" value="1">
+      </div>
+      <div>
+        <label>سعر الوحدة</label>
+        <input id="m_price" type="number" step="0.01">
+      </div>
+      <div>
+        <label>نوع السعر</label>
+        <select id="m_price_type"><option value="retail">قطاعي</option><option value="wholesale">جملة</option></select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button class="btn ghost" id="m_cancel">الغاء</button>
+      <button class="btn" id="m_confirm">اضافة</button>
+    </div>
+  </template>
+
+  <!-- Return / edit modal template -->
+  <template id="tpl-return-modal">
+    <h3>ارجاع / تعديل بنود الفاتورة</h3>
+    <div id="return-inner">تحميل بنود ...</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button class="btn ghost" id="r_cancel">الغاء</button>
+      <button class="btn" id="r_confirm">تطبيق</button>
+    </div>
+  </template>
+
+  <script>
+    /* ========== Demo data & helpers ========== */
+    const Products = [
+      {id:1,name:'آيفون 14 برو',price:42999,wp:39999,stock:15},
+      {id:2,name:'سامسونج S23',price:35999,wp:32999,stock:22},
+      {id:3,name:'شاحن لاسلكي',price:1999,wp:1599,stock:50}
+    ];
+
+    const PendingInvoices = [
+      {id:201, customer:'محمد أحمد', mobile:'01012345678', total: 3400, created:'2025-11-01', items:[{id:1,prod:1,qty:2,price:1000},{id:2,prod:2,qty:2,price:500},{id:3,prod:3,qty:2,price:200}]},
+      {id:202, customer:'سارة', mobile:'01098765432', total: 1500, created:'2025-11-03', items:[{id:4,prod:2,qty:3,price:500}]}
+    ];
+
+    // App state
+    const State = { items: [], payments: [], discount:{type:'percent',value:0}, customer:null };
+
+    function fmt(n){return new Intl.NumberFormat('ar-EG',{style:'currency',currency:'EGP',minimumFractionDigits:2}).format(n)}
+
+    /* ========== render helpers ========== */
+    function populateSelects(){
+      const s = document.getElementById('product-select'); s.innerHTML='<option value="">-- اختر --</option>';
+      Products.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent = p.name + ' - ' + fmt(p.price); s.appendChild(o); });
+    }
+
+    function renderInvoiceItems(){
+      const tbody = document.getElementById('invoice-items'); tbody.innerHTML='';
+      State.items.forEach((it,idx)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${it.name}</td><td>${it.qty}</td><td>${fmt(it.unitPrice)}</td><td>${it.priceType}</td><td>${fmt(it.qty*it.unitPrice)}</td><td class="right"><button data-idx="${idx}" class="btn ghost small btn-remove">حذف</button></td>`;
+        tbody.appendChild(tr);
+      });
+      computeSummary();
+      renderAudit();
+    }
+
+    function computeSummary(){
+      const subtotal = State.items.reduce((s,it)=>s+(it.qty*it.unitPrice),0);
+      const discount = State.discount.type==='percent' ? subtotal*(State.discount.value/100) : State.discount.value;
+      const after = subtotal - discount; const tax = after*0.15; const total = after+tax;
+      document.getElementById('subtotal').textContent = fmt(subtotal);
+      document.getElementById('discount').textContent = fmt(discount);
+      document.getElementById('tax').textContent = fmt(tax);
+      document.getElementById('total').textContent = fmt(total);
+    }
+
+    function renderPendingList(){
+      const list = document.getElementById('pending-list'); list.innerHTML='';
+      PendingInvoices.forEach(inv=>{
+        const card = document.createElement('div'); card.className='invoice-card';
+        card.innerHTML = `<div class="left"><div class="badge">#${inv.id}</div><div class="meta"><div class="name">${inv.customer}</div><div class="extra">${inv.items.length} بنود • ${inv.created}</div></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px"><div class="pill">${fmt(inv.total)}</div><div class="card-actions"><button class="btn ghost small btn-view" data-id="${inv.id}">عرض</button><button class="btn small" data-id="${inv.id}">تعديل</button></div></div>`;
+        list.appendChild(card);
+      });
+    }
+
+    /* ========== audit timeline (demo) ========= */
+    const Audit = [];
+    function pushAudit(text){ Audit.unshift({t:new Date(),text}); renderAudit(); }
+    function renderAudit(){ const el=document.getElementById('audit-timeline'); el.innerHTML=''; Audit.forEach(a=>{ const d=document.createElement('div'); d.style.padding='8px'; d.style.borderRadius='8px'; d.style.background='#fff'; d.style.marginBottom='8px'; d.innerHTML = `<div style="font-weight:700">${a.text}</div><div class="muted" style="font-size:12px;margin-top:6px">${a.t.toLocaleString('ar-EG')}</div>`; el.appendChild(d);} ); }
+
+    /* ========== modal helpers ========== */
+    const backdrop = document.getElementById('modal-backdrop'); const modalContent = document.getElementById('modal-content');
+    function openModal(html){ modalContent.innerHTML=''; modalContent.appendChild(html); backdrop.style.display='flex'; }
+    function closeModal(){ backdrop.style.display='none'; modalContent.innerHTML=''; }
+
+    /* ========== events ========== */
+    document.getElementById('add-product-btn').addEventListener('click', ()=>{
+      const pid = Number(document.getElementById('product-select').value); const qty = Number(document.getElementById('product-qty').value)||1; const price = Number(document.getElementById('product-price').value) || (Products.find(p=>p.id===pid)||{}).price || 0; if(!pid){ alert('اختر منتج'); return; }
+      const prod = Products.find(p=>p.id===pid);
+      // merge logic in draft mode
+      const existing = State.items.find(it=>it.productId===pid && it.unitPrice===price);
+      if(existing){ existing.qty += qty; pushAudit(`زيادة كمية ${prod.name} بمقدار ${qty}`); } else { State.items.push({productId:pid,name:prod.name,qty:qty,unitPrice:price,priceType:'retail'}); pushAudit(`أضف ${prod.name} x${qty}`); }
+      renderInvoiceItems();
+    });
+
+    document.getElementById('invoice-items').addEventListener('click', (e)=>{
+      if(e.target.matches('.btn-remove')){
+        const idx = Number(e.target.dataset.idx); const it = State.items[idx]; State.items.splice(idx,1); pushAudit(`حذف بند ${it.name}`); renderInvoiceItems();
+      }
+    });
+
+    document.getElementById('open-pending').addEventListener('click', ()=>{
+      window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+    });
+
+    // open add-item modal
+    document.getElementById('btn-additem-modal').addEventListener('click', ()=>{
+      const tpl = document.getElementById('tpl-additem-modal'); const node = tpl.content.cloneNode(true);
+      // fill select
+      const sel = node.getElementById('m_product'); Products.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o); });
+      node.getElementById('m_cancel').addEventListener('click', closeModal);
+      node.getElementById('m_confirm').addEventListener('click', ()=>{
+        const pid = Number(node.getElementById('m_product').value); const qty = Number(node.getElementById('m_qty').value)||1; const price = Number(node.getElementById('m_price').value) || Products.find(p=>p.id===pid).price; const prod = Products.find(p=>p.id===pid);
+        State.items.push({productId:pid,name:prod.name,qty,unitPrice:price,priceType:'retail'}); pushAudit(`(مودال) أضف ${prod.name} x${qty}`); renderInvoiceItems(); closeModal();
+      });
+      openModal(node);
+    });
+
+    // open return modal: demo uses first pending invoice
+    document.getElementById('btn-open-return').addEventListener('click', ()=>{
+      const tpl = document.getElementById('tpl-return-modal'); const node = tpl.content.cloneNode(true);
+      const inner = node.getElementById('return-inner'); inner.innerHTML = '';
+      // show current items with inputs to change qty
+      const table = document.createElement('table'); table.className='table-small'; table.innerHTML = '<thead><tr><th>المنتج</th><th>مباع</th><th>ارجاع/جديد</th></tr></thead>';
+      const tb = document.createElement('tbody'); State.items.forEach((it,idx)=>{
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${it.name}</td><td>${it.qty}</td><td><input type="number" min="0" max="${it.qty}" value="0" data-idx="${idx}" class="r_input"></td>`; tb.appendChild(tr);
+      }); table.appendChild(tb); inner.appendChild(table);
+
+      node.getElementById('r_cancel').addEventListener('click', closeModal);
+      node.getElementById('r_confirm').addEventListener('click', ()=>{
+        // gather returns
+        const inputs = Array.from(document.querySelectorAll('.r_input')); let summary = [];
+        inputs.forEach(inp=>{ const v = Number(inp.value)||0; if(v>0) summary.push({idx:Number(inp.dataset.idx),qty:v}); });
+        if(summary.length===0){ alert('لم تُحدد أي كمية للارجاع'); return; }
+        // apply returns: reduce quantities, create audit entries
+        summary.forEach(s=>{ const item = State.items[s.idx]; item.qty -= s.qty; pushAudit(`ارجاع ${s.qty} من ${item.name}`); if(item.qty<=0){ State.items.splice(s.idx,1);} });
+        renderInvoiceItems(); closeModal();
+      });
+      openModal(node);
+    });
+
+    // demo: populate pending list and selects
+    populateSelects(); renderPendingList(); renderInvoiceItems();
+
+    // close modal on backdrop click
+    document.getElementById('modal-backdrop').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeModal(); });
+  </script>
+</body>
+</html>

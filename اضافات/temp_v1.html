@@ -1,0 +1,169 @@
+<div class="container">
+    <header>
+        <h1>إنشاء فاتورة بيع</h1>
+        <div class="invoice-info">
+            <span id="currentInvoiceNumber">رقم الفاتورة: -</span>
+        </div>
+    </header>
+
+    <main class="main-grid">
+        <!-- العمود الأول: المنتجات -->
+        <section class="panel products-panel">
+            <h2>المنتجات</h2>
+            <div class="search-box">
+                <input type="text" id="productSearchInput" placeholder="ابحث عن منتج...">
+            </div>
+            <div class="products-list" id="productsList">
+                <!-- سيتم ملء هذا القسم بالمنتجات عبر JavaScript -->
+            </div>
+        </section>
+
+        <!-- العمود الثاني: الفاتورة -->
+        <section class="panel invoice-panel">
+            <h2>فاتورة البيع</h2>
+            <div class="invoice-controls">
+                <div class="payment-toggle">
+                    <label class="toggle-btn">
+                        <input type="radio" name="invoice_state" value="pending" checked>
+                        <span>مؤجل</span>
+                    </label>
+                    <label class="toggle-btn">
+                        <input type="radio" name="invoice_state" value="paid">
+                        <span>تم الدفع</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="payment-type-section">
+                <h3>نوع الدفع</h3>
+                <div class="payment-type-toggle">
+                    <label class="toggle-btn">
+                        <input type="radio" name="payment_type" value="cash" checked>
+                        <span>نقدي</span>
+                    </label>
+                    <label class="toggle-btn">
+                        <input type="radio" name="payment_type" value="credit">
+                        <span>آجل</span>
+                    </label>
+                    <label class="toggle-btn">
+                        <input type="radio" name="payment_type" value="partial">
+                        <span>جزئي</span>
+                    </label>
+                </div>
+
+                <div id="partial_payment_section" class="partial-payment hidden">
+                    <div class="partial-payment-grid">
+                        <div class="input-group">
+                            <label for="paid_amount">المبلغ المدفوع</label>
+                            <input type="number" id="paid_amount" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="input-group">
+                            <label>المتبقي</label>
+                            <div id="remaining_amount_display" class="remaining-amount">0.00</div>
+                        </div>
+                    </div>
+                    <div class="payment-percentage">
+                        <span id="payment_percentage">0%</span> من إجمالي الفاتورة
+                    </div>
+                </div>
+            </div>
+
+            <div class="invoice-items">
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>المنتج</th>
+                            <th>الكمية</th>
+                            <th>السعر</th>
+                            <th>الإجمالي</th>
+                            <th>حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoiceTbody">
+                        <!-- سيتم ملء هذا القسم ببنود الفاتورة عبر JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="invoice-summary">
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <label>الإجمالي قبل الخصم</label>
+                        <div id="total-before" class="amount">0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <label>الخصم</label>
+                        <div class="discount-controls">
+                            <input type="number" id="discount-input" step="0.01" min="0" placeholder="0">
+                            <select id="discount-type">
+                                <option value="amount">مبلغ</option>
+                                <option value="percent">%</option>
+                            </select>
+                            <div id="discount-amount-display" class="amount">0.00</div>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <label>الإجمالي بعد الخصم</label>
+                        <div id="total-after" class="amount">0.00</div>
+                    </div>
+                </div>
+
+                <div class="quick-discounts">
+                    <label>خصومات سريعة:</label>
+                    <div class="quick-buttons">
+                        <button type="button" class="quick-btn" data-pct="5">5%</button>
+                        <button type="button" class="quick-btn" data-pct="10">10%</button>
+                        <button type="button" class="quick-btn" data-pct="15">15%</button>
+                        <button type="button" class="quick-btn" data-pct="20">20%</button>
+                        <button type="button" class="quick-btn" data-pct="25">25%</button>
+                        <button type="button" class="quick-btn" data-pct="30">30%</button>
+                    </div>
+                </div>
+
+                <div class="profit-display">
+                    <div class="profit-container">
+                        <span id="profit-value">0.00</span>
+                        <small>الربح</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="invoice-notes">
+                <textarea id="invoiceNotes" placeholder="ملاحظات الفاتورة (اختياري)"></textarea>
+            </div>
+
+            <div class="invoice-actions">
+                <button id="clearBtn" class="btn ghost">تفريغ الفاتورة</button>
+                <button id="previewBtn" class="btn ghost">معاينة</button>
+                <button id="confirmBtn" class="btn primary">تأكيد الفاتورة</button>
+            </div>
+        </section>
+
+        <!-- العمود الثالث: العملاء -->
+        <section class="panel customers-panel">
+            <h2>العملاء</h2>
+            <div class="customer-controls">
+                <div class="search-box">
+                    <input type="text" id="customerSearchInput" placeholder="ابحث عن عميل...">
+                </div>
+                <button id="openAddCustomerBtn" class="btn ghost">إضافة عميل</button>
+                <button id="cashCustomerBtn" class="btn primary">عميل نقدي</button>
+            </div>
+
+            <div class="selected-customer" id="selectedCustomerBox">
+                <div class="customer-avatar">👤</div>
+                <div class="customer-info">
+                    <div class="customer-name" id="selectedCustomerName">لم يتم اختيار عميل</div>
+                    <div class="customer-details" id="selectedCustomerDetails">
+                        <!-- سيتم ملء هذا القسم بتفاصيل العميل عبر JavaScript -->
+                    </div>
+                </div>
+                <button id="btnUnselectCustomer" class="btn ghost">إلغاء</button>
+            </div>
+
+            <div class="customers-list" id="customersList">
+                <!-- سيتم ملء هذا القسم بالعملاء عبر JavaScript -->
+            </div>
+        </section>
+    </main>
+</div>

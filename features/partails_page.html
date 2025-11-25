@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة مبيعات</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --light: #f8fafc;
+            --dark: #1e293b;
+            --border: #e2e8f0;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .invoice-container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .invoice-header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .invoice-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .invoice-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .invoice-meta {
+            text-align: left;
+        }
+
+        .invoice-number {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .invoice-date {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Invoice Body */
+        .invoice-body {
+            padding: 30px;
+        }
+
+        .invoice-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .info-card h3 {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            color: var(--primary-dark);
+            font-size: 18px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        /* Items Table */
+        .invoice-items {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--primary-dark);
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .items-table th {
+            background: var(--primary);
+            color: white;
+            padding: 15px 12px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .items-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* Totals */
+        .invoice-totals {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .totals-card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .total-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .total-label {
+            font-weight: 600;
+        }
+
+        .total-value {
+            font-weight: 700;
+        }
+
+        .discount-row {
+            color: var(--warning);
+        }
+
+        .grand-total {
+            font-size: 20px;
+            color: var(--primary-dark);
+        }
+
+        /* Payment Status */
+        .payment-status-card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+
+        .payment-status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .payment-badge {
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-partial {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-paid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .payment-progress {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .payment-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .payment-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .payment-detail:last-child {
+            border-bottom: none;
+        }
+
+        /* Actions */
+        .invoice-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            padding: 20px 30px;
+            background: var(--light);
+            border-top: 1px solid var(--border);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #0da271;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Payment Modal */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            width: 90%;
+            max-width: 500px;
+            padding: 25px;
+            animation: modalAppear 0.3s ease;
+        }
+
+        @keyframes modalAppear {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 22px;
+            color: var(--primary-dark);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--secondary);
+        }
+
+        .payment-summary {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .summary-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .invoice-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .invoice-info-grid, 
+            .invoice-totals,
+            .payment-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .invoice-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- Header -->
+        <div class="invoice-header">
+            <div>
+                <h1 class="invoice-title">فاتورة مبيعات</h1>
+                <p class="invoice-subtitle">نموذج فاتورة مع نظام الدفع الجزئي</p>
+            </div>
+            <div class="invoice-meta">
+                <div class="invoice-number">رقم الفاتورة: #INV-2023-0856</div>
+                <div class="invoice-date">تاريخ الفاتورة: 15 نوفمبر 2023</div>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="invoice-body">
+            <!-- Invoice Info -->
+            <div class="invoice-info-grid">
+                <div class="info-card">
+                    <h3><i class="fas fa-store"></i> معلومات المتجر</h3>
+                    <div class="info-item">
+                        <span class="info-label">اسم المتجر:</span>
+                        <span>متجر التكنولوجيا</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">الهاتف:</span>
+                        <span>+20 100 123 4567</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">البريد الإلكتروني:</span>
+                        <span>info@techstore.com</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">العنوان:</span>
+                        <span>القاهرة، مصر</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3><i class="fas fa-user"></i> معلومات العميل</h3>
+                    <div class="info-item">
+                        <span class="info-label">اسم العميل:</span>
+                        <span>أحمد محمد</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">الهاتف:</span>
+                        <span>+20 111 222 3333</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">البريد الإلكتروني:</span>
+                        <span>ahmed@example.com</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">العنوان:</span>
+                        <span>الإسكندرية، مصر</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="invoice-items">
+                <h2 class="section-title">المنتجات والخدمات</h2>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="45%">اسم المنتج</th>
+                            <th width="15%" class="text-right">الكمية</th>
+                            <th width="15%" class="text-right">سعر الوحدة</th>
+                            <th width="20%" class="text-right">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="text-center">1</td>
+                            <td>هاتف ذكي - Samsung Galaxy S23</td>
+                            <td class="text-right">1</td>
+                            <td class="text-right">18,500.00 ج.م</td>
+                            <td class="text-right">18,500.00 ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-center">2</td>
+                            <td>سماعات لاسلكية - Sony WH-1000XM4</td>
+                            <td class="text-right">1</td>
+                            <td class="text-right">6,200.00 ج.م</td>
+                            <td class="text-right">6,200.00 ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-center">3</td>
+                            <td>شاحن لاسلكي سريع</td>
+                            <td class="text-right">2</td>
+                            <td class="text-right">850.00 ج.م</td>
+                            <td class="text-right">1,700.00 ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-center">4</td>
+                            <td>حافظة هاتف زجاجية</td>
+                            <td class="text-right">3</td>
+                            <td class="text-right">120.00 ج.م</td>
+                            <td class="text-right">360.00 ج.م</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div class="invoice-totals">
+                <div class="totals-card">
+                    <h3><i class="fas fa-calculator"></i> تفاصيل الفاتورة</h3>
+                    <div class="total-row">
+                        <span class="total-label">المجموع الفرعي:</span>
+                        <span class="total-value">26,760.00 ج.م</span>
+                    </div>
+                    <div class="total-row discount-row">
+                        <span class="total-label">الخصم (10%):</span>
+                        <span class="total-value">-2,676.00 ج.م</span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">ضريبة القيمة المضافة (14%):</span>
+                        <span class="total-value">3,371.76 ج.م</span>
+                    </div>
+                    <div class="total-row grand-total">
+                        <span class="total-label">الإجمالي النهائي:</span>
+                        <span class="total-value">27,455.76 ج.م</span>
+                    </div>
+                </div>
+
+                <div class="totals-card">
+                    <h3><i class="fas fa-file-invoice-dollar"></i> ملاحظات الفاتورة</h3>
+                    <p>شكراً لتعاملكم مع متجر التكنولوجيا. نأمل أن تكونوا راضين عن منتجاتنا وخدماتنا.</p>
+                    <p>يرجى دفع الفاتورة خلال 15 يوم من تاريخها.</p>
+                    <p>للاستفسارات، يرجى الاتصال على: 19088</p>
+                </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="payment-status-card">
+                <div class="payment-status-header">
+                    <h3><i class="fas fa-credit-card"></i> حالة الدفع</h3>
+                    <span class="payment-badge badge-partial">مدفوعة جزئياً</span>
+                </div>
+
+                <div class="payment-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 60%"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span>0 ج.م</span>
+                        <span>27,455.76 ج.م</span>
+                    </div>
+                </div>
+
+                <div class="payment-details">
+                    <div>
+                        <div class="payment-detail">
+                            <span class="info-label">المبلغ الإجمالي:</span>
+                            <span class="total-value">27,455.76 ج.م</span>
+                        </div>
+                        <div class="payment-detail">
+                            <span class="info-label">المبلغ المدفوع:</span>
+                            <span class="total-value" style="color: var(--success);">16,473.46 ج.م</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="payment-detail">
+                            <span class="info-label">المبلغ المتبقي:</span>
+                            <span class="total-value" style="color: var(--danger);">10,982.30 ج.م</span>
+                        </div>
+                        <div class="payment-detail">
+                            <span class="info-label">موعد الاستحقاق:</span>
+                            <span class="total-value">30 نوفمبر 2023</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="invoice-actions">
+            <button class="btn btn-outline">
+                <i class="fas fa-print"></i> طباعة الفاتورة
+            </button>
+            <button class="btn btn-outline">
+                <i class="fas fa-file-pdf"></i> تصدير PDF
+            </button>
+            <button class="btn btn-primary" id="addPaymentBtn">
+                <i class="fas fa-plus-circle"></i> إضافة دفعة
+            </button>
+            <button class="btn btn-success">
+                <i class="fas fa-check-circle"></i> دفع كامل
+            </button>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal-backdrop" id="paymentModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">إضافة دفعة جديدة</h3>
+                <button class="close-modal" id="closeModal">&times;</button>
+            </div>
+
+            <div class="payment-summary">
+                <div class="summary-item">
+                    <span>إجمالي الفاتورة:</span>
+                    <strong>27,455.76 ج.م</strong>
+                </div>
+                <div class="summary-item">
+                    <span>المدفوع سابقاً:</span>
+                    <strong>16,473.46 ج.م</strong>
+                </div>
+                <div class="summary-item">
+                    <span>المتبقي:</span>
+                    <strong style="color: var(--danger);">10,982.30 ج.م</strong>
+                </div>
+            </div>
+
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label class="form-label" for="paymentAmount">مبلغ الدفعة *</label>
+                    <input type="number" id="paymentAmount" class="form-control" 
+                           min="1" max="10982.30" step="0.01" 
+                           placeholder="أدخل مبلغ الدفعة" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="paymentMethod">طريقة الدفع *</label>
+                    <select id="paymentMethod" class="form-control" required>
+                        <option value="">اختر طريقة الدفع</option>
+                        <option value="cash">نقدي</option>
+                        <option value="bank">تحويل بنكي</option>
+                        <option value="card">بطاقة ائتمان</option>
+                        <option value="check">شيك</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="paymentDate">تاريخ الدفع *</label>
+                    <input type="date" id="paymentDate" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="paymentNotes">ملاحظات (اختياري)</label>
+                    <textarea id="paymentNotes" class="form-control" rows="3" 
+                              placeholder="ملاحظات حول الدفعة..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" id="cancelPayment">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">تسجيل الدفعة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // عناصر DOM
+            const paymentModal = document.getElementById('paymentModal');
+            const addPaymentBtn = document.getElementById('addPaymentBtn');
+            const closeModal = document.getElementById('closeModal');
+            const cancelPayment = document.getElementById('cancelPayment');
+            const paymentForm = document.getElementById('paymentForm');
+            
+            // فتح مودال الدفعة
+            addPaymentBtn.addEventListener('click', function() {
+                paymentModal.style.display = 'flex';
+                // تعيين تاريخ اليوم كقيمة افتراضية
+                document.getElementById('paymentDate').valueAsDate = new Date();
+            });
+            
+            // إغلاق مودال الدفعة
+            function closePaymentModal() {
+                paymentModal.style.display = 'none';
+                paymentForm.reset();
+            }
+            
+            closeModal.addEventListener('click', closePaymentModal);
+            cancelPayment.addEventListener('click', closePaymentModal);
+            
+            // إغلاق بالنقر خارج المودال
+            paymentModal.addEventListener('click', function(e) {
+                if (e.target === paymentModal) {
+                    closePaymentModal();
+                }
+            });
+            
+            // معالجة إرسال نموذج الدفعة
+            paymentForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const amount = document.getElementById('paymentAmount').value;
+                const method = document.getElementById('paymentMethod').value;
+                const date = document.getElementById('paymentDate').value;
+                const notes = document.getElementById('paymentNotes').value;
+                
+                // هنا سيتم إرسال البيانات إلى الخادم
+                console.log('دفعة جديدة:', { amount, method, date, notes });
+                
+                // عرض رسالة نجاح
+                alert(`تم تسجيل الدفعة بنجاح! المبلغ: ${amount} ج.م`);
+                
+                // إغلاق المودال
+                closePaymentModal();
+                
+                // في التطبيق الحقيقي، سيتم تحديث واجهة المستخدم بناءً على الاستجابة من الخادم
+            });
+            
+            // تحديث الحد الأقصى للمبلغ بناءً على المتبقي
+            const remainingAmount = 10982.30;
+            document.getElementById('paymentAmount').max = remainingAmount;
+        });
+    </script>
+</body>
+</html>
