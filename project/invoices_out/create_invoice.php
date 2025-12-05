@@ -1042,41 +1042,861 @@ require_once BASE_DIR . 'partials/header.php';
 
 <!-- ========================= HTML / UI ========================= -->
 <style>
-  .invoice-out .container-inv {
-    padding: 18px;
-    font-family: Inter, 'Noto Naskh Arabic', Tahoma, Arial;
+  :root {
+    /* base palette */
+    --primary: #0b84ff;
+    --primary-600: #0a6be0;
+    --primary-700: #0a58c8;
+    --flash-gradient: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+
+    --accent: #7c3aed;
+    /* purple */
+    --accent-600: #6d28d9;
+    --teal: #10b981;
+    --amber: #f59e0b;
+    --rose: #ef4444;
+    --const: white;
+    --bg: #f6f8fc;
+    --surface: #ffffff;
+    --surface-2: #f9fbff;
+    --text: #0f172a;
+    --text-soft: #334155;
+    --muted: #64748b;
+    --border: rgba(2, 6, 23, 0.08);
+
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-lg: 20px;
+
+    --shadow-1: 0 10px 24px rgba(15, 23, 42, 0.06);
+    --shadow-2: 0 12px 28px rgba(11, 132, 255, 0.14);
+    --ring: 0 0 0 4px rgba(11, 132, 255, 0.18);
+
+    --header-h: 64px;
+    --sidebar-w: 264px;
+    --sidebar-w-mini: 84px;
+
+    --fast: .15s ease;
+    --normal: .25s cubic-bezier(.2, .8, .2, 1);
+
+    /* gradients */
+    --grad-1: linear-gradient(135deg, #0b84ff, #7c3aed);
+    --grad-2: linear-gradient(135deg, #10b981, #0ea5e9);
+    --grad-3: linear-gradient(135deg, #f59e0b, #ef4444);
+    --grad-4: linear-gradient(135deg, #ef4444, #b91c1c);
   }
 
-  .invoice-out .grid {
+  /* Dark Mode Tokens */
+  [data-app][data-theme="dark"] {
+    --flashy: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.06) 28%,
+        rgba(255, 255, 255, 0.22) 50%,
+        rgba(255, 255, 255, 0.06) 72%,
+        rgba(255, 255, 255, 0) 100%);
+    --bg: #0c1222;
+    --surface: #0f162d;
+    --surface-2: #0a1122;
+    --text: #e5e7eb;
+    --text-soft: #cbd5e1;
+    --muted: #94a3b8;
+    --border: rgba(148, 163, 184, 0.15);
+    --shadow-1: 0 12px 30px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 18px 40px rgba(11, 132, 255, 0.22);
+    --ring: 0 0 0 4px rgba(11, 132, 255, 0.24);
+    --accent-left: #7c3aed;
+    /* purple (kept a bit more vivid for dark) */
+    --accent-left-weak: rgba(124, 58, 237, 0.06);
+
+    --accent-right: #b9770e;
+    /* warm amber muted */
+    --accent-right-weak: rgba(185, 119, 14, 0.06);
+
+    --row-bg-odd-1: #0f1724;
+    /* deep cool */
+    --row-bg-odd-2: #0b1220;
+    --row-bg-even-1: #0b1220;
+    --row-bg-even-2: #05070d;
+
+    --row-border-strong: rgba(148, 163, 184, 0.08);
+    --row-border-soft: rgba(148, 163, 184, 0.04);
+    --row-shadow: 0 8px 26px rgba(2, 6, 23, 0.55);
+    --row-hover-tint: rgba(124, 58, 237, 0.06);
+
+    --row-radius: 10px;
+  }
+
+  /* التصميم الجديد */
+  .invoice-out * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  .invoice-out {
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+    line-height: 1.6;
+  }
+
+  .invoice-container {
+    max-width: 1400px;
+    margin: 0 auto;
     display: grid;
-    grid-template-columns: 280px 1fr 260px;
-    gap: 16px;
-    height: calc(100vh - 160px);
+    grid-template-columns: 70% 30%;
+    gap: 20px;
   }
 
-  .invoice-out .panel {
-    background: var(--surface);
-    padding: 12px;
-    border-radius: 12px;
-    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.06);
-    overflow: auto;
-  }
-
-  .invoice-out .panel.panel-products {
-    padding-top: 0px;
-  }
-
-  .invoice-out .prod-card {
+  .invoice-header {
+    grid-column: 1 / -1;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-1);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .logo-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--grad-1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .logo-text h1 {
+    font-size: 24px;
+    color: var(--text);
+  }
+
+  .logo-text p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .invoice-info {
+    text-align: left;
+  }
+
+  .invoice-number {
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 5px;
+  }
+
+  .invoice-date {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* الجزء الرئيسي للفاتورة */
+  .invoice-main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .invoice-panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-1);
+    padding: 25px;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
     gap: 10px;
+  }
+
+  .panel-title i {
+    color: var(--primary);
+  }
+
+  /* قسم العميل */
+  .customer-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    background: var(--surface-2);
+  }
+
+  .customer-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--grad-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+  }
+
+  .customer-info h3 {
+    font-size: 18px;
+    margin-bottom: 5px;
+  }
+
+  .customer-info p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .change-customer {
+    margin-left: auto;
+  }
+
+  /* مسح الباركود */
+  .barcode-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+  }
+
+  .barcode-input {
+    flex: 1;
+    display: flex;
+    gap: 10px;
+  }
+
+  .barcode-input input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  /* إضافة منتج جديد */
+  .add-product-section {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+
+  .add-product-section input,
+  .add-product-section select {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--fast);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-600);
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .btn-outline:hover {
+    background: var(--surface-2);
+  }
+
+  .btn-success {
+    background: var(--teal);
+    color: white;
+  }
+
+  .btn-success:hover {
+    opacity: 0.9;
+  }
+
+  .btn-warning {
+    background: var(--amber);
+    color: var(--text);
+  }
+
+  .btn-sm {
+    padding: 8px 15px;
+    font-size: 13px;
+  }
+
+  /* جدول البنود */
+  .invoice-table-container {
+    overflow-x: auto;
+    margin-bottom: 20px;
+  }
+
+  .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .invoice-table th {
+    text-align: right;
+    padding: 15px;
+    background: var(--surface-2);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .invoice-table td {
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .invoice-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .invoice-table tr:hover {
+    background: var(--surface-2);
+  }
+
+  .input-qty,
+  .input-price {
+    width: 100px;
     padding: 10px;
     border: 1px solid var(--border);
-    border-radius: 10px;
-    margin-bottom: 10px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 15px;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .input-qty:focus,
+  .input-price:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+  }
+
+  .price-type-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    width: 120px;
+  }
+
+  .price-type-toggle label {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--surface);
+    transition: var(--fast);
+    font-size: 12px;
+  }
+
+  .price-type-toggle input {
+    display: none;
+  }
+
+  .price-type-toggle input:checked+label {
+    background: var(--primary);
+    color: white;
+  }
+
+  .remove-item {
+    color: var(--rose);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: var(--fast);
+  }
+
+  .remove-item:hover {
+    color: #d00000;
+    transform: scale(1.1);
+  }
+
+  /* الجزء الجانبي للملخص */
+  .invoice-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .summary-card,
+  .discount-card,
+  .payment-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-1);
+    padding: 25px;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-row:last-child {
+    border-bottom: none;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--primary);
+    margin-top: 10px;
+    padding-top: 15px;
+  }
+
+  .discount-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px;
+  }
+
+  .discount-input {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .discount-input label {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .discount-input input,
+  .discount-input select {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .discount-input input:focus,
+  .discount-input select:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+
+  .quick-discounts {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+  }
+
+  .quick-discount {
+    padding: 8px 15px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--fast);
+  }
+
+  .quick-discount:hover {
+    border-color: var(--primary);
+  }
+
+  .quick-discount.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .payment-section {
+    margin-top: 10px;
+  }
+
+  .payment-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .toggle-option {
+    flex: 1;
+    text-align: center;
+  }
+
+  .toggle-option input {
+    display: none;
+  }
+
+  .toggle-label {
+    display: block;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--fast);
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .toggle-option input:checked+.toggle-label {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .partial-payment {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-top: 20px;
+  }
+
+  .payment-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .payment-card-small {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 15px;
+    text-align: center;
+    box-shadow: var(--shadow-1);
+  }
+
+  .payment-card-small.total {
+    border-top: 3px solid var(--primary);
+  }
+
+  .payment-card-small.paid {
+    border-top: 3px solid var(--teal);
+  }
+
+  .payment-card-small.remaining {
+    border-top: 3px solid var(--amber);
+  }
+
+  .payment-card-small .label {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .payment-card-small .amount {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .payment-input {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  .payment-input input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .payment-history {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 15px;
+  }
+
+  .payment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .payment-item:last-child {
+    border-bottom: none;
+  }
+
+  .payment-details {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .payment-amount {
+    font-weight: 700;
+    color: var(--teal);
+  }
+
+  .payment-meta {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 25px;
+  }
+
+  .actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* النماذج */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-content {
+    background: var(--surface);
+    border-radius: var(--radius);
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-2);
+    padding: 25px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .close-modal {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  .search-box {
+    position: relative;
+    margin-bottom: 15px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 12px 45px 12px 15px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    transition: var(--fast);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+  }
+
+  .products-list,
+  .customers-list {
+    max-height: 400px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+  }
+
+  .product-card,
+  .customer-card {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: var(--fast);
+    cursor: pointer;
     background: var(--surface);
   }
 
+  .product-card:hover,
+  .customer-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-1);
+  }
+
+  .product-info h3,
+  .customer-info h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .product-meta,
+  .customer-meta {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .product-price {
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: auto;
+  }
+
+  /* الرسائل */
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-weight: 600;
+    box-shadow: var(--shadow-2);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transform: translateX(150%);
+    transition: transform 0.3s ease;
+  }
+
+  .toast.show {
+    transform: translateX(0);
+  }
+
+  .toast.success {
+    background: var(--teal);
+  }
+
+  .toast.error {
+    background: var(--rose);
+  }
+
+  /* التجاوب مع الشاشات الصغيرة */
+  @media (max-width: 1200px) {
+    .invoice-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .add-product-section {
+      grid-template-columns: 1fr;
+    }
+
+    .payment-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .discount-inputs {
+      grid-template-columns: 1fr;
+    }
+
+    .products-list,
+    .customers-list {
+      grid-template-columns: 1fr;
+    }
+
+    .barcode-section {
+      flex-direction: column;
+    }
+
+    .invoice-table {
+      font-size: 14px;
+    }
+
+    .invoice-table th,
+    .invoice-table td {
+      padding: 10px 5px;
+    }
+  }
+
+  /* ========== التكامل مع الكود الحالي ========== */
   .invoice-out .badge {
     padding: 6px 10px;
     border-radius: 999px;
@@ -1088,120 +1908,24 @@ require_once BASE_DIR . 'partials/header.php';
     color: #7a4f00;
   }
 
-  /* تحذير */
   .invoice-out .badge.green {
     background: rgba(16, 185, 129, 0.12);
     color: var(--teal);
   }
 
-  /* فعال */
   .invoice-out .badge.red {
     background: rgba(239, 68, 68, 0.13);
     color: #b91c1c;
   }
 
-  /* ملغي */
   .invoice-out .badge.gray {
     background: rgba(120, 120, 120, 0.13);
     color: #374151;
   }
 
-  /* مستهلك */
   .invoice-out .badge.purple {
     background: rgba(168, 85, 247, 0.13);
-    color: #7c3aed;
-  }
-
-  /* مرتجع */
-  .invoice-out .btn {
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-  }
-
-  .invoice-out .btn.primary {
-    background: linear-gradient(90deg, var(--primary), var(--accent));
-    color: #fff;
-  }
-
-  .invoice-out .btn.ghost {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
-  }
-
-  .invoice-out .table {
-    width: 100%;
-    border-collapse: separate;
-  }
-
-  .invoice-out .table th,
-  .invoice-out .table td {
-    padding: 8px;
-    border-bottom: 1px solid var(--border);
-    text-align: center;
-  }
-
-  .invoice-out .safe-hidden {
-    display: none;
-  }
-
-  .invoice-out .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(2, 6, 23, 0.55);
-    /* z-index: 1200; */
-  }
-
-  .invoice-out .mymodal {
-    width: 100%;
-    max-width: 1000px;
-    background: var(--surface);
-    padding: 16px;
-    border-radius: 12px;
-    max-height: 86vh;
-    overflow: auto;
-  }
-
-  .invoice-out .toast-wrap {
-    position: fixed;
-    top: 50px;
-    left: 30%;
-
-    z-index: 2000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .invoice-out .toast {
-    display: flex !important;
-    padding: 10px 14px;
-    border-radius: 8px;
-    color: #fff;
-    box-shadow: 0 8px 20px rgba(2, 6, 23, 0.12);
-  }
-
-  .invoice-out .toast.success {
-    background: linear-gradient(90deg, #10b981, #06b6d4);
-  }
-
-  .invoice-out .toast.error {
-    background: linear-gradient(90deg, #ef4444, #f97316);
-  }
-
-  .invoice-out .cust-card {
-    border: 1px solid var(--border);
-    padding: 8px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    color: var(--accent);
   }
 
   .invoice-out .small-muted {
@@ -1209,23 +1933,6 @@ require_once BASE_DIR . 'partials/header.php';
     color: var(--muted);
   }
 
-  @media (max-width:1100px) {
-    .invoice-out .grid {
-      grid-template-columns: 1fr;
-      height: auto
-    }
-  }
-
-  .invoice-out .invoice-table.custom-table-wrapper {
-    max-height: 50vh;
-  }
-
-  .invoice-out #productSearchInput {
-    background-color: var(--bg);
-    color: var(--text);
-  }
-
-  /* reuse your classes but make them subtle and non-invasive */
   .invoice-out .line-error {
     position: relative;
     overflow: visible;
@@ -1247,20 +1954,6 @@ require_once BASE_DIR . 'partials/header.php';
     pointer-events: none;
   }
 
-  /* subtle pointer */
-  .invoice-out .tooltip-warning::after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 6px 6px 0 6px;
-    border-style: solid;
-    border-color: inherit transparent transparent transparent;
-    opacity: 0.95;
-  }
-
-  /* light / dark variants */
   .invoice-out .tooltip-warning.light {
     background: #fff7f7;
     color: #7f1d1d;
@@ -1273,9 +1966,6 @@ require_once BASE_DIR . 'partials/header.php';
     border: 1px solid #4c1d1d;
   }
 
-
-
-  /* disabled btn look */
   .btn.disabled,
   button[disabled] {
     opacity: 0.55;
@@ -1294,24 +1984,13 @@ require_once BASE_DIR . 'partials/header.php';
     gap: 8px
   }
 
-
-  /* Result modal (replaces alert) */
-  /* .invoice-out .resultModal {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.35);
-  } */
-
   .invoice-out .resultModal .card {
-    background: #fff;
+    background: var(--surface);
     padding: 18px;
     border-radius: 10px;
     min-width: 320px;
     max-width: 520px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25)
+    box-shadow: var(--shadow-2)
   }
 
   .invoice-out .resultModal .title {
@@ -1323,37 +2002,6 @@ require_once BASE_DIR . 'partials/header.php';
     margin-bottom: 12px
   }
 
-  .invoice-out .btn {
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    border: 1px solid #ddd;
-    background: #f7f7f7
-  }
-
-  .invoice-out .btn.primary {
-    background: #2563eb;
-    color: #fff;
-    border-color: transparent
-  }
-
-  .invoice-out .btn.success {
-    background: #10b981;
-    color: #fff;
-    border-color: transparent
-  }
-
-  .invoice-out .btn.ghost {
-    background: transparent
-  }
-
-  /* زر الطباعة في confirm modal */
-  .invoice-out .confirm-actions {
-    display: flex;
-    gap: 8px
-  }
-
-  /* خاصين عند اختيار عميل جعله selected */
   .invoice-out .customer-card {
     transition: all .15s ease;
   }
@@ -1371,29 +2019,20 @@ require_once BASE_DIR . 'partials/header.php';
 
   .invoice-out #resultModal_backdrop .mymodal {
     max-width: 300px !important;
-
-
-
   }
 
   .invoice-out #addCustomer_backdrop .mymodal input {
-    background: var(--bg);
+    background: var(--surface);
     color: var(--text);
-
-
-
   }
 
   .invoice-out .confirm_invoice th {
     text-align: start !important;
   }
 
-  /* إضافة: احرص أن تضيف هذا إلى CSS العام */
   #resultMsg {
     white-space: pre-wrap;
   }
-
-  /* يحترم الأسطر في رسالة النتيجة */
 
   .invoice-status-badge {
     display: inline-block;
@@ -1407,7 +2046,6 @@ require_once BASE_DIR . 'partials/header.php';
     vertical-align: middle;
   }
 
-  /* استخدام كلاس ثابت (stateKey) */
   .invoice-status-badge.paid,
   .invoice-status-badge.delivered {
     background: #dff0d8;
@@ -1424,39 +2062,18 @@ require_once BASE_DIR . 'partials/header.php';
     color: #3b3b3b;
   }
 
-  /* زر معطل */
-  .btn.disabled,
-  .btn[disabled] {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-
-  /* زر معطل */
-  .btn.disabled,
-  .btn[disabled] {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
   .prod-card .price {
     border-radius: 5px;
     padding: 3px 10px;
-    background-color: var(--accent);
     background-color: var(--primary-700);
-    background-color: #347737;
-
-
     color: white;
     margin: 10px 0px;
     font-weight: bold;
-
   }
 
   .prod-card .code {
     font-weight: bold;
-    color: #e4840faa;
-    /* color: var(--primary); */
+    color: var(--amber);
   }
 
   .invoice-out .profit-container {
@@ -1467,13 +2084,12 @@ require_once BASE_DIR . 'partials/header.php';
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border: 2px solid #2ecc71;
+    border: 2px solid var(--teal);
     background: linear-gradient(180deg, #eaffef, #f6fff9);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     font-size: 12px;
-    color: #2ecc71;
+    color: var(--teal);
     font-weight: 700;
-
   }
 
   .invoice-out .quick-btn {
@@ -1485,9 +2101,9 @@ require_once BASE_DIR . 'partials/header.php';
     gap: 6px;
     padding: 8px 10px;
     border-radius: 8px;
-    border: 1px solid var(--border, #e5e7eb);
-    background: linear-gradient(180deg, var(--bg), var(--bg-alt));
-    color: var(--text, #111827);
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg), var(--surface-2));
+    color: var(--text);
     font-weight: 700;
     font-size: 0.95rem;
     cursor: pointer;
@@ -1510,7 +2126,7 @@ require_once BASE_DIR . 'partials/header.php';
   .invoice-out .quick-btn:focus {
     outline: 3px solid rgba(59, 130, 246, 0.15);
     outline-offset: 2px;
-    background-image: linear-gradient(90deg, #06b6d4 0%, #10b981 30%, #f59e0b 60%, #ef4444 100%);
+    background-image: var(--grad-2);
     background-size: 200% 100%;
     background-position: right center;
     color: #fff;
@@ -1519,33 +2135,28 @@ require_once BASE_DIR . 'partials/header.php';
     transform: translateY(-3px) scale(1.02);
     transition: background-position .6s cubic-bezier(.2, .9, .2, 1), transform .12s ease, box-shadow .12s ease, filter .12s ease;
     filter: saturate(1.08) drop-shadow(0 6px 18px rgba(16, 185, 129, 0.10));
-    /* subtle animated sweep by shifting background-position on focus */
     background-repeat: no-repeat;
   }
 
-  /* Primary variant for higher emphasis */
   .invoice-out .quick-btn.primary {
-    background: linear-gradient(90deg, #10b981, #06b6d4);
+    background: var(--grad-2);
     color: #fff;
     border-color: transparent;
   }
 
-  /* Subtle variant */
   .invoice-out .quick-btn.ghost {
     background: transparent;
-    border-color: var(--border, #e5e7eb);
-    color: var(--muted, #4b5563);
+    border-color: var(--border);
+    color: var(--muted);
     box-shadow: none;
   }
 
-  /* Small compact */
   .invoice-out .quick-btn.small {
     padding: 6px 8px;
     font-size: 0.85rem;
     min-width: 40px;
   }
 
-  /* Disabled look */
   .invoice-out .quick-btn[disabled],
   .invoice-out .quick-btn.disabled {
     opacity: 0.5;
@@ -1554,499 +2165,186 @@ require_once BASE_DIR . 'partials/header.php';
     box-shadow: none;
   }
 
-  .invoice-out .payment-toggle {
+  /* تعديلات للواجهة الجديدة */
+  #productsList {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .prod-card {
     display: flex;
+    justify-content: space-between;
     gap: 10px;
-    justify-content: flex-end;
-    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    background: var(--surface);
   }
 
-  .invoice-out .toggle-btn {
-    position: relative;
-    cursor: pointer;
+  .prod-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-1);
   }
 
-  .invoice-out .toggle-btn input[type="radio"] {
-    display: none;
-    /* نخفي الراديو الأصلي */
+  #invoice-summary {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
   }
 
-  .invoice-out .toggle-btn span {
-    display: inline-block;
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    background: var(--bg);
-    transition: all 0.2s ease-in-out;
-    user-select: none;
+  #total-before,
+  #discount-amount-display,
+  #total-after {
+    font-weight: 700;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    text-align: right;
+    background: var(--surface);
+    border: 1px solid var(--border);
   }
 
-  .invoice-out .toggle-btn input[type="radio"]:checked+span {
-    background: #0b74de;
-    color: #fff;
-    border-color: #0b74de;
-    font-weight: 600;
-  }
-
-  /* ---- Customer card styles ---- */
-  .invoice-out .customer-card {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    padding: 12px 14px;
+  #discount-input {
+    width: 100px;
+    padding: 6px;
     border-radius: var(--radius-sm);
     background: var(--surface);
+    color: var(--text);
     border: 1px solid var(--border);
-    box-shadow: var(--shadow-1);
-    transition: transform var(--normal), box-shadow var(--normal), background var(--normal), border-color var(--normal);
-    cursor: pointer;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
   }
 
-  /* small avatar */
-  .invoice-out .customer-card .avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.02));
-  }
-
-  /* text block */
-  .invoice-out .customer-card .info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .invoice-out .customer-card .name {
-    font-weight: 700;
-    font-size: 15px;
-    color: var(--text);
-    line-height: 1.05;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
-
-  .invoice-out .customer-card .meta {
-    font-size: 13px;
-    color: var(--text-soft);
-    opacity: .9;
-  }
-
-  /* selected state: bright card + glow + scale */
-  .invoice-out .customer-card--selected {
-    background: linear-gradient(180deg, rgba(11, 132, 255, 0.04), rgba(124, 58, 237, 0.02));
-    border: 1px solid rgba(11, 132, 255, 0.16);
-    box-shadow: var(--shadow-2);
-    transform: translateY(-4px) scale(1.01);
-  }
-
-  /* make the selected name larger and more prominent */
-  .invoice-out .customer-card--selected .name {
-    font-size: 17px;
-    letter-spacing: .2px;
-    color: var(--text);
-  }
-
-  /* subtle animated pulse when selected (only briefly) */
-  @keyframes select-pulse {
-    0% {
-      box-shadow: 0 12px 28px rgba(11, 132, 255, 0.10);
-    }
-
-    50% {
-      box-shadow: 0 18px 36px rgba(11, 132, 255, 0.16);
-    }
-
-    100% {
-      box-shadow: 0 12px 28px rgba(11, 132, 255, 0.10);
-    }
-  }
-
-  .customer-card.animate-select {
-    animation: select-pulse .6s ease;
-  }
-
-  /* accessibility: respect reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-
-    .customer-card,
-    .customer-card--selected {
-      transition: none !important;
-      animation: none !important;
-      transform: none !important;
-    }
-  }
-
-  /* dark mode tweaks: rely on your dark tokens */
-  [data-app][data-theme="dark"] .customer-card {
+  #discount-type {
+    padding: 6px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
+    color: var(--text);
     border: 1px solid var(--border);
-    box-shadow: var(--row-shadow);
   }
 
-  /* ====== Base glass card ====== */
-  .invoice-out .glass-box {
-    direction: rtl;
-    position: relative;
-    max-width: 380px;
-    margin: 10px 0;
-    padding: 14px;
-    border-radius: 14px;
-    /* background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.30)); */
-    /* border: 1px solid rgba(255, 255, 255, 0.45); */
-    box-shadow: 0 10px 28px rgba(16, 24, 40, 0.06);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
-    overflow: hidden;
-    font-family: "Cairo", Tahoma, Arial, sans-serif;
-    color: var(--text);
-    transition: transform .28s cubic-bezier(.2, .9, .28, 1), box-shadow .28s;
-  }
-
-  /* lift on hover */
-  .invoice-out .glass-box:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 18px 42px rgba(16, 24, 40, 0.12);
-  }
-
-  /* subtle neon rim */
-  .invoice-out .glass-box::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 14px;
-    padding: 1px;
-    background: linear-gradient(90deg, rgba(214, 51, 132, 0.10), rgba(0, 150, 136, 0.06));
-    mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* ====== Flash (full-card shimmer) ======
-   Uses a pseudo-element that slides left->right with a diagonal bright gradient.
-   It runs once on load and again on hover.
-*/
-  .invoice-out .glass-flash::before {
-    content: "";
-    position: absolute;
-    left: -120%;
-    top: -30%;
-    width: 160%;
-    height: 160%;
-    transform: rotate(-18deg);
-    background: var(--flash-gradient);
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
-
-    filter: blur(8px);
-    opacity: 0;
-    pointer-events: none;
-    z-index: 2;
-    animation: flashSweep 2s ease 0s 1 forwards;
-    animation-iteration-count: infinite;
-  }
-
-
-  /* replay flash on hover (subtle) */
-  .invoice-out .glass-flash:hover::before {
-    animation: flashSweep 0.95s ease 0s 1 forwards;
-  }
-
-  /* ====== Top layout & avatar ====== */
-  .invoice-out .gb-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: relative;
-    z-index: 3;
-    /* above flash pseudo */
-  }
-
-  .invoice-out .gb-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    background: linear-gradient(135deg, rgba(214, 51, 132, 0.08), rgba(0, 150, 136, 0.03));
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 8px 18px rgba(16, 24, 40, 0.05);
-  }
-
-  /* meta */
-  .invoice-out .gb-meta {
+  #invoiceNotes {
     flex: 1;
-    min-width: 0;
-    z-index: 3;
-  }
-
-  .invoice-out .gb-label {
-    font-size: 15px;
-    color: #d63384;
-    margin-bottom: 4px;
-    font-weight: bold;
-  }
-
-  /* name shimmer */
-  .invoice-out .gb-name {
-    font-size: 16px;
-    font-weight: 700;
-    position: relative;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
     color: var(--text);
-    display: inline-block;
-    padding-right: 6px;
-    overflow: hidden;
-    z-index: 3;
   }
 
-  /* .gb-name::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    left: -70%;
-    width: 60%;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
-    transform: skewX(-18deg);
-    mix-blend-mode: screen;
-    /* animation: flashSweep      1.1s ease 0s 1 forwards ; */
-
-  /* pointer-events: none;
-    opacity: .95;
-    z-index: 4; */
-
-  /* } */
-
-  /* badge */
-  .invoice-out .gb-badge {
-    white-space: nowrap;
-    font-size: 12px;
-    font-weight: 700;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #d63384, #ff7a59);
-    box-shadow: 0 10px 30px rgba(214, 51, 132, 0.12);
-    transform-origin: center;
-    transform: translateY(-6px) scale(.98);
-    animation: badgePop .55s cubic-bezier(.2, .9, .2, 1) forwards 0.3s;
-    margin-left: 8px;
-    z-index: 3;
-  }
-
-  /* details */
-  .invoice-out .gb-details {
-    margin-top: 10px;
-    font-size: 14px;
-    color: #374151;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-    border-radius: 10px;
+  #customersList {
+    max-height: 400px;
+    overflow-y: auto;
     padding: 10px;
-    border: 1px solid rgba(0, 0, 0, 0.03);
-    line-height: 1.6;
-    z-index: 3;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
   }
 
-  /* button */
-  .gb-actions {
-    margin-top: 12px;
-    text-align: center;
-    z-index: 3;
+  .cust-card {
+    border: 1px solid var(--border);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
   }
 
-  .invoice-out .gb-btn {
-    display: inline-block;
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02));
-    color: #d63384;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform .18s ease, box-shadow .18s ease, background .18s;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 6px 18px rgba(214, 51, 132, 0.06);
-  }
-
-  .invoice-out .gb-btn:active {
-    transform: translateY(1px) scale(.995);
-  }
-
-  .gb-btn:focus {
-    outline: 3px solid rgba(214, 51, 132, 0.12);
-    outline-offset: 3px;
-  }
-
-  /* ====== Keyframes ====== */
-  @keyframes flashSweep {
-    0% {
-      left: -120%;
-      opacity: 0;
-      transform: rotate(-18deg) translateX(0);
-    }
-
-    30% {
-      opacity: 1;
-    }
-
-    100% {
-      left: 120%;
-      opacity: 0;
-      transform: rotate(-18deg) translateX(0);
-    }
-  }
-
-  @keyframes nameShimmer {
-    0% {
-      left: -70%;
-    }
-
-    100% {
-      left: 120%;
-    }
-  }
-
-  @keyframes badgePop {
-    0% {
-      transform: translateY(6px) scale(.75);
-      opacity: 0;
-    }
-
-    60% {
-      transform: translateY(-4px) scale(1.06);
-      opacity: 1;
-    }
-
-    100% {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-  }
-
-  /* accessibility: respect reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-
-    .glass-flash::before,
-    .gb-name::after,
-    .gb-badge,
-    .glass-box {
-      animation: none !important;
-      transition: none !important;
-    }
-
-    .glass-flash::before {
-      opacity: 0;
-    }
-  }
-
-  /* responsive */
-  @media (max-width:420px) {
-    .glass-box {
-      padding: 12px;
-      max-width: 100%;
-      border-radius: 10px;
-    }
-
-    .gb-avatar {
-      width: 48px;
-      height: 48px;
-      font-size: 20px;
-      border-radius: 10px;
-    }
-
-    .gb-badge {
-      padding: 5px 8px;
-      font-size: 11px;
-    }
+  .cust-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-1);
   }
 </style>
 
-
-<div class="invoice-out mt-2">
-
-  <div class="container-fluid ">
-
-
-    <div style="display:flex; gap:20px;align-items:center;margin-bottom:12px;">
-      <div style="font-weight:900;font-size:20px">إنشاء فاتورة </div>
-      <div id="top"> <strong id="currentInvoiceNumber">رقم الفاتورة: -</strong> </div>
-
-    </div>
-
-    <div class="grid" role="main">
-      <!-- Products Column -->
-      <div class="panel panel-products" aria-label="Products">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px; ;position:sticky; top:0; background:var(--bg); padding:3px;border-radius:8px; z-index:10">
-          <div style="font-weight:800">المنتجات</div>
-          <input id="productSearchInput" placeholder="بحث باسم أو كود أو id..." style="padding:6px;border-radius:8px;border:1px solid var(--border);min-width:160px">
+<div class="invoice-out">
+  <div class="invoice-container">
+    <header class="invoice-header">
+      <div class="logo">
+        <div class="logo-icon">ف</div>
+        <div class="logo-text">
+          <h1>نظام إدارة الفواتير</h1>
+          <p>إنشاء فاتورة مبيعات مبسطة</p>
         </div>
-        <div id="productsList" style="padding-bottom:12px"></div>
       </div>
+      <div class="invoice-info">
+        <div class="invoice-number" id="currentInvoiceNumber">الفاتورة #INV-2023-00125</div>
+        <div class="invoice-date" id="invoiceDate">السبت، 15 يوليو 2023</div>
+      </div>
+    </header>
 
-      <!-- Invoice Column -->
-      <div class="panel" aria-label="Invoice">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <!-- <div>
-            <label><input type="radio" name="invoice_state" value="pending" checked> مؤجل</label>
-            <label style="margin-left:10px"><input type="radio" name="invoice_state" value="paid"> تم الدفع</label>
-          </div> -->
-          <div class="payment-toggle">
-
-            <label class="toggle-btn">
-              <input type="radio" name="invoice_state" value="pending" checked>
-              <span>مؤجل</span>
-            </label>
-
-            <label class="toggle-btn">
-              <input type="radio" name="invoice_state" value="paid">
-              <span>مدفوع</span>
-            </label>
-
+    <!-- الجزء الرئيسي للفاتورة -->
+    <div class="invoice-main">
+      <div class="invoice-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fas fa-receipt"></i> فاتورة البيع
           </div>
-
-          <strong>فاتورة جديدة</strong>
         </div>
 
-        <div class="custom-table-wrapper invoice-table">
-          <table class="tabl custom-table" id="invoiceTable" aria-label="Invoice items">
-            <thead class="center">
+        <!-- معلومات العميل -->
+        <div class="customer-section">
+          <div class="customer-avatar" id="selected-avatar">?</div>
+          <div class="customer-info">
+            <h3 id="selectedCustomerName">لم يتم اختيار عميل</h3>
+            <p id="selectedCustomerDetails">اختر عميلاً من القائمة</p>
+          </div>
+          <div class="change-customer">
+            <button class="btn btn-outline btn-sm" id="change-customer">
+              <i class="fas fa-exchange-alt"></i> تغيير العميل
+            </button>
+          </div>
+        </div>
+
+        <!-- مسح الباركود -->
+        <div class="barcode-section">
+          <div class="barcode-input">
+            <input type="text" id="productSearchInput" placeholder="مسح الباركود أو البحث عن منتج...">
+            <button class="btn btn-primary" id="scan-barcode">
+              <i class="fas fa-barcode"></i> مسح
+            </button>
+          </div>
+        </div>
+
+        <!-- إضافة منتج جديد -->
+        <div class="add-product-section">
+          <select id="product-select">
+            <option value="">اختر منتج للإضافة</option>
+          </select>
+          <input type="number" id="product-qty" min="1" value="1" placeholder="الكمية">
+          <input type="number" id="product-price" step="0.01" placeholder="السعر">
+          <button class="btn btn-primary" id="add-product-btn">
+            <i class="fas fa-plus"></i> إضافة
+          </button>
+        </div>
+
+        <!-- جدول البنود -->
+        <div class="invoice-table-container">
+          <table class="invoice-table">
+            <thead>
               <tr>
-                <th>المنتج</th>
-                <th>كمية</th>
-                <th>سعر بيع</th>
-                <th>تفاصيل FIFO</th>
-                <th>الإجمالي</th>
-                <th>حذف</th>
+                <th width="30%">المنتج</th>
+                <th width="10%">الكمية</th>
+                <th width="15%">سعر الوحدة</th>
+                <th width="15%">نوع السعر</th>
+                <th width="15%">الإجمالي</th>
+                <th width="15%">خيارات</th>
               </tr>
             </thead>
-            <tbody id="invoiceTbody"></tbody>
+            <tbody id="invoiceTbody">
+              <!-- سيتم تعبئتها بالبيانات -->
+            </tbody>
           </table>
         </div>
 
+        <!-- ملاحظات الفاتورة -->
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
           <textarea id="invoiceNotes" placeholder="ملاحظات (لن تُطبع)" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border)"></textarea>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-          <div><strong>إجمالي الكمية:</strong> <span id="sumQty">0</span></div>
-          <div><strong>إجمالي البيع:</strong> <span id="sumSell">0.00</span> ج</div>
-
-          <div style="display:flex;gap:8px">
-            <button id="clearBtn" class="btn ghost">تفريغ</button>
-            <button id="previewBtn" class="btn ghost">معاينة</button>
-            <button id="confirmBtn" class="btn primary">تأكيد الفاتورة</button>
-          </div>
-        </div>
-        <!-- ==================== ملخص الفاتورة (ضع هذا بعد invoiceTable وقبل customersList) ==================== -->
+        <!-- ملخص الفاتورة -->
         <div id="invoice-summary" style="margin-top:16px;padding:12px;border-radius:8px; ">
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
             <div style="flex:1;min-width:160px">
@@ -2077,9 +2375,7 @@ require_once BASE_DIR . 'partials/header.php';
             <div style="margin-left:auto;display:flex;flex-direction:row;align-items:centerx;position:absolute;left:20px ; bottom:40px;gap:12px;  ">
               <div class="profit-container"> <span id="profit-after">0.00</span></div>
               <div class="profit-container">
-                <!-- قبل : -->
                 <span id="profit-value"> 0.00</span>
-                <!-- <small>الربح قبل الخصم</small> -->
               </div>
             </div>
           </div>
@@ -2105,175 +2401,196 @@ require_once BASE_DIR . 'partials/header.php';
           <input type="hidden" id="h_total_cost" name="total_cost" value="0.00" />
           <input type="hidden" id="h_profit" name="profit_amount" value="0.00" />
         </div>
-        <!-- ==================== نهاية ملخص الفاتورة ==================== -->
+      </div>
+    </div>
 
+    <!-- الجزء الجانبي للملخص -->
+    <div class="invoice-sidebar">
+      <!-- الإجماليات -->
+      <div class="summary-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fas fa-calculator"></i> الإجماليات
+          </div>
+        </div>
+
+        <div class="summary-row">
+          <span>إجمالي الكمية:</span>
+          <span id="sumQty">0</span>
+        </div>
+        <div class="summary-row">
+          <span>إجمالي البيع:</span>
+          <span id="sumSell">0.00</span> ج
+        </div>
+        <div class="summary-row">
+          <span>الإجمالي النهائي:</span>
+          <span id="total-amount">0.00 ر.س</span>
+        </div>
       </div>
 
+      <!-- الخصم -->
+      <div class="discount-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fas fa-tag"></i> الخصم
+          </div>
+        </div>
 
-      <!-- Customers Column -->
-      <div class="panel" aria-label="Customers">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <strong>العملاء</strong>
-          <div style="display:flex;gap:6px">
-            <button id="openAddCustomerBtn" class="btn ghost" type="button">إضافة</button>
-            <button id="cashCustomerBtn" class="btn primary" type="button">نقدي (ثابت)</button>
+        <div class="discount-inputs">
+          <div class="discount-input">
+            <label for="discount-type">نوع الخصم</label>
+            <select id="discount-type">
+              <option value="percent">نسبة مئوية</option>
+              <option value="amount">مبلغ ثابت</option>
+            </select>
+          </div>
+          <div class="discount-input">
+            <label for="discount-value">قيمة الخصم</label>
+            <input type="number" id="discount-value" min="0" step="0.01" placeholder="0.00">
+          </div>
+        </div>
 
+        <div class="quick-discounts">
+          <div class="quick-discount" data-value="5">5%</div>
+          <div class="quick-discount" data-value="10">10%</div>
+          <div class="quick-discount" data-value="15">15%</div>
+          <div class="quick-discount" data-value="20">20%</div>
+        </div>
+      </div>
+
+      <!-- حالة الدفع -->
+      <div class="payment-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fas fa-credit-card"></i> حالة الدفع
+          </div>
+        </div>
+
+        <div class="payment-toggle">
+          <div class="toggle-option">
+            <input type="radio" id="payment-pending" name="payment-status" value="pending" checked>
+            <label for="payment-pending" class="toggle-label">مؤجل</label>
+          </div>
+          <div class="toggle-option">
+            <input type="radio" id="payment-partial" name="payment-status" value="partial">
+            <label for="payment-partial" class="toggle-label">جزئي</label>
+          </div>
+          <div class="toggle-option">
+            <input type="radio" id="payment-paid" name="payment-status" value="paid">
+            <label for="payment-paid" class="toggle-label">مدفوع</label>
+          </div>
+        </div>
+
+        <!-- الدفع الجزئي -->
+        <div class="partial-payment" id="partial-payment-section">
+          <div class="payment-summary">
+            <div class="payment-card-small total">
+              <div class="label">الإجمالي</div>
+              <div class="amount" id="payment-total">0.00 ر.س</div>
+            </div>
+            <div class="payment-card-small paid">
+              <div class="label">المدفوع</div>
+              <div class="amount" id="payment-paid">0.00 ر.س</div>
+            </div>
+            <div class="payment-card-small remaining">
+              <div class="label">المتبقي</div>
+              <div class="amount" id="payment-remaining">0.00 ر.س</div>
+            </div>
           </div>
 
-        </div>
-
-        <div style="margin-bottom:8px;display:flex;gap:6px;align-items:center ;position:sticky; z-index:100;top:-12px; background:var(--bg); padding:3px;border-radius:8px" class="sticky ">
-          <input type="text" id="customerSearchInput" placeholder="ابحث باسم أو موبايل..." style="padding:6px;border:1px solid var(--border);border-radius:6px;width:100%">
-        </div>
-
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-          <!-- <button id="cashCustomerBtn" class="btn primary" type="button">نقدي (ثابت)</button> -->
-          <div id="selectedCustomerBox" class="glass-flash glass-box" style="padding:8px;border:1px solid var(--border);border-radius:8px;">
-
-            <div class="gb-top">
-              <div class="gb-avatar" id="selected-avatar">??</div>
-
-              <div class="gb-meta">
-                <div class="gb-label ">العميل الحالي</div>
-                <div class="gb-name" id="selectedCustomerName">لم يتم الاختيار</div>
-              </div>
-
-              <!-- <div class="gb-badge" aria-hidden="true">—</div> -->
-            </div>
-            <div id="selectedCustomerDetails" class="gb-details">
-            </div>
-
-            <div class="gb-actions">
-              <button id="btnUnselectCustomer" type="button" class="gb-btn">إلغاء اختيار العميل</button>
-            </div>
+          <div class="payment-input">
+            <input type="number" id="current-payment" step="0.01" min="0" placeholder="المبلغ المدفوع">
+            <button class="btn btn-primary" id="add-payment-btn">إضافة دفعة</button>
           </div>
 
-
-
+          <div class="payment-history" id="payments-list">
+            <!-- سيتم تعبئتها بالمدفوعات -->
+          </div>
         </div>
+      </div>
 
-        <div id="customersList" style="margin-top:12px"></div>
+      <!-- الإجراءات -->
+      <div class="actions">
+        <button class="btn btn-outline" id="clearBtn">
+          <i class="fas fa-trash-alt"></i> تفريغ الفاتورة
+        </button>
+        <button class="btn btn-primary" id="previewBtn">
+          <i class="fas fa-eye"></i> معاينة
+        </button>
+        <button class="btn btn-success" id="confirmBtn">
+          <i class="fas fa-check-circle"></i> تأكيد الفاتورة
+        </button>
       </div>
     </div>
   </div>
 
 
-<!-- Batches list modal -->
-<div id="batchesModal_backdrop" class="modal-backdrop">
+  <!-- Add Customer modal (avoid bootstrap name) -->
+  <div id="addCustomer_backdrop" class="modal-backdrop">
     <div class="mymodal">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-            <div><strong id="batchesTitle">دفعات</strong>
-                <div class="small" id="batchesInfo"></div>
-            </div>
-            <div><button id="closeBatchesBtn" class="btn ghost">إغلاق</button></div>
+      <h3>إضافة عميل جديد</h3>
+      <div id="addCustMsg"></div>
+      <div style="display:grid;gap:8px;margin-top:8px">
+        <input id="new_name" placeholder="الاسم" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
+        <input id="new_mobile" placeholder="رقم الموبايل (11 رقم)" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
+        <input id="new_city" placeholder="المدينة" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
+        <input id="new_address" placeholder="العنوان" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
+        <textarea id="new_notes" placeholder="ملاحظات عن العميل (اختياري)" class="note-box" rows="3" style="padding:8px;border:1px solid var(--border);border-radius:8px"></textarea>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button id="closeAddCust" type="button" class="btn ghost">إلغاء</button>
+          <button id="submitAddCust" type="button" class="btn primary">حفظ وإختيار</button>
         </div>
-        <div id="batchesTable" class="custom-table-wrapper" style="margin-top:10px"></div>
+      </div>
     </div>
-</div>
+  </div>
 
-<!-- Batch detail modal -->
-<div id="batchDetailModal_backdrop" class="modal-backdrop">
+  <!-- Confirm modal -->
+  <!-- <div id="confirmModal_backdrop" class="modal-backdrop">
+  <div class="mymodal">
+    <h3>تأكيد إتمام الفاتورة</h3>
+    <div id="confirmClientPreview"></div>
+    <div id="confirmItemsPreview" style="margin-top:8px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+      <div><button id="confirmCancel" type="button" class="btn ghost">إلغاء</button><button id="confirmSend" type="button" class="btn primary" style="margin-left:8px">تأكيد وإرسال</button></div>
+      <div><strong>الإجمالي:</strong> <span id="confirm_total_before">0.00</span></div>
+    </div>
+  </div>
+</div> -->
+
+  <div id="confirmModal_backdrop" class="modal-backdrop">
     <div class="mymodal">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-            <div><strong id="batchTitle">تفاصيل الدفعة</strong></div>
-            <div><button id="closeBatchDetailBtn" class="btn ghost">إغلاق</button></div>
-        </div>
-        <div id="batchDetailBody" class="custom-table-wrapper" style="margin-top:10px"></div>
-    </div>
-</div>
+      <h3>تأكيد إنشاء الفاتورة</h3>
+      <!-- <div style="margin-top:8px">
+        <label style="margin-left:8px"><input type="radio" name="invoice_state" value="pending" checke> مؤجل</label>
+        <label><input type="radio" name="invoice_state" value="paid"> تم الدفع</label>
+      </div> -->
+      <div id="confirmClientPreview"></div>
 
-<!-- Add Customer modal -->
-<div id="addCustomer_backdrop" class="modal-backdrop">
+      <div id="confirmItemsPreview" style="max-height:320px;overflow:auto;margin-bottom:8px"></div>
+      <div><strong>الإجمالي:</strong> <span id="confirm_total_before">0.00</span></div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <button id="confirmPrintBtn" class="btn primary">طباعة (بنود + إجمالي + الحالة)</button>
+        <button id="confirmSend" class="btn success">إرسال وإنشاء</button>
+        <button id="confirmCancel" class="btn ghost">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- result modal replaces alerts -->
+  <div id="resultModal_backdrop" class="resultModal modal-backdrop">
     <div class="mymodal">
-        <h3>إضافة عميل جديد</h3>
-        <div id="addCustMsg"></div>
-        <div style="display:grid;gap:8px;margin-top:8px">
-            <input id="new_name" placeholder="الاسم" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
-            <input id="new_mobile" placeholder="رقم الموبايل (11 رقم)" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
-            <input id="new_city" placeholder="المدينة" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
-            <input id="new_address" placeholder="العنوان" class="note-box" style="padding:8px;border:1px solid var(--border);border-radius:8px">
-            <textarea id="new_notes" placeholder="ملاحظات عن العميل (اختياري)" class="note-box" rows="3" style="padding:8px;border:1px solid var(--border);border-radius:8px"></textarea>
-            <div style="display:flex;justify-content:flex-end;gap:8px">
-                <button id="closeAddCust" type="button" class="btn ghost">إلغاء</button>
-                <button id="submitAddCust" type="button" class="btn primary">حفظ وإختيار</button>
-            </div>
-        </div>
+      <div class="title" id="resultTitle">تم إنشاء الفاتورة</div>
+      <div class="msg" id="resultMsg">تمت العملية بنجاح.</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="goToInvoiceBtn" class="btn primary">الذهاب إلى الفاتورة</button>
+        <button id="createNewInvoiceBtn" class="btn success">إنشاء فاتورة جديدة</button>
+      </div>
     </div>
-</div>
-
-<!-- Confirm modal -->
-<div id="confirmModal_backdrop" class="modal-backdrop">
-    <div class="mymodal">
-        <h3>تأكيد إنشاء الفاتورة</h3>
-        <div id="confirmClientPreview"></div>
-        <div id="confirmItemsPreview" style="max-height:320px;overflow:auto;margin-bottom:8px"></div>
-        <div><strong>الإجمالي:</strong> <span id="confirm_total_before">0.00</span></div>
-        <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
-            <button id="confirmPrintBtn" class="btn primary">طباعة</button>
-            <button id="confirmSend" class="btn success">إرسال وإنشاء</button>
-            <button id="confirmCancel" class="btn ghost">إلغاء</button>
-        </div>
-    </div>
-</div>
-
-<!-- Result modal -->
-<div id="resultModal_backdrop" class="modal-backdrop">
-    <div class="mymodal">
-        <div class="title" id="resultTitle">تم إنشاء الفاتورة</div>
-        <div class="msg" id="resultMsg">تمت العملية بنجاح.</div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button id="goToInvoiceBtn" class="btn primary">الذهاب إلى الفاتورة</button>
-            <button id="createNewInvoiceBtn" class="btn success">إنشاء فاتورة جديدة</button>
-        </div>
-    </div>
-</div>
-
-<!-- Customers Modal -->
-<div id="customers-modal" class="modal-backdrop">
-    <div class="mymodal">
-        <div class="modal-header">
-            <h2 class="modal-title">اختيار العميل</h2>
-            <button class="close-modal">&times;</button>
-        </div>
-        
-        <div class="search-box">
-            <input type="text" id="customerSearchInput" placeholder="ابحث عن عميل...">
-            <div class="search-icon">
-                <i class="fas fa-search"></i>
-            </div>
-        </div>
-        
-        <div id="customersListContainer" style="max-height:400px;overflow-y:auto;">
-            <!-- سيتم تعبئتها بالعملاء -->
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:15px">
-            <button id="cashCustomerBtn" class="btn btn-primary" type="button">نقدي (ثابت)</button>
-            <button id="openAddCustomerBtn" class="btn btn-outline" type="button">إضافة عميل</button>
-        </div>
-    </div>
-</div>
-
-<!-- Products Modal -->
-<div id="products-modal" class="modal-backdrop">
-    <div class="mymodal">
-        <div class="modal-header">
-            <h2 class="modal-title">اختيار المنتج</h2>
-            <button class="close-modal">&times;</button>
-        </div>
-        
-        <div class="search-box">
-            <input type="text" id="productSearchModalInput" placeholder="ابحث عن منتج...">
-            <div class="search-icon">
-                <i class="fas fa-search"></i>
-            </div>
-        </div>
-        
-        <div id="productsListContainer" style="max-height:400px;overflow-y:auto;">
-            <!-- سيتم تعبئتها بالمنتجات -->
-        </div>
-    </div>
-</div>
-
+  </div>
+  <!-- Toasts -->
+  <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 </div>
 
 
@@ -2286,7 +2603,7 @@ require_once BASE_DIR . 'partials/header.php';
   document.addEventListener('DOMContentLoaded', function() {
     const CREATED_BY_NAME = "<?php echo $created_by_name_js; ?>"; // قد يكون '' لو لم يُعثر
 
-
+    // ---------- helpers ----------
     const $ = id => document.getElementById(id);
 
     function onId(id, fn) {
@@ -2340,7 +2657,50 @@ require_once BASE_DIR . 'partials/header.php';
 
     // edite
     // edite
-   
+    function fillInvoice(inv, items) {
+      // تعبئة بيانات العميل / الخصم / الحالة
+      // document.querySelector("#customerSelect").value = inv.customer_id;
+      // document.querySelector("#discountInput").value = inv.discount ?? 0;
+      // document.querySelector("#statusSelect").value = inv.delivered;
+      document.querySelector("#new_notes").value = inv.notes ?? "";
+
+      // تعبئة البنود
+      const tableBody = document.querySelector("#invoiceItemsBody");
+      tableBody.innerHTML = "";
+      items.forEach(it => {
+        const row = document.createElement("tr");
+        row.dataset.itemId = it.id;
+        row.innerHTML = `
+      <td>${it.product_name}</td>
+      <td><input type="number" class="qty-input" value="${it.quantity}" min="0"></td>
+      <td><input type="number" class="price-input" value="${it.selling_price}" min="0"></td>
+      <td>${(it.quantity * it.selling_price).toFixed(2)}</td>
+      <td><button type="button" class="btn-delete-item">🗑️</button></td>
+    `;
+        tableBody.appendChild(row);
+      });
+    }
+    document.addEventListener("click", async (e) => {
+      if (e.target.classList.contains("btn-delete-item")) {
+        const row = e.target.closest("tr");
+        const itemId = row.dataset.itemId;
+        const qty = parseFloat(row.querySelector(".qty-input").value);
+
+        const res = await Swal.fire({
+          title: "هل أنت متأكد؟",
+          text: "سيتم إرجاع الكمية إلى المخزون.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "نعم، احذف",
+          cancelButtonText: "إلغاء"
+        });
+
+        if (res.isConfirmed) {
+          await performReturn(itemId, qty);
+          row.remove();
+        }
+      }
+    });
 
     async function performReturn(itemId, qty) {
       const fd = new FormData();
@@ -2784,115 +3144,463 @@ require_once BASE_DIR . 'partials/header.php';
     }
 
     // ---------- renderInvoice ----------
-      function renderInvoice() {
-        const tbody = document.getElementById('invoiceTbody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        invoiceItems.forEach((it, i) => {
-          const tr = document.createElement('tr');
-          tr.dataset.idx = i;
-          tr.innerHTML = `
-  <td style="text-align:right">${esc(it.product_name)}</td>
-  <td><input type="number" class="qty" data-idx="${i}" value="${it.qty}" step="0.0001" style="width:100px"></td>
-  <td><input type="number" class="price" data-idx="${i}" value="${Number(it.selling_price).toFixed(2)}" step="0.01" style="width:110px"></td>
-  <td><button class="btn ghost fifo-btn" data-idx="${i}">تفاصيل FIFO</button></td>
-  <td class="line-total">${fmt(it.qty * it.selling_price)}</td>
-  <td><button class="btn ghost remove-btn" data-idx="${i}">حذف</button></td>
-  `;
-          tbody.appendChild(tr);
-        });
+    function renderInvoice() {
+      const tbody = document.getElementById('invoiceTbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      invoiceItems.forEach((it, i) => {
+        const tr = document.createElement('tr');
+        tr.dataset.idx = i;
+        tr.innerHTML = `
+<td style="text-align:right">${esc(it.product_name)}</td>
+<td><input type="number" class="qty" data-idx="${i}" value="${it.qty}" step="0.0001" style="width:100px"></td>
+<td><input type="number" class="price" data-idx="${i}" value="${Number(it.selling_price).toFixed(2)}" step="0.01" style="width:110px"></td>
+<td><button class="btn ghost fifo-btn" data-idx="${i}">تفاصيل FIFO</button></td>
+<td class="line-total">${fmt(it.qty * it.selling_price)}</td>
+<td><button class="btn ghost remove-btn" data-idx="${i}">حذف</button></td>
+`;
+        tbody.appendChild(tr);
+      });
 
-        const debouncedQtyUpdate = debounce(function(e) {
-          const idx = Number(e.target.dataset.idx);
-          invoiceItems[idx].qty = parseFloat(e.target.value || 0);
-          updateTotalsAndValidation();
-        }, 200);
-
-        const debouncedPriceUpdate = debounce(function(e) {
-          const idx = Number(e.target.dataset.idx);
-          invoiceItems[idx].selling_price = parseFloat(e.target.value || 0);
-          updateTotalsAndValidation();
-        }, 200);
-
-        document.querySelectorAll('.qty').forEach(el => el.addEventListener('input', debouncedQtyUpdate));
-        document.querySelectorAll('.price').forEach(el => el.addEventListener('input', debouncedPriceUpdate));
-
-        document.querySelectorAll('.remove-btn').forEach(b => b.addEventListener('click', e => {
-          const idx = Number(b.dataset.idx);
-          invoiceItems.splice(idx, 1);
-          renderInvoice();
-        }));
-        document.querySelectorAll('.fifo-btn').forEach(b => b.addEventListener('click', e => openFifoPreview(parseInt(b.dataset.idx))));
-
+      const debouncedQtyUpdate = debounce(function(e) {
+        const idx = Number(e.target.dataset.idx);
+        invoiceItems[idx].qty = parseFloat(e.target.value || 0);
         updateTotalsAndValidation();
+      }, 200);
+
+      const debouncedPriceUpdate = debounce(function(e) {
+        const idx = Number(e.target.dataset.idx);
+        invoiceItems[idx].selling_price = parseFloat(e.target.value || 0);
+        updateTotalsAndValidation();
+      }, 200);
+
+      document.querySelectorAll('.qty').forEach(el => el.addEventListener('input', debouncedQtyUpdate));
+      document.querySelectorAll('.price').forEach(el => el.addEventListener('input', debouncedPriceUpdate));
+
+      document.querySelectorAll('.remove-btn').forEach(b => b.addEventListener('click', e => {
+        const idx = Number(b.dataset.idx);
+        invoiceItems.splice(idx, 1);
+        renderInvoice();
+      }));
+      document.querySelectorAll('.fifo-btn').forEach(b => b.addEventListener('click', e => openFifoPreview(parseInt(b.dataset.idx))));
+
+      updateTotalsAndValidation();
+    }
+
+    // ---------- confirm modal open ----------
+    onId('confirmBtn', el => el.addEventListener('click', () => {
+      if (!selectedCustomer) return showToast('الرجاء اختيار عميل', 'error');
+      if (invoiceItems.length === 0) return showToast('لا توجد بنود لحفظ الفاتورة', 'error');
+
+      onId('confirmClientPreview', el => el.innerHTML = `<div class="cust-card"><div><strong>👤 ${esc(selectedCustomer.name)}</strong><div class="small-muted">📞 ${esc(selectedCustomer.mobile)} • ${esc(selectedCustomer.city)}</div><div class="small-muted">📍 ${esc(selectedCustomer.address)}</div></div></div>`);
+
+      let html = `<div class="custom-table-wrapper confirm_invoice" style="max-height:360px;overflow:auto"><table class="custom-table" style="width:100%"><thead  ><tr><th>المنتج</th><th>الكمية</th><th>سعر البيع</th><th>الإجمالي</th></tr></thead><tbody>`;
+      let total = 0;
+      invoiceItems.forEach(it => {
+        const line = (it.qty || 0) * (it.selling_price || 0);
+        total += line;
+        html += `<tr><td>${esc(it.product_name)}</td><td>${fmt(it.qty)}</td><td>${fmt(it.selling_price)}</td><td>${fmt(line)}</td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+      onId('confirmItemsPreview', el => el.innerHTML = html);
+      onId('confirm_total_before', el => el.textContent = fmt(total));
+      // rename radios inside modal if exist to avoid conflict
+      (function renameModalRadios() {
+        const modal = $('confirmModal_backdrop');
+        if (!modal) return;
+        modal.querySelectorAll('input[type="radio"][name="invoice_state"]').forEach(r => r.name = 'confirm_invoice_state');
+      })();
+      onId('confirmModal_backdrop', el => el.style.display = 'flex');
+    }));
+
+    // ---------- confirmSend (wrapped) ----------
+    // wrapper ensures raw server json passed to showResultModal for mapping allocation_errors
+    (function attachConfirmSend() {
+      const btn = $('confirmSend');
+      if (!btn) return;
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        if (!Array.isArray(invoiceItems) || invoiceItems.length === 0) return showToast('لا توجد بنود في الفاتورة', 'error');
+        if (!selectedCustomer) return showToast('الرجاء اختيار عميل', 'error');
+
+        const payload = invoiceItems.map(it => ({
+          product_id: it.product_id,
+          qty: Number(it.qty),
+          selling_price: Number(it.selling_price)
+        }));
+        const fd = new FormData();
+        // fd.append('action', 'save_invoice');
+
+        fd.append("action", "save_invoice");
+
+
+        fd.append('csrf_token', getCsrfToken());
+        fd.append('customer_id', selectedCustomer ? selectedCustomer.id : '');
+        // try modal radio name first to avoid conflict, fallback to page radio
+        let status = document.querySelector('input[name="confirm_invoice_state"]:checked')?.value ||
+          document.querySelector('input[name="invoice_state"]:checked')?.value ||
+          'pending';
+        fd.append('status', status);
+        fd.append('notes', $('invoiceNotes') ? $('invoiceNotes').value : '');
+        fd.append('items', JSON.stringify(payload));
+        // أرفق بيانات الخصم والملخص حتى يكون السيرفر قادراً على قراءتها (السيرفر سيعيد الحساب للتحقق)
+        fd.append('discount_type', document.getElementById('h_discount_type').value);
+        fd.append('discount_value', document.getElementById('h_discount_value').value);
+        fd.append('total_before', document.getElementById('h_total_before').value);
+        fd.append('total_cost', document.getElementById('h_total_cost').value);
+        fd.append('total_after', document.getElementById('h_total_after').value);
+        fd.append('discount_amount', document.getElementById('h_discount_amount').value);
+
+        try {
+          const res = await fetch(location.pathname + '?action=save_invoice', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin'
+          });
+          const txt = await res.text();
+          let json;
+          try {
+            json = JSON.parse(txt);
+          } catch (e) {
+            throw new Error('Invalid JSON');
+          }
+
+          if (!json.ok) {
+            // pass raw json to showResultModal so it can map allocation_errors to names
+            $('confirmModal_backdrop') && ($('confirmModal_backdrop').style.display = 'none');
+
+            return showResultModal('خطأ', json.error || (json.msg ? json.msg : 'فشل الحفظ'), false, null, json);
+          }
+
+          const invNum = json.invoice_number || json.invoice_id || json.invoice || null;
+          showResultModal('تم الإنشاء', `تمت إنشاء الفاتورة ${invNum ? ('#' + invNum) : ''}`, true, invNum, json);
+
+          // reset UI (do not keep customer)
+          invoiceItems = [];
+          renderInvoice();
+          $('invoiceNotes') && ($('invoiceNotes').value = '');
+          selectedCustomer = null;
+          renderSelectedCustomer();
+          loadProducts();
+          $('confirmModal_backdrop') && ($('confirmModal_backdrop').style.display = 'none');
+          loadNextInvoiceNumber();
+        } catch (e) {
+          console.error(e);
+          showResultModal('خطأ', 'تعذر الاتصال أو استجابة الخادم', false, null, null);
+        }
+      });
+    })();
+
+    // ---------- print handler (unchanged) ----------
+    // confirmPrintBtn handler with this
+    onId('confirmPrintBtn', btn => btn && btn.addEventListener('click', async () => {
+      // --- helper to get created_by name ---
+      // Option A: if server injected CREATED_BY_NAME (preferred)
+      let adminName = (typeof CREATED_BY_NAME !== 'undefined' && CREATED_BY_NAME) ? CREATED_BY_NAME : '';
+
+      // Option B fallback: if CREATED_BY_NAME empty but you have created_by id in JS (server can echo it)
+      // you can set CREATED_BY_ID in PHP similarly: const CREATED_BY_ID = "<?php echo $created_by; ?>";
+      const createdById = (typeof CREATED_BY_ID !== 'undefined') ? String(CREATED_BY_ID) : '';
+
+      async function resolveAdminName() {
+        if (adminName && adminName.trim()) return adminName;
+        if (!createdById) return '—';
+        // try AJAX endpoint ?action=get_user&id=...
+        try {
+          const j = await fetchJson(location.pathname + '?action=get_user&id=' + encodeURIComponent(createdById), {
+            credentials: 'same-origin'
+          });
+          if (j && j.ok && j.user && j.user.username) return j.user.username;
+        } catch (e) {
+          /* ignore */
+        }
+        return '—';
       }
 
-      // ---------- confirm modal open ----------
-      onId('confirmBtn', el => el.addEventListener('click', () => {
-        if (!selectedCustomer) return showToast('الرجاء اختيار عميل', 'error');
-        if (invoiceItems.length === 0) return showToast('لا توجد بنود لحفظ الفاتورة', 'error');
+      // --- build printable HTML content (simple, uses existing esc() and fmt()) ---
+      const status = document.querySelector('input[name="invoice_state"]:checked')?.value === 'paid' ? 'تم الدفع' : 'مؤجل';
+      const cust = selectedCustomer || {};
+      const isCash = String(cust.id) === '8' || (cust.name && String(cust.name).includes('نقد'));
+      const custName = esc(cust.name || '-');
+      const custMobile = isCash ? '' : esc(cust.mobile || '-');
 
-        onId('confirmClientPreview', el => el.innerHTML = `<div class="cust-card"><div><strong>👤 ${esc(selectedCustomer.name)}</strong><div class="small-muted">📞 ${esc(selectedCustomer.mobile)} • ${esc(selectedCustomer.city)}</div><div class="small-muted">📍 ${esc(selectedCustomer.address)}</div></div></div>`);
+      // resolve admin name (may be async)
+      adminName = await resolveAdminName();
 
-        let html = `<div class="custom-table-wrapper confirm_invoice" style="max-height:360px;overflow:auto"><table class="custom-table" style="width:100%"><thead  ><tr><th>المنتج</th><th>الكمية</th><th>سعر البيع</th><th>الإجمالي</th></tr></thead><tbody>`;
-        let total = 0;
-        invoiceItems.forEach(it => {
-          const line = (it.qty || 0) * (it.selling_price || 0);
-          total += line;
-          html += `<tr><td>${esc(it.product_name)}</td><td>${fmt(it.qty)}</td><td>${fmt(it.selling_price)}</td><td>${fmt(line)}</td></tr>`;
+      const now = new Date().toLocaleString('ar-EG', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      let rows = '';
+      let total = 0;
+      (invoiceItems || []).forEach((it, i) => {
+        const qty = Number(it.qty || 0);
+        const price = Number(it.selling_price || 0);
+        const line = qty * price;
+        total += line;
+        rows += `<tr>
+      <td style="width:40px;text-align:center">${i+1}</td>
+      <td style="text-align:right">${esc(it.product_name || '-')}</td>
+      <td style="text-align:center">${fmt(qty)}</td>
+      <td style="text-align:center">${fmt(price)}</td>
+      <td style="text-align:center">${fmt(line)}</td>
+    </tr>`;
+      });
+      if (!rows) rows = `<tr><td colspan="5" style="text-align:center;padding:10px">لا توجد بنود</td></tr>`;
+
+      const invoiceNumberEl = document.getElementById('currentInvoiceNumber') || document.getElementById('invoice_number');
+      const invoiceNumberText = invoiceNumberEl ? invoiceNumberEl.textContent.replace(/^\s*رقم الفاتورة:\s*/i, '').trim() : '';
+      const discount = document.getElementById('discount-amount-display').textContent;
+      const printHtml = `
+  <div id="__print_area" style="direction:rtl;font-family:Tahoma,Arial,sans-serif;color:#111;padding:18px;">
+    <div style="max-width:900px;margin:0 auto;border:1px solid #eee;padding:14px;border-radius:6px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div>
+          <div style="font-weight:800;font-size:18px">فاتورة مبيعات ${ invoiceNumberText ? ('#' + esc(invoiceNumberText)) : '' }</div>
+          <div style="color:#666;font-size:13px">التاريخ: ${esc(now)}</div>
+        </div>
+        <div style="text-align:left;font-size:13px;color:#333">
+          <div>المسؤول: <strong>${esc(adminName)}</strong></div>
+          <div>الحالة: <strong>${esc(status)}</strong></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:12px">
+        <div style="flex:1;border:1px solid #f1f1f1;padding:8px;border-radius:6px">
+          <div style="font-weight:700;margin-bottom:6px">بيانات العميل</div>
+          <div>الاسم: <strong>${custName}</strong></div>
+          ${custMobile ? `<div>الهاتف: <strong>${custMobile}</strong></div>` : ''}
+        </div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr>
+            <th style="border:1px solid #ddd;padding:8px;background:#fafafa">م</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#fafafa">المنتج</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#fafafa">الكمية</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#fafafa">سعر الوحدة</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#fafafa">الإجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">الإجمالي قبل الخصم</td>
+            <td style="border:1px solid #ddd;padding:8px;font-weight:700;text-align:center">${fmt(total)}</td>
+            
+          </tr>
+          <tr>
+            <td colspan="4" style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">
+            قيمه الخصم
+             </td>
+            <td style="border:1px solid #ddd;padding:8px;font-weight:700;text-align:center">${fmt(discount)}</td>
+          </tr>
+          <tr>
+            <td colspan="4" style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">(المطلوب)الإجمالي بعد الخصم</td>
+            <td style="border:1px solid #ddd;padding:8px;font-weight:700;text-align:center">${fmt(total - Number(discount))}</td>
+          </tr>
+
+        </tfoot>
+      </table>
+    </div>
+  </div>`;
+
+      // --- print in same page workflow ---
+      // 1) create print wrapper (hidden by default in screen) and append to body
+      let wrapper = document.getElementById('__print_wrapper');
+      if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = '__print_wrapper';
+        document.body.appendChild(wrapper);
+      }
+      wrapper.innerHTML = printHtml;
+
+      // 2) add temporary print-only stylesheet to hide rest of page and show only wrapper
+      let styleEl = document.getElementById('__print_style');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = '__print_style';
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `
+    @media screen {
+      #__print_wrapper { display: none; }
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #__print_wrapper, #__print_wrapper * { visibility: visible !important; }
+      #__print_wrapper { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  `;
+
+      // 3) trigger print (no new window) and cleanup after
+
+      printInvoiceNewWindow(printHtml);
+      // // optional cleanup: remove wrapper and style after a short delay (so print dialog finishes)
+      // setTimeout(() => {
+      //   // keep wrapper in DOM but hide it (so user can print again without rebuild) — or fully remove:
+      //   // wrapper.remove(); styleEl.remove();
+      //   wrapper.style.display = 'none';
+      // }, 800);
+    }));
+    async function printInvoiceNewWindow(htmlContent) {
+      const printWindow = window.open('', 'noopener,noreferrer');
+      if (!printWindow) return alert('المتصفح منع فتح نافذة الطباعة — فعّل النوافذ المنبثقة.');
+
+      printWindow.document.open();
+      printWindow.document.write(`
+    <html dir="rtl">
+      <head>
+        <meta charset="utf-8"/>
+        <title>فاتورة للطباعة</title>
+        <style>
+          body { font-family: Tahoma, Arial, sans-serif; color:#111; margin:0; padding:10px; direction: rtl; }
+          table { width:100%; border-collapse: collapse; font-size:13px; }
+          th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+          @media print {
+            /* تبسيط الطباعة: ازالة الظلال والانيميشن */
+            * { box-shadow:none !important; animation:none !important; transition:none !important; }
+          }
+        </style>
+      </head>
+      <body>${htmlContent}</body>
+    </html>
+  `);
+      printWindow.document.close();
+
+      // انتظر حتى الصفحة تُرسم — بعض المتصفحات تحتاج مدة بسيطة
+      printWindow.focus();
+      // تأخير صغير لضمان الانتهاء من الرسم قبل الطباعة
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 300);
+    }
+
+
+
+    // ---------- FIFO preview ----------
+    async function openFifoPreview(idx) {
+      const it = invoiceItems[idx];
+      if (!it) return;
+      try {
+        const json = await fetchJson(location.pathname + '?action=batches&product_id=' + encodeURIComponent(it.product_id));
+        if (!json.ok) return showToast(json.error || 'خطأ في جلب الدفعات', 'error');
+        const batches = (json.batches || []).slice().sort((a, b) => (a.received_at || a.created_at || '') > (b.received_at || b.created_at || '') ? 1 : -1);
+        let need = Number(it.qty || 0);
+        let html = `<h4>تفاصيل FIFO — ${esc(it.product_name)}</h4><table class="fifo-table" style="width:100%"><thead><tr><th>رقم الدفعة</th><th>التاريخ</th><th>المتبقي قبل السحب</th><th>المتبقي بعد السحب المطلوب</th><th>سعر الشراء</th><th>مأخوذ</th><th>تكلفة</th></tr></thead><tbody>`;
+        let totalCost = 0;
+        for (const b of batches) {
+          if (b.status !== 'active' || (parseFloat(b.remaining || 0) <= 0)) continue;
+          const avail = parseFloat(b.remaining || 0);
+          const take = Math.min(avail, need);
+          const after = (avail - take);
+          const cost = take * parseFloat(b.unit_cost || 0);
+          totalCost += cost;
+          html += `<tr><td class="monos">${b.id}</td><td>${esc(b.received_at||b.created_at||'-')}</td><td>${fmt(avail)}</td><td>${fmt(after)}</td><td>${fmt(b.unit_cost)}</td><td>${fmt(take)}</td><td>${fmt(cost)}</td></tr>`;
+          need -= take;
+          if (need <= 0) break;
+        }
+        if (need > 0) html += `<tr><td colspan="7" style="color:#b91c1c">تحذير: الرصيد غير كافٍ. تبقى ${fmt(need)} وحدة لم تُغطَّى.</td></tr>`;
+        html += `</tbody></table><div style="margin-top:8px"><strong>إجمالي تكلفة البند:</strong> ${fmt(totalCost)} ج</div>`;
+        onId('batchDetailBody', el => el.innerHTML = html);
+        onId('batchTitle', el => el.textContent = 'تفاصيل FIFO');
+        onId('batchDetailModal_backdrop', el => el.style.display = 'flex');
+      } catch (e) {
+        console.error(e);
+        showToast('تعذر جلب الدفعات', 'error');
+      }
+    }
+
+    // ---------- openBatchesModal (unchanged logic) ----------
+    async function openBatchesModal(productId) {
+      try {
+        await fetchJson(location.pathname + '?action=sync_consumed').catch(() => {});
+        const json = await fetchJson(location.pathname + '?action=batches&product_id=' + productId);
+        if (!json.ok) return showToast(json.error || 'خطأ في جلب الدفعات', 'error');
+        const p = json.product || {};
+        onId('batchesTitle', el => el.textContent = `دفعات — ${p.name || ''}`);
+        onId('batchesInfo', el => el.textContent = `${p.product_code || ''}`);
+        const rows = json.batches || [];
+        if (!rows.length) {
+          onId('batchesTable', el => el.innerHTML = '<div class="small-muted">لا توجد دفعات.</div>');
+          onId('batchesModal_backdrop', m => m.style.display = 'flex');
+          return;
+        }
+        let html = `<table class="custom-table" style="width:100%;border-collapse:collapse"><thead class="center"><tr><th>رقم الدفعة</th><th>التاريخ</th><th>كمية</th><th>المتبقي</th><th>سعر الشراء</th><th>سعر البيع</th><th>رقم الفاتورة</th><th>ملاحظات</th><th>الحالة</th><th>عرض</th></tr></thead><tbody>`;
+        rows.forEach(b => {
+          const st = b.status === 'active' ? '<span class="badge green">فعال</span>' : (b.status === 'consumed' ? '<span class="badge warn">مستهلك</span>' : (b.status === 'reverted' ? '<span class="badge purple">مرجع</span>' : '<span class="badge red">ملغى</span>'));
+          html += `<tr><td class="monos">${b.id}</td><td class="small monos">${b.received_at||b.created_at||'-'}</td><td>${fmt(b.qty)}</td><td>${fmt(b.remaining)}</td><td>${fmt(b.unit_cost)}</td><td>${fmt(b.sale_price)}</td><td class="monos">${b.source_invoice_id||'-'}</td><td class="small">${esc(b.notes||'-')}</td><td>${st}</td><td><button class="btn ghost view-batch" data-id="${b.id}">عرض</button></td></tr>`;
         });
-        html += `</tbody></table></div>`;
-        onId('confirmItemsPreview', el => el.innerHTML = html);
-        onId('confirm_total_before', el => el.textContent = fmt(total));
-        // rename radios inside modal if exist to avoid conflict
-        (function renameModalRadios() {
-          const modal = $('confirmModal_backdrop');
-          if (!modal) return;
-          modal.querySelectorAll('input[type="radio"][name="invoice_state"]').forEach(r => r.name = 'confirm_invoice_state');
-        })();
-        onId('confirmModal_backdrop', el => el.style.display = 'flex');
-      }));
+        html += `</tbody></table>`;
+        onId('batchesTable', el => el.innerHTML = html);
 
-      // ---------- confirmSend (wrapped) ----------
-      // wrapper ensures raw server json passed to showResultModal for mapping allocation_errors
-      (function attachConfirmSend() {
-        const btn = $('confirmSend');
-        if (!btn) return;
-        btn.addEventListener('click', async (ev) => {
-          ev.preventDefault();
-          if (!Array.isArray(invoiceItems) || invoiceItems.length === 0) return showToast('لا توجد بنود في الفاتورة', 'error');
-          if (!selectedCustomer) return showToast('الرجاء اختيار عميل', 'error');
+        // delegated view-batch handlers (attach after render)
+        document.querySelectorAll('.view-batch').forEach(btn => btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const row = rows.find(r => r.id == id);
+          if (!row) return;
+          const st = row.status === 'active' ? 'فعال' : (row.status === 'consumed' ? 'مستهلك' : (row.status === 'reverted' ? 'مرجع' : 'ملغى'));
+          let html = `<table style="width:100%"><tbody>
+            <tr><td>رقم الدفعة</td><td class="monos">${row.id}</td></tr>
+            <tr><td>الكمية الأصلية</td><td>${fmt(row.qty)}</td></tr>
+            <tr><td>المتبقي</td><td>${fmt(row.remaining)}</td></tr>
+            <tr><td>سعر الشراء</td><td>${fmt(row.unit_cost)}</td></tr>
+            <tr><td>سعر البيع</td><td>${fmt(row.sale_price)}</td></tr>
+            <tr><td>تاريخ الاستلام</td><td>${esc(row.received_at||row.created_at||'-')}</td></tr>
+            <tr><td>رقم الفاتورة المرتبطة</td><td>${row.source_invoice_id||'-'}</td></tr>
+            <tr><td>ملاحظات</td><td>${esc(row.notes||'-')}</td></tr>
+            <tr><td>حالة</td><td>${esc(st)}</td></tr>
+            <tr><td>سبب الإلغاء</td><td>${row.status==='cancelled'?esc(row.cancel_reason||'-'):'-'}</td></tr>
+            <tr><td>سبب الإرجاع</td><td>${row.status==='reverted'?esc(row.revert_reason||'-'):'-'}</td></tr>
+          </tbody></table>`;
+          onId('batchDetailBody', el => el.innerHTML = html);
+          onId('batchTitle', el => el.textContent = 'تفاصيل الدفعة');
+          onId('batchDetailModal_backdrop', m => m.style.display = 'flex');
+        }));
+        onId('batchesModal_backdrop', m => m.style.display = 'flex');
+      } catch (e) {
+        console.error(e);
+        showToast('خطأ في فتح الدفعات', 'error');
+      }
+    }
 
-          const payload = invoiceItems.map(it => ({
-            product_id: it.product_id,
-            qty: Number(it.qty),
-            selling_price: Number(it.selling_price)
-          }));
-          const fd = new FormData();
-          // fd.append('action', 'save_invoice');
+    // ---------- customers ----------
+    async function loadCustomers(q = '') {
+      try {
+        const json = await fetchJson(location.pathname + '?action=customers' + (q ? ('&q=' + encodeURIComponent(q)) : ''), {
+          credentials: 'same-origin'
+        });
+        if (!json.ok) {
+          console.warn(json.error);
+          return;
+        }
+        customers = json.customers || [];
+        const wrap = $('customersList');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        customers.forEach(c => {
+          const d = document.createElement('div');
+          d.className = 'cust-card';
+          d.innerHTML = `<div><strong>${esc(c.name)}</strong><div class="small-muted">${esc(c.mobile)} — ${esc(c.city||'')}</div></div><div><button class="btn ghost choose-cust" data-id="${c.id}">اختر</button></div>`;
+          wrap.appendChild(d);
+        });
 
-          fd.append("action", "save_invoice");
-
-
-          fd.append('csrf_token', getCsrfToken());
-          fd.append('customer_id', selectedCustomer ? selectedCustomer.id : '');
-          // try modal radio name first to avoid conflict, fallback to page radio
-          let status = document.querySelector('input[name="confirm_invoice_state"]:checked')?.value ||
-            document.querySelector('input[name="invoice_state"]:checked')?.value ||
-            'pending';
-          fd.append('status', status);
-          fd.append('notes', $('invoiceNotes') ? $('invoiceNotes').value : '');
-          fd.append('items', JSON.stringify(payload));
-          // أرفق بيانات الخصم والملخص حتى يكون السيرفر قادراً على قراءتها (السيرفر سيعيد الحساب للتحقق)
-          fd.append('discount_type', document.getElementById('h_discount_type').value);
-          fd.append('discount_value', document.getElementById('h_discount_value').value);
-          fd.append('total_before', document.getElementById('h_total_before').value);
-          fd.append('total_cost', document.getElementById('h_total_cost').value);
-          fd.append('total_after', document.getElementById('h_total_after').value);
-          fd.append('discount_amount', document.getElementById('h_discount_amount').value);
-
+        document.querySelectorAll('.choose-cust').forEach(btn => btn.addEventListener('click', async () => {
+          const cid = btn.dataset.id;
           try {
-            const res = await fetch(location.pathname + '?action=save_invoice', {
+            const fd = new FormData();
+            fd.append('action', 'select_customer');
+            fd.append('csrf_token', getCsrfToken());
+            fd.append('customer_id', cid);
+            const res = await fetch(location.pathname + '?action=select_customer', {
               method: 'POST',
               body: fd,
               credentials: 'same-origin'
@@ -2902,510 +3610,162 @@ require_once BASE_DIR . 'partials/header.php';
             try {
               json = JSON.parse(txt);
             } catch (e) {
-              throw new Error('Invalid JSON');
+              showToast('استجابة غير متوقعة', 'error');
+              return;
             }
-
             if (!json.ok) {
-              // pass raw json to showResultModal so it can map allocation_errors to names
-              $('confirmModal_backdrop') && ($('confirmModal_backdrop').style.display = 'none');
-
-              return showResultModal('خطأ', json.error || (json.msg ? json.msg : 'فشل الحفظ'), false, null, json);
+              showToast(json.error || 'فشل اختيار العميل', 'error');
+              return;
             }
-
-            const invNum = json.invoice_number || json.invoice_id || json.invoice || null;
-            showResultModal('تم الإنشاء', `تمت إنشاء الفاتورة ${invNum ? ('#' + invNum) : ''}`, true, invNum, json);
-
-            // reset UI (do not keep customer)
-            invoiceItems = [];
-            renderInvoice();
-            $('invoiceNotes') && ($('invoiceNotes').value = '');
-            selectedCustomer = null;
+            selectedCustomer = json.customer;
             renderSelectedCustomer();
-            loadProducts();
-            $('confirmModal_backdrop') && ($('confirmModal_backdrop').style.display = 'none');
-            loadNextInvoiceNumber();
+            showToast('تم اختيار العميل', 'success');
           } catch (e) {
             console.error(e);
-            showResultModal('خطأ', 'تعذر الاتصال أو استجابة الخادم', false, null, null);
-          }
-        });
-      })();
-
-      // ---------- print handler (unchanged) ----------
-      // confirmPrintBtn handler with this
-      onId('confirmPrintBtn', btn => btn && btn.addEventListener('click', async () => {
-        // --- helper to get created_by name ---
-        // Option A: if server injected CREATED_BY_NAME (preferred)
-        let adminName = (typeof CREATED_BY_NAME !== 'undefined' && CREATED_BY_NAME) ? CREATED_BY_NAME : '';
-
-        // Option B fallback: if CREATED_BY_NAME empty but you have created_by id in JS (server can echo it)
-        // you can set CREATED_BY_ID in PHP similarly: const CREATED_BY_ID = "<?php echo $created_by; ?>";
-        const createdById = (typeof CREATED_BY_ID !== 'undefined') ? String(CREATED_BY_ID) : '';
-
-        async function resolveAdminName() {
-          if (adminName && adminName.trim()) return adminName;
-          if (!createdById) return '—';
-          // try AJAX endpoint ?action=get_user&id=...
-          try {
-            const j = await fetchJson(location.pathname + '?action=get_user&id=' + encodeURIComponent(createdById), {
-              credentials: 'same-origin'
-            });
-            if (j && j.ok && j.user && j.user.username) return j.user.username;
-          } catch (e) {
-            /* ignore */
-          }
-          return '—';
-        }
-
-        // --- build printable HTML content (simple, uses existing esc() and fmt()) ---
-        const status = document.querySelector('input[name="invoice_state"]:checked')?.value === 'paid' ? 'تم الدفع' : 'مؤجل';
-        const cust = selectedCustomer || {};
-        const isCash = String(cust.id) === '8' || (cust.name && String(cust.name).includes('نقد'));
-        const custName = esc(cust.name || '-');
-        const custMobile = isCash ? '' : esc(cust.mobile || '-');
-
-        // resolve admin name (may be async)
-        adminName = await resolveAdminName();
-
-        const now = new Date().toLocaleString('ar-EG', {
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-
-        let rows = '';
-        let total = 0;
-        (invoiceItems || []).forEach((it, i) => {
-          const qty = Number(it.qty || 0);
-          const price = Number(it.selling_price || 0);
-          const line = qty * price;
-          total += line;
-          rows += `<tr>
-        <td style="width:40px;text-align:center">${i+1}</td>
-        <td style="text-align:right">${esc(it.product_name || '-')}</td>
-        <td style="text-align:center">${fmt(qty)}</td>
-        <td style="text-align:center">${fmt(price)}</td>
-        <td style="text-align:center">${fmt(line)}</td>
-      </tr>`;
-        });
-        if (!rows) rows = `<tr><td colspan="5" style="text-align:center;padding:10px">لا توجد بنود</td></tr>`;
-
-        const invoiceNumberEl = document.getElementById('currentInvoiceNumber') || document.getElementById('invoice_number');
-        const invoiceNumberText = invoiceNumberEl ? invoiceNumberEl.textContent.replace(/^\s*رقم الفاتورة:\s*/i, '').trim() : '';
-        const discount = document.getElementById('discount-amount-display').textContent;
-        const printHtml = `
-    <div id="__print_area" style="direction:rtl;font-family:Tahoma,Arial,sans-serif;color:#111;padding:18px;">
-      <div style="max-width:900px;margin:0 auto;border:1px solid #eee;padding:14px;border-radius:6px;background:#fff">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div>
-            <div style="font-weight:800;font-size:18px">فاتورة مبيعات ${ invoiceNumberText ? ('#' + esc(invoiceNumberText)) : '' }</div>
-            <div style="color:#666;font-size:13px">التاريخ: ${esc(now)}</div>
-          </div>
-          <div style="text-align:left;font-size:13px;color:#333">
-            <div>المسؤول: <strong>${esc(adminName)}</strong></div>
-            <div>الحالة: <strong>${esc(status)}</strong></div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:12px;margin-bottom:12px">
-          <div style="flex:1;border:1px solid #f1f1f1;padding:8px;border-radius:6px">
-            <div style="font-weight:700;margin-bottom:6px">بيانات العميل</div>
-            <div>الاسم: <strong>${custName}</strong></div>
-            ${custMobile ? `<div>الهاتف: <strong>${custMobile}</strong></div>` : ''}
-          </div>
-        </div>
-
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr>
-              <th style="border:1px solid #ddd;padding:8px;background:#fafafa">م</th>
-              <th style="border:1px solid #ddd;padding:8px;background:#fafafa">المنتج</th>
-              <th style="border:1px solid #ddd;padding:8px;background:#fafafa">الكمية</th>
-              <th style="border:1px solid #ddd;padding:8px;background:#fafafa">سعر الوحدة</th>
-              <th style="border:1px solid #ddd;padding:8px;background:#fafafa">الإجمالي</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">الإجمالي قبل الخصم</td>
-              <td style="border:1px solid #ddd;padding:8px;font-weight:700;text-align:center">${fmt(total)}</td>
-              
-            </tr>
-            <tr>
-              <td colspan="4" style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">
-              قيمه الخصم
-              </td>
-              <td style="border:1px solid #ddd;padding:8px;font-weight:700;text-align:center">${fmt(discount)}</td>
-            </tr>
-            <tr>
-              <td colspan="4" style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">(المطلوب)الإجمالي بعد الخصم</td>
-              <td style="border:1px solid #ddd;padding:8px;font-weight:700;text-align:center">${fmt(total - Number(discount))}</td>
-            </tr>
-
-          </tfoot>
-        </table>
-      </div>
-    </div>`;
-
-        // --- print in same page workflow ---
-        // 1) create print wrapper (hidden by default in screen) and append to body
-        let wrapper = document.getElementById('__print_wrapper');
-        if (!wrapper) {
-          wrapper = document.createElement('div');
-          wrapper.id = '__print_wrapper';
-          document.body.appendChild(wrapper);
-        }
-        wrapper.innerHTML = printHtml;
-
-        // 2) add temporary print-only stylesheet to hide rest of page and show only wrapper
-        let styleEl = document.getElementById('__print_style');
-        if (!styleEl) {
-          styleEl = document.createElement('style');
-          styleEl.id = '__print_style';
-          document.head.appendChild(styleEl);
-        }
-        styleEl.textContent = `
-      @media screen {
-        #__print_wrapper { display: none; }
-      }
-      @media print {
-        body * { visibility: hidden !important; }
-        #__print_wrapper, #__print_wrapper * { visibility: visible !important; }
-        #__print_wrapper { position: absolute; left: 0; top: 0; width: 100%; }
-      }
-    `;
-
-        // 3) trigger print (no new window) and cleanup after
-
-        printInvoiceNewWindow(printHtml);
-        // // optional cleanup: remove wrapper and style after a short delay (so print dialog finishes)
-        // setTimeout(() => {
-        //   // keep wrapper in DOM but hide it (so user can print again without rebuild) — or fully remove:
-        //   // wrapper.remove(); styleEl.remove();
-        //   wrapper.style.display = 'none';
-        // }, 800);
-      }));
-      async function printInvoiceNewWindow(htmlContent) {
-        const printWindow = window.open('', 'noopener,noreferrer');
-        if (!printWindow) return alert('المتصفح منع فتح نافذة الطباعة — فعّل النوافذ المنبثقة.');
-
-        printWindow.document.open();
-        printWindow.document.write(`
-      <html dir="rtl">
-        <head>
-          <meta charset="utf-8"/>
-          <title>فاتورة للطباعة</title>
-          <style>
-            body { font-family: Tahoma, Arial, sans-serif; color:#111; margin:0; padding:10px; direction: rtl; }
-            table { width:100%; border-collapse: collapse; font-size:13px; }
-            th, td { border:1px solid #ddd; padding:8px; text-align:center; }
-            @media print {
-              /* تبسيط الطباعة: ازالة الظلال والانيميشن */
-              * { box-shadow:none !important; animation:none !important; transition:none !important; }
-            }
-          </style>
-        </head>
-        <body>${htmlContent}</body>
-      </html>
-    `);
-        printWindow.document.close();
-
-        // انتظر حتى الصفحة تُرسم — بعض المتصفحات تحتاج مدة بسيطة
-        printWindow.focus();
-        // تأخير صغير لضمان الانتهاء من الرسم قبل الطباعة
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 300);
-      }
-
-
-
-      // ---------- FIFO preview ----------
-      async function openFifoPreview(idx) {
-        const it = invoiceItems[idx];
-        if (!it) return;
-        try {
-          const json = await fetchJson(location.pathname + '?action=batches&product_id=' + encodeURIComponent(it.product_id));
-          if (!json.ok) return showToast(json.error || 'خطأ في جلب الدفعات', 'error');
-          const batches = (json.batches || []).slice().sort((a, b) => (a.received_at || a.created_at || '') > (b.received_at || b.created_at || '') ? 1 : -1);
-          let need = Number(it.qty || 0);
-          let html = `<h4>تفاصيل FIFO — ${esc(it.product_name)}</h4><table class="fifo-table" style="width:100%"><thead><tr><th>رقم الدفعة</th><th>التاريخ</th><th>المتبقي قبل السحب</th><th>المتبقي بعد السحب المطلوب</th><th>سعر الشراء</th><th>مأخوذ</th><th>تكلفة</th></tr></thead><tbody>`;
-          let totalCost = 0;
-          for (const b of batches) {
-            if (b.status !== 'active' || (parseFloat(b.remaining || 0) <= 0)) continue;
-            const avail = parseFloat(b.remaining || 0);
-            const take = Math.min(avail, need);
-            const after = (avail - take);
-            const cost = take * parseFloat(b.unit_cost || 0);
-            totalCost += cost;
-            html += `<tr><td class="monos">${b.id}</td><td>${esc(b.received_at||b.created_at||'-')}</td><td>${fmt(avail)}</td><td>${fmt(after)}</td><td>${fmt(b.unit_cost)}</td><td>${fmt(take)}</td><td>${fmt(cost)}</td></tr>`;
-            need -= take;
-            if (need <= 0) break;
-          }
-          if (need > 0) html += `<tr><td colspan="7" style="color:#b91c1c">تحذير: الرصيد غير كافٍ. تبقى ${fmt(need)} وحدة لم تُغطَّى.</td></tr>`;
-          html += `</tbody></table><div style="margin-top:8px"><strong>إجمالي تكلفة البند:</strong> ${fmt(totalCost)} ج</div>`;
-          onId('batchDetailBody', el => el.innerHTML = html);
-          onId('batchTitle', el => el.textContent = 'تفاصيل FIFO');
-          onId('batchDetailModal_backdrop', el => el.style.display = 'flex');
-        } catch (e) {
-          console.error(e);
-          showToast('تعذر جلب الدفعات', 'error');
-        }
-      }
-
-      // ---------- openBatchesModal (unchanged logic) ----------
-      async function openBatchesModal(productId) {
-        try {
-          await fetchJson(location.pathname + '?action=sync_consumed').catch(() => {});
-          const json = await fetchJson(location.pathname + '?action=batches&product_id=' + productId);
-          if (!json.ok) return showToast(json.error || 'خطأ في جلب الدفعات', 'error');
-          const p = json.product || {};
-          onId('batchesTitle', el => el.textContent = `دفعات — ${p.name || ''}`);
-          onId('batchesInfo', el => el.textContent = `${p.product_code || ''}`);
-          const rows = json.batches || [];
-          if (!rows.length) {
-            onId('batchesTable', el => el.innerHTML = '<div class="small-muted">لا توجد دفعات.</div>');
-            onId('batchesModal_backdrop', m => m.style.display = 'flex');
-            return;
-          }
-          let html = `<table class="custom-table" style="width:100%;border-collapse:collapse"><thead class="center"><tr><th>رقم الدفعة</th><th>التاريخ</th><th>كمية</th><th>المتبقي</th><th>سعر الشراء</th><th>سعر البيع</th><th>رقم الفاتورة</th><th>ملاحظات</th><th>الحالة</th><th>عرض</th></tr></thead><tbody>`;
-          rows.forEach(b => {
-            const st = b.status === 'active' ? '<span class="badge green">فعال</span>' : (b.status === 'consumed' ? '<span class="badge warn">مستهلك</span>' : (b.status === 'reverted' ? '<span class="badge purple">مرجع</span>' : '<span class="badge red">ملغى</span>'));
-            html += `<tr><td class="monos">${b.id}</td><td class="small monos">${b.received_at||b.created_at||'-'}</td><td>${fmt(b.qty)}</td><td>${fmt(b.remaining)}</td><td>${fmt(b.unit_cost)}</td><td>${fmt(b.sale_price)}</td><td class="monos">${b.source_invoice_id||'-'}</td><td class="small">${esc(b.notes||'-')}</td><td>${st}</td><td><button class="btn ghost view-batch" data-id="${b.id}">عرض</button></td></tr>`;
-          });
-          html += `</tbody></table>`;
-          onId('batchesTable', el => el.innerHTML = html);
-
-          // delegated view-batch handlers (attach after render)
-          document.querySelectorAll('.view-batch').forEach(btn => btn.addEventListener('click', () => {
-            const id = btn.dataset.id;
-            const row = rows.find(r => r.id == id);
-            if (!row) return;
-            const st = row.status === 'active' ? 'فعال' : (row.status === 'consumed' ? 'مستهلك' : (row.status === 'reverted' ? 'مرجع' : 'ملغى'));
-            let html = `<table style="width:100%"><tbody>
-              <tr><td>رقم الدفعة</td><td class="monos">${row.id}</td></tr>
-              <tr><td>الكمية الأصلية</td><td>${fmt(row.qty)}</td></tr>
-              <tr><td>المتبقي</td><td>${fmt(row.remaining)}</td></tr>
-              <tr><td>سعر الشراء</td><td>${fmt(row.unit_cost)}</td></tr>
-              <tr><td>سعر البيع</td><td>${fmt(row.sale_price)}</td></tr>
-              <tr><td>تاريخ الاستلام</td><td>${esc(row.received_at||row.created_at||'-')}</td></tr>
-              <tr><td>رقم الفاتورة المرتبطة</td><td>${row.source_invoice_id||'-'}</td></tr>
-              <tr><td>ملاحظات</td><td>${esc(row.notes||'-')}</td></tr>
-              <tr><td>حالة</td><td>${esc(st)}</td></tr>
-              <tr><td>سبب الإلغاء</td><td>${row.status==='cancelled'?esc(row.cancel_reason||'-'):'-'}</td></tr>
-              <tr><td>سبب الإرجاع</td><td>${row.status==='reverted'?esc(row.revert_reason||'-'):'-'}</td></tr>
-            </tbody></table>`;
-            onId('batchDetailBody', el => el.innerHTML = html);
-            onId('batchTitle', el => el.textContent = 'تفاصيل الدفعة');
-            onId('batchDetailModal_backdrop', m => m.style.display = 'flex');
-          }));
-          onId('batchesModal_backdrop', m => m.style.display = 'flex');
-        } catch (e) {
-          console.error(e);
-          showToast('خطأ في فتح الدفعات', 'error');
-        }
-      }
-
-      // ---------- customers ----------
-      async function loadCustomers(q = '') {
-        try {
-          const json = await fetchJson(location.pathname + '?action=customers' + (q ? ('&q=' + encodeURIComponent(q)) : ''), {
-            credentials: 'same-origin'
-          });
-          if (!json.ok) {
-            console.warn(json.error);
-            return;
-          }
-          customers = json.customers || [];
-          const wrap = $('customersList');
-          if (!wrap) return;
-          wrap.innerHTML = '';
-          customers.forEach(c => {
-            const d = document.createElement('div');
-            d.className = 'cust-card';
-            d.innerHTML = `<div><strong>${esc(c.name)}</strong><div class="small-muted">${esc(c.mobile)} — ${esc(c.city||'')}</div></div><div><button class="btn ghost choose-cust" data-id="${c.id}">اختر</button></div>`;
-            wrap.appendChild(d);
-          });
-
-          document.querySelectorAll('.choose-cust').forEach(btn => btn.addEventListener('click', async () => {
-            const cid = btn.dataset.id;
-            try {
-              const fd = new FormData();
-              fd.append('action', 'select_customer');
-              fd.append('csrf_token', getCsrfToken());
-              fd.append('customer_id', cid);
-              const res = await fetch(location.pathname + '?action=select_customer', {
-                method: 'POST',
-                body: fd,
-                credentials: 'same-origin'
-              });
-              const txt = await res.text();
-              let json;
-              try {
-                json = JSON.parse(txt);
-              } catch (e) {
-                showToast('استجابة غير متوقعة', 'error');
-                return;
-              }
-              if (!json.ok) {
-                showToast(json.error || 'فشل اختيار العميل', 'error');
-                return;
-              }
-              selectedCustomer = json.customer;
-              renderSelectedCustomer();
-              showToast('تم اختيار العميل', 'success');
-            } catch (e) {
-              console.error(e);
-              showToast('خطأ في الاتصال', 'error');
-            }
-          }));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
-      function renderSelectedCustomer() {
-        if (!selectedCustomer) {
-          onId('selectedCustomerName', el => el.textContent = 'لم يتم الاختيار');
-          onId('selectedCustomerDetails', el => el.innerHTML = '');
-          return;
-        }
-        onId('selectedCustomerName', el => el.textContent = selectedCustomer.name || '—');
-        // onId('selectedCustomerDetails', el => el.innerHTML = `
-        // 📞 ${esc(selectedCustomer.mobile||'-')} <br> 🏙️ ${esc(selectedCustomer.city||'-')} <div class="small-muted">📍 ${esc(selectedCustomer.address||'-')}</div>`);
-        onId('selectedCustomerDetails', (el) => {
-          onId('selected-avatar', ele => ele.textContent = '👤')
-          el.innerHTML = ` <div id="selectedCustomerDetails" class="gb-details">
-      <div>📞 <span class="muted">${esc(selectedCustomer.mobile||'-')}</span></div>
-      <div>🏙️ <span class="muted">${esc(selectedCustomer.city||'-')}</span></div>
-      <div>📍 <span class="muted">${esc(selectedCustomer.address||'-')}</span></div>
-    </div>`
-        });
-
-      }
-
-      // ---------- Delegated click handlers (fix buttons not working) ----------
-      document.addEventListener('click', async (ev) => {
-        const t = ev.target;
-
-        // open add-customer modal
-        if (t.matches('#openAddCustomerBtn, .open-add-customer')) {
-          ev.preventDefault();
-          $('addCustomer_backdrop') && ($('addCustomer_backdrop').style.display = 'flex');
-          return;
-        }
-
-
-
-        // close add-customer
-        if (t.matches('#closeAddCust, .close-add-customer')) {
-          ev.preventDefault();
-          $('addCustomer_backdrop') && ($('addCustomer_backdrop').style.display = 'none');
-          return;
-        }
-
-        onId('closeBatchesBtn', btn => btn.addEventListener('click', () => onId('batchesModal_backdrop', m => m.style.display = 'none')));
-        onId('closeBatchDetailBtn', btn => btn.addEventListener('click', () => onId('batchDetailModal_backdrop', m => m.style.display = 'none')));
-        onId('confirmCancel', btn => btn.addEventListener('click', () => onId('confirmModal_backdrop', m => m.style.display = 'none')));
-
-        // submit add-customer (delegation fallback)
-        if (t.matches('#submitAddCust, .submit-add-customer')) {
-          ev.preventDefault();
-          // call internal function if exists
-          if (typeof window.submitAddCustomer === 'function') return window.submitAddCustomer();
-          // else fallback to clicking actual button
-          $('submitAddCust') && $('submitAddCust').click();
-          return;
-        }
-
-        // select cash fixed
-        // اختيار عميل نقدي مثبت (ID=8 مثلاً)
-        onId('cashCustomerBtn', btn => btn.addEventListener('click', async () => {
-          // لو العميل الحالي بالفعل هو النقدي، تجاهل
-
-
-          try {
-            if (selectedCustomer && (String(selectedCustomer.id) === '8' || (selectedCustomer.name || '').includes('نقد'))) {
-              return;
-            }
-            const json = await fetchJson(location.pathname + '?action=customers&q=عميل نقدي');
-            if (!json.ok) {
-              showToast('خطأ في جلب العملاء', 'error');
-              return;
-            }
-
-            const found = (json.customers || []).find(
-              c => (String(c.id) === '8') || (c.name && (c.name.includes('نقد') || c.name === 'عميل نقدي'))
-            ) || null;
-
-            if (found) {
-              const fd = new FormData();
-              fd.append('action', 'select_customer');
-              fd.append('csrf_token', getCsrfToken());
-              fd.append('customer_id', found.id);
-
-              const res = await fetch(location.pathname + '?action=select_customer', {
-                method: 'POST',
-                body: fd,
-                credentials: 'same-origin'
-              });
-              const txt = await res.text();
-              let sel;
-              try {
-                sel = JSON.parse(txt);
-              } catch (e) {
-                showToast('استجابة غير متوقعة', 'error');
-                return;
-              }
-
-              if (!sel.ok) {
-                showToast(sel.error || 'تعذر اختيار العميل', 'error');
-                return;
-              }
-
-              selectedCustomer = sel.customer;
-              renderSelectedCustomer();
-              showToast('تم اختيار العميل النقدي', 'success');
-            } else {
-              showToast('لم يتم العثور على حساب نقدي', 'error');
-            }
-          } catch (e) {
-
             showToast('خطأ في الاتصال', 'error');
           }
         }));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderSelectedCustomer() {
+      if (!selectedCustomer) {
+        onId('selectedCustomerName', el => el.textContent = 'لم يتم الاختيار');
+        onId('selectedCustomerDetails', el => el.innerHTML = '');
+        return;
+      }
+      onId('selectedCustomerName', el => el.textContent = selectedCustomer.name || '—');
+      // onId('selectedCustomerDetails', el => el.innerHTML = `
+      // 📞 ${esc(selectedCustomer.mobile||'-')} <br> 🏙️ ${esc(selectedCustomer.city||'-')} <div class="small-muted">📍 ${esc(selectedCustomer.address||'-')}</div>`);
+      onId('selectedCustomerDetails', (el) => {
+        onId('selected-avatar', ele => ele.textContent = '👤')
+        el.innerHTML = ` <div id="selectedCustomerDetails" class="gb-details">
+    <div>📞 <span class="muted">${esc(selectedCustomer.mobile||'-')}</span></div>
+    <div>🏙️ <span class="muted">${esc(selectedCustomer.city||'-')}</span></div>
+    <div>📍 <span class="muted">${esc(selectedCustomer.address||'-')}</span></div>
+  </div>`
+      });
+
+    }
+
+    // ---------- Delegated click handlers (fix buttons not working) ----------
+    document.addEventListener('click', async (ev) => {
+      const t = ev.target;
+
+      // open add-customer modal
+      if (t.matches('#openAddCustomerBtn, .open-add-customer')) {
+        ev.preventDefault();
+        $('addCustomer_backdrop') && ($('addCustomer_backdrop').style.display = 'flex');
+        return;
+      }
 
 
 
-        // unselect customer
-        if (t.matches('#btnUnselectCustomer')) {
+      // close add-customer
+      if (t.matches('#closeAddCust, .close-add-customer')) {
+        ev.preventDefault();
+        $('addCustomer_backdrop') && ($('addCustomer_backdrop').style.display = 'none');
+        return;
+      }
 
-          ev.preventDefault();
+      onId('closeBatchesBtn', btn => btn.addEventListener('click', () => onId('batchesModal_backdrop', m => m.style.display = 'none')));
+      onId('closeBatchDetailBtn', btn => btn.addEventListener('click', () => onId('batchDetailModal_backdrop', m => m.style.display = 'none')));
+      onId('confirmCancel', btn => btn.addEventListener('click', () => onId('confirmModal_backdrop', m => m.style.display = 'none')));
 
-          selectedCustomer = null;
-          renderSelectedCustomer();
-          onId('selected-avatar', ele => ele.textContent = '??')
-          showToast('تم إلغاء اختيار العميل', 'success');
-          // optionally clear server session selection
-          try {
+      // submit add-customer (delegation fallback)
+      if (t.matches('#submitAddCust, .submit-add-customer')) {
+        ev.preventDefault();
+        // call internal function if exists
+        if (typeof window.submitAddCustomer === 'function') return window.submitAddCustomer();
+        // else fallback to clicking actual button
+        $('submitAddCust') && $('submitAddCust').click();
+        return;
+      }
+
+      // select cash fixed
+      // اختيار عميل نقدي مثبت (ID=8 مثلاً)
+      onId('cashCustomerBtn', btn => btn.addEventListener('click', async () => {
+        // لو العميل الحالي بالفعل هو النقدي، تجاهل
+
+
+        try {
+          if (selectedCustomer && (String(selectedCustomer.id) === '8' || (selectedCustomer.name || '').includes('نقد'))) {
+            return;
+          }
+          const json = await fetchJson(location.pathname + '?action=customers&q=عميل نقدي');
+          if (!json.ok) {
+            showToast('خطأ في جلب العملاء', 'error');
+            return;
+          }
+
+          const found = (json.customers || []).find(
+            c => (String(c.id) === '8') || (c.name && (c.name.includes('نقد') || c.name === 'عميل نقدي'))
+          ) || null;
+
+          if (found) {
             const fd = new FormData();
             fd.append('action', 'select_customer');
             fd.append('csrf_token', getCsrfToken());
-            fd.append('customer_id', '');
-            await fetch(location.pathname + '?action=select_customer', {
+            fd.append('customer_id', found.id);
+
+            const res = await fetch(location.pathname + '?action=select_customer', {
               method: 'POST',
               body: fd,
               credentials: 'same-origin'
             });
-          } catch (e) {}
-          return;
+            const txt = await res.text();
+            let sel;
+            try {
+              sel = JSON.parse(txt);
+            } catch (e) {
+              showToast('استجابة غير متوقعة', 'error');
+              return;
+            }
+
+            if (!sel.ok) {
+              showToast(sel.error || 'تعذر اختيار العميل', 'error');
+              return;
+            }
+
+            selectedCustomer = sel.customer;
+            renderSelectedCustomer();
+            showToast('تم اختيار العميل النقدي', 'success');
+          } else {
+            showToast('لم يتم العثور على حساب نقدي', 'error');
+          }
+        } catch (e) {
+
+          showToast('خطأ في الاتصال', 'error');
         }
+      }));
+
+
+
+      // unselect customer
+      if (t.matches('#btnUnselectCustomer')) {
+
+        ev.preventDefault();
+
+        selectedCustomer = null;
+        renderSelectedCustomer();
+        onId('selected-avatar', ele => ele.textContent = '??')
+        showToast('تم إلغاء اختيار العميل', 'success');
+        // optionally clear server session selection
+        try {
+          const fd = new FormData();
+          fd.append('action', 'select_customer');
+          fd.append('csrf_token', getCsrfToken());
+          fd.append('customer_id', '');
+          await fetch(location.pathname + '?action=select_customer', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin'
+          });
+        } catch (e) {}
+        return;
+      }
 
 
       // Ensure any handler that sends to server checks disabled
@@ -3535,709 +3895,7 @@ require_once BASE_DIR . 'partials/header.php';
   }); // DOMContentLoaded
 </script>
 
-<script>
-// بيانات الحالة
-let products = [];
-let customers = [];
-let invoiceItems = [];
-let selectedCustomer = <?php echo $selected_customer_js; ?> || null;
-let payments = [];
-let discount = { type: "percent", value: 0 };
 
-// تهيئة الصفحة
-document.addEventListener('DOMContentLoaded', function() {
-    // تحميل البيانات الأولية
-    loadProducts();
-    loadCustomers();
-    loadNextInvoiceNumber();
-    updateInvoiceDate();
-    
-    // إعداد معالجات الأحداث
-    setupEventListeners();
-    
-    // تحديث واجهة الفاتورة
-    updateInvoiceDisplay();
-    updateSummary();
-    updatePaymentSection();
-    renderSelectedCustomer();
-});
-
-// تحديث تاريخ الفاتورة
-function updateInvoiceDate() {
-    const now = new Date();
-    const options = { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    };
-    document.getElementById('invoiceDate').textContent = now.toLocaleDateString('ar-SA', options);
-}
-
-// إعداد معالجات الأحداث
-function setupEventListeners() {
-    // تغيير العميل
-    document.getElementById('change-customer').addEventListener('click', function() {
-        document.getElementById('customers-modal').style.display = 'flex';
-    });
-    
-    // مسح الباركود
-    document.getElementById('scan-barcode').addEventListener('click', function() {
-        const barcode = document.getElementById('productSearchInput').value.trim();
-        if (barcode) {
-            findProductByBarcode(barcode);
-        } else {
-            document.getElementById('products-modal').style.display = 'flex';
-        }
-    });
-    
-    // البحث بالباركود عند الضغط على Enter
-    document.getElementById('productSearchInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const barcode = this.value.trim();
-            if (barcode) {
-                findProductByBarcode(barcode);
-            } else {
-                document.getElementById('products-modal').style.display = 'flex';
-            }
-        }
-    });
-    
-    // إضافة منتج للفاتورة
-    document.getElementById('add-product-btn').addEventListener('click', function() {
-        addProductToInvoice();
-    });
-    
-    // إضافة منتج عند الضغط على Enter في حقل السعر
-    document.getElementById('product-price').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            addProductToInvoice();
-        }
-    });
-    
-    // اختيار عميل من النافذة
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('choose-cust')) {
-            const customerId = parseInt(e.target.dataset.id);
-            selectCustomer(customerId);
-            document.getElementById('customers-modal').style.display = 'none';
-        }
-    });
-    
-    // اختيار منتج من النافذة
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('select-product')) {
-            const productId = parseInt(e.target.dataset.id);
-            const product = products.find(p => p.id === productId);
-            
-            // تعبئة الحقول تلقائياً
-            document.getElementById('product-select').value = productId;
-            document.getElementById('product-price').value = product.product_sale_price || 0;
-            document.getElementById('products-modal').style.display = 'none';
-            
-            showToast(`تم اختيار ${product.name}`, 'success');
-        }
-    });
-    
-    // البحث في العملاء
-    document.getElementById('customerSearchInput').addEventListener('input', debounce(function() {
-        loadCustomers(this.value.trim());
-    }, 250));
-    
-    // البحث في المنتجات (في المودال)
-    document.getElementById('productSearchModalInput').addEventListener('input', debounce(function() {
-        renderProductsModal(this.value.trim());
-    }, 250));
-    
-    // إغلاق النماذج
-    document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.modal-backdrop').forEach(modal => {
-                modal.style.display = 'none';
-            });
-        });
-    });
-    
-    // النقر خارج المودال لإغلاقه
-    document.querySelectorAll('.modal-backdrop').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                this.style.display = 'none';
-            }
-        });
-    });
-    
-    // الأحداث الأخرى الموروثة من الكود الأصلي
-    setupOriginalEventListeners();
-}
-
-// إعداد الأحداث الموروثة من الكود الأصلي
-function setupOriginalEventListeners() {
-    // تفريغ الفاتورة
-    document.getElementById('clearBtn').addEventListener('click', function() {
-        if (!confirm('هل تريد تفريغ بنود الفاتورة؟')) return;
-        invoiceItems = [];
-        renderInvoice();
-        selectedCustomer = null;
-        renderSelectedCustomer();
-    });
-    
-    // معاينة الفاتورة
-    document.getElementById('previewBtn').addEventListener('click', function() {
-        if (invoiceItems.length === 0) return showToast('لا توجد بنود للمعاينة', 'error');
-        
-        let html = `<h3>معاينة الفاتورة</h3><table><thead class="text-start"><tr><th>المنتج</th><th>الكمية</th><th>سعر البيع</th><th>الإجمالي</th></tr></thead><tbody>`;
-        let total = 0;
-        invoiceItems.forEach(it => {
-            const line = (it.qty || 0) * (it.selling_price || 0);
-            total += line;
-            html += `<tr><td>${esc(it.product_name)}</td><td>${fmt(it.qty)}</td><td>${fmt(it.selling_price)}</td><td>${fmt(line)}</td></tr>`;
-        });
-        html += `</tbody></table><div style="margin-top:8px"><strong>الإجمالي: ${fmt(total)}</strong></div>`;
-        
-        document.getElementById('batchDetailBody').innerHTML = html;
-        document.getElementById('batchTitle').textContent = 'معاينة الفاتورة';
-        document.getElementById('batchDetailModal_backdrop').style.display = 'flex';
-    });
-    
-    // تأكيد الفاتورة
-    document.getElementById('confirmBtn').addEventListener('click', function() {
-        if (!selectedCustomer) return showToast('الرجاء اختيار عميل', 'error');
-        if (invoiceItems.length === 0) return showToast('لا توجد بنود لحفظ الفاتورة', 'error');
-        
-        showConfirmModal();
-    });
-}
-
-// ========== دوال جلب البيانات ==========
-
-// جلب المنتجات
-async function loadProducts(q = '') {
-    try {
-        const json = await fetchJson(location.pathname + '?action=products' + (q ? '&q=' + encodeURIComponent(q) : ''), {
-            credentials: 'same-origin'
-        });
-        if (!json.ok) {
-            showToast(json.error || 'فشل جلب المنتجات', 'error');
-            return;
-        }
-        products = json.products || [];
-        renderProductSelect();
-    } catch (e) {
-        console.error(e);
-        showToast('تعذر جلب المنتجات', 'error');
-    }
-}
-
-// جلب العملاء
-async function loadCustomers(q = '') {
-    try {
-        const json = await fetchJson(location.pathname + '?action=customers' + (q ? ('&q=' + encodeURIComponent(q)) : ''), {
-            credentials: 'same-origin'
-        });
-        if (!json.ok) {
-            console.warn(json.error);
-            return;
-        }
-        customers = json.customers || [];
-        renderCustomersModal();
-    } catch (e) {
-        console.error(e);
-    }
-}
-
-// ========== دوال العرض ==========
-
-// عرض المنتجات في الـ select
-function renderProductSelect() {
-    const select = document.getElementById('product-select');
-    select.innerHTML = '<option value="">اختر منتج للإضافة</option>';
-    
-    products.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product.id;
-        option.textContent = `${product.name} - ${fmt(product.product_sale_price || 0)} ج`;
-        select.appendChild(option);
-    });
-}
-
-// عرض المنتجات في المودال
-function renderProductsModal(filter = '') {
-    const container = document.getElementById('productsListContainer');
-    container.innerHTML = '';
-    
-    const filteredProducts = products.filter(product => 
-        !filter || 
-        product.name.toLowerCase().includes(filter.toLowerCase()) ||
-        product.product_code.toLowerCase().includes(filter.toLowerCase())
-    );
-    
-    if (filteredProducts.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">لا توجد منتجات</div>';
-        return;
-    }
-    
-    filteredProducts.forEach(product => {
-        const rem = parseFloat(product.remaining_active || 0);
-        const consumed = rem <= 0;
-        
-        const card = document.createElement('div');
-        card.className = 'product-card';
-        card.innerHTML = `
-            <div class="product-info">
-                <h3>${esc(product.name)}</h3>
-                <div class="product-meta">
-                    <span>كود: ${product.product_code}</span>
-                    <span>المتبقي: ${fmt(rem)}</span>
-                </div>
-                <div class="product-price">${fmt(product.product_sale_price || 0)} ج</div>
-            </div>
-            <button class="btn btn-primary btn-sm select-product" data-id="${product.id}" ${consumed ? 'disabled' : ''}>
-                ${consumed ? 'مستهلك' : 'اختيار'}
-            </button>
-        `;
-        container.appendChild(card);
-    });
-}
-
-// عرض العملاء في المودال
-function renderCustomersModal() {
-    const container = document.getElementById('customersListContainer');
-    container.innerHTML = '';
-    
-    if (customers.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">لا توجد عملاء</div>';
-        return;
-    }
-    
-    customers.forEach(customer => {
-        const card = document.createElement('div');
-        card.className = 'customer-card';
-        card.innerHTML = `
-            <div class="customer-info">
-                <h3>${esc(customer.name)}</h3>
-                <div class="customer-meta">
-                    <span>${esc(customer.mobile)}</span>
-                    <span>${esc(customer.city || '')}</span>
-                </div>
-            </div>
-            <button class="btn btn-primary btn-sm choose-cust" data-id="${customer.id}">اختيار</button>
-        `;
-        container.appendChild(card);
-    });
-}
-
-// عرض العميل المحدد
-function renderSelectedCustomer() {
-    if (!selectedCustomer) {
-        document.getElementById('selectedCustomerName').textContent = 'لم يتم اختيار عميل';
-        document.getElementById('selectedCustomerDetails').textContent = 'اختر عميلاً من القائمة';
-        document.getElementById('selected-avatar').textContent = '?';
-        return;
-    }
-    
-    document.getElementById('selectedCustomerName').textContent = selectedCustomer.name || '—';
-    document.getElementById('selectedCustomerDetails').innerHTML = `
-        📞 ${esc(selectedCustomer.mobile || '-')} <br> 
-        🏙️ ${esc(selectedCustomer.city || '-')} <br>
-        📍 ${esc(selectedCustomer.address || '-')}
-    `;
-    document.getElementById('selected-avatar').textContent = selectedCustomer.name ? selectedCustomer.name.charAt(0) : '?';
-}
-
-// ========== دوال الأعمال ==========
-
-// اختيار عميل
-async function selectCustomer(customerId) {
-    try {
-        const fd = new FormData();
-        fd.append('action', 'select_customer');
-        fd.append('csrf_token', getCsrfToken());
-        fd.append('customer_id', customerId);
-        
-        const res = await fetch(location.pathname + '?action=select_customer', {
-            method: 'POST',
-            body: fd,
-            credentials: 'same-origin'
-        });
-        const json = await res.json();
-        
-        if (!json.ok) {
-            showToast(json.error || 'فشل اختيار العميل', 'error');
-            return;
-        }
-        
-        selectedCustomer = json.customer;
-        renderSelectedCustomer();
-        showToast('تم اختيار العميل', 'success');
-    } catch (e) {
-        console.error(e);
-        showToast('خطأ في الاتصال', 'error');
-    }
-}
-
-// إضافة منتج للفاتورة
-function addProductToInvoice() {
-    const productId = parseInt(document.getElementById('product-select').value);
-    const quantity = parseInt(document.getElementById('product-qty').value) || 1;
-    const price = parseFloat(document.getElementById('product-price').value);
-    
-    if (productId && price > 0) {
-        const product = products.find(p => p.id === productId);
-        if (product) {
-            addInvoiceItem({
-                product_id: productId,
-                product_name: product.name,
-                qty: quantity,
-                selling_price: price
-            });
-            
-            // مسح الحقول
-            document.getElementById('product-select').value = '';
-            document.getElementById('product-qty').value = 1;
-            document.getElementById('product-price').value = '';
-            document.getElementById('productSearchInput').value = '';
-        }
-    } else {
-        showToast('الرجاء اختيار منتج وإدخال سعر صحيح', 'error');
-    }
-}
-
-// البحث عن المنتج باستخدام الباركود
-function findProductByBarcode(barcode) {
-    // هذه دالة محاكاة - تحتاج إلى تعديل حسب نظام الباركود الفعلي
-    const product = products.find(p => 
-        p.product_code === barcode || 
-        p.id == barcode
-    );
-    
-    if (product) {
-        document.getElementById('product-select').value = product.id;
-        document.getElementById('product-price').value = product.product_sale_price || 0;
-        showToast(`تم العثور على ${product.name}`, 'success');
-    } else {
-        showToast('لم يتم العثور على المنتج', 'error');
-    }
-}
-
-// ========== الدوال المساعدة ==========
-
-// دوال المساعدة الموروثة من الكود الأصلي
-const $ = id => document.getElementById(id);
-
-function onId(id, fn) {
-    const el = document.getElementById(id);
-    if (el) fn(el);
-    return el;
-}
-
-function getCsrfToken() {
-    const m = document.querySelector('meta[name="csrf-token"]');
-    return m ? m.getAttribute('content') : '';
-}
-
-function showToast(msg, type = 'success', timeout = 2000) {
-    const toast = document.getElementById('success-toast');
-    toast.textContent = msg;
-    toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, timeout);
-}
-
-function esc(s) {
-    return (s == null) ? '' : String(s).replace(/[&<>"']/g, m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    })[m]);
-}
-
-function fmt(n) {
-    return Number(n || 0).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-
-function debounce(fn, t = 250) {
-    let to;
-    return (...a) => {
-        clearTimeout(to);
-        to = setTimeout(() => fn.apply(this, a), t);
-    }
-}
-
-async function fetchJson(url, opts) {
-    const res = await fetch(url, opts);
-    const txt = await res.text();
-    try {
-        return JSON.parse(txt);
-    } catch (e) {
-        console.error('Invalid JSON response:', txt);
-        throw new Error('Invalid JSON from server');
-    }
-}
-
-// دوال الفاتورة الموروثة
-function addInvoiceItem(item) {
-    const prod = products.find(p => String(p.id) === String(item.product_id));
-    const remaining = prod ? parseFloat(prod.remaining_active || 0) : null;
-    item.remaining_active = remaining;
-    const idx = invoiceItems.findIndex(x => String(x.product_id) === String(item.product_id));
-    if (idx >= 0) {
-        invoiceItems[idx].qty = Number(invoiceItems[idx].qty) + Number(item.qty);
-        invoiceItems[idx].selling_price = Number(item.selling_price);
-    } else {
-        invoiceItems.push({ ...item });
-    }
-    renderInvoice();
-    updateSummary();
-}
-
-function renderInvoice() {
-    const tbody = document.getElementById('invoiceTbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    invoiceItems.forEach((it, i) => {
-        const tr = document.createElement('tr');
-        tr.dataset.idx = i;
-        tr.innerHTML = `
-            <td style="text-align:right">${esc(it.product_name)}</td>
-            <td><input type="number" class="input-qty" data-idx="${i}" value="${it.qty}" step="0.0001" style="width:100px"></td>
-            <td><input type="number" class="input-price" data-idx="${i}" value="${Number(it.selling_price).toFixed(2)}" step="0.01" style="width:110px"></td>
-            <td><button class="btn ghost fifo-btn" data-idx="${i}">تفاصيل FIFO</button></td>
-            <td class="line-total">${fmt(it.qty * it.selling_price)}</td>
-            <td><button class="btn ghost remove-btn" data-idx="${i}">حذف</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    // إضافة مستمعي الأحداث
-    document.querySelectorAll('.input-qty').forEach(el => {
-        el.addEventListener('input', debounce(function(e) {
-            const idx = Number(e.target.dataset.idx);
-            invoiceItems[idx].qty = parseFloat(e.target.value || 0);
-            updateTotalsAndValidation();
-        }, 200));
-    });
-
-    document.querySelectorAll('.input-price').forEach(el => {
-        el.addEventListener('input', debounce(function(e) {
-            const idx = Number(e.target.dataset.idx);
-            invoiceItems[idx].selling_price = parseFloat(e.target.value || 0);
-            updateTotalsAndValidation();
-        }, 200));
-    });
-
-    document.querySelectorAll('.remove-btn').forEach(b => {
-        b.addEventListener('click', function(e) {
-            const idx = Number(b.dataset.idx);
-            invoiceItems.splice(idx, 1);
-            renderInvoice();
-        });
-    });
-
-    updateTotalsAndValidation();
-}
-
-function updateTotalsAndValidation() {
-    let sumQ = 0, sumS = 0;
-    invoiceItems.forEach((it, idx) => {
-        sumQ += Number(it.qty || 0);
-        sumS += Number(it.qty || 0) * Number(it.selling_price || 0);
-
-        const tr = document.querySelector('tr[data-idx="' + idx + '"]');
-        if (!tr) return;
-        const lt = tr.querySelector('.line-total');
-        if (lt) lt.textContent = fmt((it.qty || 0) * (it.selling_price || 0));
-    });
-
-    document.getElementById('sumQty').textContent = sumQ;
-    document.getElementById('sumSell').textContent = fmt(sumS);
-    updateSummary();
-}
-
-function updateSummary() {
-    const sums = computeInvoiceSums();
-    const totalBefore = sums.sumSelling;
-    const totalCost = sums.sumCost;
-
-    const dtype = document.getElementById('discount-type').value;
-    const dvalue = Number(document.getElementById('discount-value').value || 0);
-    let discountAmount = 0;
-    
-    if (dtype === 'percent') {
-        discountAmount = round2(totalBefore * (dvalue / 100));
-    } else {
-        discountAmount = round2(dvalue);
-    }
-    
-    if (discountAmount > totalBefore) discountAmount = totalBefore;
-
-    const totalAfter = round2(totalBefore - discountAmount);
-    const profitBefore = round2(totalBefore - totalCost);
-    const profitAfter = round2(totalAfter - totalCost);
-
-    // تحديث DOM
-    document.getElementById('total-before').textContent = fmt(totalBefore);
-    document.getElementById('discount-amount-display').textContent = fmt(discountAmount);
-    document.getElementById('total-after').textContent = fmt(totalAfter);
-    document.getElementById('profit-value').textContent = fmt(profitBefore);
-    document.getElementById('profit-after').textContent = fmt(profitAfter);
-    document.getElementById('total-amount').textContent = fmt(totalAfter) + ' ر.س';
-
-    // تحديث الحقول المخفية
-    document.getElementById('h_total_before').value = fmt(totalBefore);
-    document.getElementById('h_discount_type').value = dtype;
-    document.getElementById('h_discount_value').value = fmt(dvalue);
-    document.getElementById('h_discount_amount').value = fmt(discountAmount);
-    document.getElementById('h_total_after').value = fmt(totalAfter);
-    document.getElementById('h_total_cost').value = fmt(totalCost);
-    document.getElementById('h_profit').value = fmt(profitBefore);
-}
-
-function computeInvoiceSums() {
-    let sumSelling = 0, sumCost = 0;
-    for (let it of invoiceItems) {
-        const q = Number(it.qty || it.qty === 0 ? it.qty : (it.qty || 0));
-        const sp = Number(it.selling_price || 0);
-        const cp = Number(it.cost_price_per_unit || it.cost_price || 0);
-        sumSelling += q * sp;
-        sumCost += q * cp;
-    }
-    return {
-        sumSelling: round2(sumSelling),
-        sumCost: round2(sumCost)
-    };
-}
-
-function round2(v) {
-    return Math.round((+v + Number.EPSILON) * 100) / 100;
-}
-
-// دوال الدفع الجزئي
-function updatePaymentSection() {
-    const total = calculateTotal();
-    const paidAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    const remainingAmount = total - paidAmount;
-    
-    document.getElementById('payment-total').textContent = fmt(total) + ' ر.س';
-    document.getElementById('payment-paid').textContent = fmt(paidAmount) + ' ر.س';
-    document.getElementById('payment-remaining').textContent = fmt(remainingAmount) + ' ر.س';
-    
-    const paymentStatus = document.querySelector('input[name="payment-status"]:checked').value;
-    const partialSection = document.getElementById('partial-payment-section');
-    
-    if (paymentStatus === 'partial') {
-        partialSection.style.display = 'block';
-    } else {
-        partialSection.style.display = 'none';
-    }
-}
-
-function calculateTotal() {
-    const sums = computeInvoiceSums();
-    const totalBefore = sums.sumSelling;
-    
-    const dtype = document.getElementById('discount-type').value;
-    const dvalue = Number(document.getElementById('discount-value').value || 0);
-    let discountAmount = 0;
-    
-    if (dtype === 'percent') {
-        discountAmount = round2(totalBefore * (dvalue / 100));
-    } else {
-        discountAmount = round2(dvalue);
-    }
-    
-    if (discountAmount > totalBefore) discountAmount = totalBefore;
-    
-    return round2(totalBefore - discountAmount);
-}
-
-// دالة معاينة التأكيد
-function showConfirmModal() {
-    const modal = document.getElementById('confirmModal_backdrop');
-    const content = document.getElementById('confirm-content');
-    
-    let html = `
-        <div style="margin-bottom: 20px;">
-            <h3 style="margin-bottom: 10px;">العميل: ${selectedCustomer.name}</h3>
-            <p style="color: var(--muted); margin-bottom: 15px;">${selectedCustomer.mobile} - ${selectedCustomer.city}</p>
-        </div>
-        
-        <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background: var(--surface-2);">
-                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid var(--border);">المنتج</th>
-                        <th style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">الكمية</th>
-                        <th style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">السعر</th>
-                        <th style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">الإجمالي</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    invoiceItems.forEach(item => {
-        html += `
-            <tr>
-                <td style="padding: 10px; border-bottom: 1px solid var(--border);">${item.product_name}</td>
-                <td style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">${item.qty}</td>
-                <td style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">${fmt(item.selling_price)}</td>
-                <td style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">${fmt(item.qty * item.selling_price)}</td>
-            </tr>
-        `;
-    });
-    
-    const total = calculateTotal();
-    
-    html += `
-                </tbody>
-            </table>
-        </div>
-        
-        <div style="background: var(--surface-2); padding: 15px; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span>الإجمالي النهائي:</span>
-                <span style="font-weight: 700; font-size: 18px;">${fmt(total)} ر.س</span>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('confirmClientPreview').innerHTML = html;
-    document.getElementById('confirm_total_before').textContent = fmt(total);
-    modal.style.display = 'flex';
-}
-
-// تحميل رقم الفاتورة التالي
-async function loadNextInvoiceNumber() {
-    try {
-        const j = await fetchJson(location.pathname + '?action=next_invoice_number');
-        if (j && j.ok) {
-            document.getElementById('currentInvoiceNumber').textContent = 'الفاتورة #INV-' + j.next;
-        }
-    } catch (e) {
-        console.warn('failed to load next invoice number', e);
-    }
-}
-
-// فتح مودال المنتجات عند النقر على زر البحث
-document.getElementById('productSearchInput').addEventListener('click', function() {
-    document.getElementById('products-modal').style.display = 'flex';
-    renderProductsModal();
-});
-
-// فتح مودال المنتجات عند النقر على أيقونة البحث
-document.querySelector('.search-icon').addEventListener('click', function() {
-    document.getElementById('products-modal').style.display = 'flex';
-    renderProductsModal();
-});
-</script>
 
 <?php
 require_once BASE_DIR . 'partials/footer.php';

@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>صفحة العميل - لوحة الفواتير والمدفوعات</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#ffffff; --accent:#0d6efd; --danger:#dc3545; --muted:#6c757d; --success:#198754;
+      --radius:12px; --soft-shadow: 0 6px 18px rgba(18,38,63,0.06);
+      --font: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; font-family:var(--font); background:var(--bg); color:#111}
+    a{color:var(--accent); text-decoration:none}
+
+    /* Container */
+    .container{max-width:1200px; margin:20px auto; padding:18px}
+
+    /* Header */
+    .header{display:flex; gap:16px; align-items:center; justify-content:space-between}
+    .customer-card{background:var(--card); padding:18px; border-radius:var(--radius); box-shadow:var(--soft-shadow); display:flex; gap:18px; align-items:center}
+    .avatar{width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,#e9f0ff,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent)}
+    .cust-info{min-width:0}
+    .cust-info h2{margin:0 0 6px 0; font-size:18px}
+    .cust-meta{display:flex;gap:12px; font-size:13px; color:var(--muted)}
+    .balance{background:#fff;padding:12px;border-radius:10px;box-shadow:var(--soft-shadow);text-align:center}
+    .balance .amount{font-weight:700;font-size:20px}
+    .balance .label{font-size:12px;color:var(--muted)}
+
+    /* Toolbar */
+    .toolbar{display:flex;gap:8px; margin-top:14px}
+    .btn{background:var(--accent); color:#fff; padding:9px 12px; border-radius:10px; border:0; cursor:pointer}
+    .btn.secondary{background:#eee;color:#111}
+    .btn.danger{background:var(--danger)}
+
+    /* Layout */
+    .layout{display:grid; grid-template-columns: 1fr 320px; gap:18px; margin-top:18px}
+
+    /* Main card */
+    .card{background:var(--card); padding:14px; border-radius:var(--radius); box-shadow:var(--soft-shadow)}
+    .tabs{display:flex; gap:8px; margin-bottom:12px}
+    .tab{padding:8px 12px;border-radius:8px;background:#f4f6fb;border:1px solid transparent;cursor:pointer}
+    .tab.active{background:var(--accent); color:#fff}
+
+    table{width:100%; border-collapse:collapse; font-size:14px}
+    thead th{background:#fafcff; padding:10px; text-align:right; font-weight:600; color:#222}
+    tbody td{padding:10px; border-top:1px solid #f0f2f7}
+    tbody tr.overdue td{background:linear-gradient(90deg,#fff6f6,#fff)}
+
+    .actions{display:flex;gap:6px; justify-content:flex-end}
+    .small{padding:6px 9px;border-radius:8px;font-size:13px}
+
+    /* Sidebar */
+    .sidebar .mini{display:flex; gap:8px; margin-bottom:12px}
+    .stat{background:#fff;padding:12px;border-radius:10px;flex:1;box-shadow:var(--soft-shadow); text-align:center}
+    .stat .num{font-weight:700;font-size:18px}
+
+    /* Modal (basic) */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:none;align-items:center;justify-content:center;padding:18px}
+    .modal{background:#fff;width:820px;border-radius:12px;padding:18px;box-shadow:0 18px 60px rgba(2,6,23,0.25)}
+    .modal h3{margin:0 0 12px}
+    .form-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+    .form-row label{min-width:120px;font-size:13px;color:var(--muted)}
+    .form-row input, .form-row select{flex:1;padding:8px;border-radius:8px;border:1px solid #e6e9f2}
+
+    .alloc-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .alloc-table th, .alloc-table td{padding:8px;border:1px solid #eef2fb;text-align:right}
+    .alloc-input{width:120px;padding:6px;border-radius:8px;border:1px solid #e6e9f2;text-align:left}
+
+    /* Responsive */
+    @media(max-width:980px){ .layout{grid-template-columns:1fr} .side-hide{display:none} .modal{width:100%} }
+
+    /* Small helpers */
+    .muted{color:var(--muted); font-size:13px}
+    .right{text-align:right}
+    .left{direction:ltr}
+    .highlight{color:var(--accent);font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="customer-card">
+          <div class="avatar">م</div>
+          <div class="cust-info">
+            <h2 id="custName">اسم العميل</h2>
+            <div class="cust-meta">
+              <div id="custMobile">01000000000</div>
+              <div id="custCity">القاهرة</div>
+              <div id="custAddress" class="muted">عنوان تفصيلي هنا</div>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="newInvoiceBtn">إضافة فاتورة</button>
+          <button class="btn secondary" id="recordPaymentBtn">تسجيل دفعة</button>
+          <button class="btn secondary" id="createCreditBtn">سند مرتجع</button>
+        </div>
+      </div>
+      <div class="balance">
+        <div class="label">رصيد العميل</div>
+        <div class="amount" id="custBalance">0.00 ج.م</div>
+        <div class="muted">(موجب = عليه، سالب = له رصيد)</div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <main>
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div class="tabs" role="tablist">
+                <div class="tab active" data-filter="all">الكل</div>
+                <div class="tab" data-filter="unpaid">غير مدفوع</div>
+                <div class="tab" data-filter="partial">مدفوع جزئياً</div>
+                <div class="tab" data-filter="paid">مدفوع</div>
+                <div class="tab" data-filter="overdue">متأخر</div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn small" id="printSelected">طباعة مجمعة</button>
+              <button class="btn small secondary" id="applyPaymentSelected">تطبيق دفعة على المختار</button>
+            </div>
+          </div>
+
+          <div style="margin-top:8px; overflow:auto">
+            <table id="invoicesTable">
+              <thead>
+                <tr>
+                  <th style="width:36px"><input type="checkbox" id="selectAll"></th>
+                  <th>رقم الفاتورة</th>
+                  <th>التاريخ</th>
+                  <th>الاستحقاق</th>
+                  <th>الإجمالي</th>
+                  <th>مدفوع</th>
+                  <th>متبقي</th>
+                  <th>الحالة</th>
+                  <th style="width:140px">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+
+      <aside class="sidebar side-hide">
+        <div class="card">
+          <div class="mini">
+            <div class="stat"><div class="num" id="totalInvoices">0</div><div class="muted">إجمالي الفواتير</div></div>
+            <div class="stat"><div class="num" id="totalUnpaid">0</div><div class="muted">المتأخر/المتبقي</div></div>
+          </div>
+
+          <div style="margin-top:8px">
+            <div class="muted">الملخص</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+              <div>إجمالي المدفوعات: <span class="highlight" id="totalPaid">0.00</span></div>
+              <div>إجمالي المستحق: <span class="highlight" id="totalDue">0.00</span></div>
+              <div>رصيد متاح (اعتمادات): <span class="highlight" id="totalCredits">0.00</span></div>
+            </div>
+          </div>
+
+          <hr style="margin:12px 0;border:none;border-top:1px solid #f0f2f7">
+          <div class="muted">إجراءات سريعة</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <button class="btn small secondary" id="sendReminder">إرسال تذكير دفع</button>
+            <button class="btn small secondary" id="exportStatement">طباعة كشف حساب</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  </div>
+
+  <!-- Modal backdrop -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog">
+      <h3 id="modalTitle">تسجيل دفعة</h3>
+      <div id="modalContent">
+        <div class="form-row">
+          <label>المبلغ</label>
+          <input type="number" step="0.01" id="payAmount" placeholder="0.00">
+        </div>
+        <div class="form-row">
+          <label>طريقة الدفع</label>
+          <select id="payMethod"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="bank_transfer">تحويل بنكي</option></select>
+        </div>
+        <div class="form-row">
+          <label>تطبيق على</label>
+          <select id="applyMode"><option value="auto">تلقائياً (أقدم أولاً)</option><option value="manual">يدوياً (حدد مبالغ لكل فاتورة)</option></select>
+        </div>
+
+        <div id="manualAlloc" style="display:none;margin-top:8px">
+          <div class="muted">توزيع المبلغ يدوياً على الفواتير المختارة</div>
+          <table class="alloc-table" id="allocTable">
+            <thead><tr><th>فاتورة</th><th>إجمالي</th><th>مدفوع</th><th>متبقي</th><th>المبلغ المراد تطبيقه</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div style="margin-top:8px;text-align:left">المتبقي بعد التوزيع: <span id="allocRemaining">0.00</span></div>
+        </div>
+
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn secondary" id="modalCancel">إلغاء</button>
+        <button class="btn" id="modalSave">تنفيذ الدفعة</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* نموذج بيانات تجريبي */
+    const customer = {id:123, name:'شركة المثال', mobile:'01012345678', city:'القاهرة', address:'شارع التحرير - مكتب 12'};
+    let invoices = [
+      {id:1, invoice_no:'INV-001', invoice_date:'2025-10-01', due_date:'2025-10-15', total_amount:1500.00, status:'unpaid'},
+      {id:2, invoice_no:'INV-002', invoice_date:'2025-10-08', due_date:'2025-10-22', total_amount:750.00, status:'partial'},
+      {id:3, invoice_no:'INV-003', invoice_date:'2025-11-01', due_date:'2025-11-10', total_amount:250.00, status:'paid'},
+      {id:4, invoice_no:'INV-004', invoice_date:'2025-11-12', due_date:'2025-11-30', total_amount:1200.00, status:'unpaid'}
+    ];
+
+    let payments = [ {id:1, invoice_id:3, amount:250.00, payment_date:'2025-11-02', method:'card'} , {id:2, invoice_id:2, amount:300.00, payment_date:'2025-10-30', method:'cash'} ];
+    let creditNotes = [ {id:1, related_invoice_id:1, total_credit:200.00, credit_date:'2025-10-12'} ];
+
+    function calcInvoicePaid(invId){
+      return payments.filter(x=>x.invoice_id===invId).reduce((s,i)=>s+i.amount,0);
+    }
+    function calcInvoiceRemaining(inv){
+      const paid = calcInvoicePaid(inv.id);
+      const credit = creditNotes.filter(c=>c.related_invoice_id===inv.id).reduce((s,c)=>s+c.total_credit,0);
+      return Math.max(0, (inv.total_amount - paid - credit));
+    }
+
+    function updateUI(filter='all'){
+      document.getElementById('custName').textContent = customer.name;
+      document.getElementById('custMobile').textContent = customer.mobile;
+      document.getElementById('custCity').textContent = customer.city;
+      document.getElementById('custAddress').textContent = customer.address;
+
+      const tbody = document.querySelector('#invoicesTable tbody'); tbody.innerHTML='';
+      let totalInvoices = 0, totalPaid=0, totalDue=0, totalCredits=0;
+
+      invoices.forEach(inv=>{
+        const paid = calcInvoicePaid(inv.id);
+        const credit = creditNotes.filter(c=>c.related_invoice_id===inv.id).reduce((s,c)=>s+c.total_credit,0);
+        const remaining = Math.max(0, inv.total_amount - paid - credit);
+        let status = 'unpaid';
+        if(remaining===0) status='paid';
+        else if(paid>0) status='partial';
+        inv.status = status;
+
+        totalInvoices++;
+        totalPaid += paid;
+        totalDue += remaining;
+        totalCredits += credit;
+
+        if(filter!=='all' && filter!==status && !(filter==='overdue' && new Date(inv.due_date) < new Date() && remaining>0)) return;
+
+        const tr = document.createElement('tr');
+        if(new Date(inv.due_date) < new Date() && remaining>0) tr.classList.add('overdue');
+        tr.innerHTML = `
+          <td><input type="checkbox" data-id="${inv.id}" class="selectInv"></td>
+          <td>${inv.invoice_no}</td>
+          <td>${inv.invoice_date}</td>
+          <td>${inv.due_date}</td>
+          <td class="right">${inv.total_amount.toFixed(2)}</td>
+          <td class="right">${paid.toFixed(2)}</td>
+          <td class="right">${remaining.toFixed(2)}</td>
+          <td>${status}</td>
+          <td class="actions">
+            <button class="small" onclick="viewInvoice(${inv.id})">عرض</button>
+            <button class="small" onclick="openPaymentModal([${inv.id}])">دفع</button>
+            <button class="small" onclick="createCredit(${inv.id})">مرتجع</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('totalInvoices').textContent = totalInvoices;
+      document.getElementById('totalPaid').textContent = totalPaid.toFixed(2);
+      document.getElementById('totalDue').textContent = totalDue.toFixed(2);
+      document.getElementById('totalCredits').textContent = totalCredits.toFixed(2);
+
+      // update balance: حساب سريع من الفواتير والمدفوعات والاعتمادات
+      const balance = invoices.reduce((acc,inv)=> acc + inv.total_amount,0) - payments.reduce((acc,p)=> acc + p.amount,0) - creditNotes.reduce((acc,c)=> acc + c.total_credit,0);
+      document.getElementById('custBalance').textContent = balance.toFixed(2) + ' ج.م';
+
+      document.querySelectorAll('.selectInv').forEach(ch=> ch.addEventListener('change', ()=>updateSelectedCount()));
+    }
+
+    function updateSelectedCount(){
+      const selected = Array.from(document.querySelectorAll('.selectInv:checked')).map(i=>parseInt(i.dataset.id));
+      const manualEl = document.getElementById('manualSelectedList');
+      if(manualEl) manualEl.textContent = selected.length ? ('مختار '+selected.join(', ')) : '(اختر فواتير من الجدول)';
+      return selected;
+    }
+
+    function viewInvoice(id){ alert('عرض فاتورة '+id+' - في التطبيق الفعلي تفتح صفحة التفاصيل'); }
+
+    // Modal handling & manual allocation
+    let currentSelected = [];
+    function openPaymentModal(selectedIds){
+      currentSelected = (selectedIds && selectedIds.length) ? selectedIds : updateSelectedCount();
+      if(!currentSelected.length){ alert('لم يتم اختيار فاتورة. اختر فاتورة أو اضغط تسجيل دفعة لتطبيق على الفواتير المفتوحة.'); return; }
+      document.getElementById('modalBackdrop').style.display='flex';
+      document.getElementById('modalTitle').textContent = 'تسجيل دفعة - على الفواتير: '+currentSelected.join(', ');
+      const manualEl = document.getElementById('manualSelectedList');
+      if(manualEl) manualEl.textContent = currentSelected.length ? ('مختار '+currentSelected.join(', ')) : '(اختر فواتير)';
+      buildAllocTable();
+      document.getElementById('modalSave').onclick = ()=>{ applyPayment(); };
+    }
+
+    document.getElementById('modalCancel').addEventListener('click', ()=>{ document.getElementById('modalBackdrop').style.display='none'; });
+    document.getElementById('recordPaymentBtn').addEventListener('click', ()=> openPaymentModal([]));
+
+    document.getElementById('applyMode').addEventListener('change', function(){
+      const v = this.value;
+      document.getElementById('manualAlloc').style.display = v==='manual' ? 'block' : 'none';
+      if(v==='manual') buildAllocTable();
+    });
+
+    function buildAllocTable(){
+      const tbody = document.querySelector('#allocTable tbody'); tbody.innerHTML = '';
+      const targetIds = currentSelected.length ? currentSelected : invoices.map(i=>i.id);
+      targetIds.forEach(id=>{
+        const inv = invoices.find(i=>i.id===id); if(!inv) return;
+        const paid = calcInvoicePaid(inv.id);
+        const remaining = calcInvoiceRemaining(inv);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${inv.invoice_no}</td><td class="right">${inv.total_amount.toFixed(2)}</td><td class="right">${paid.toFixed(2)}</td><td class="right">${remaining.toFixed(2)}</td><td class="left"><input class="alloc-input" type="number" step="0.01" min="0" max="${remaining.toFixed(2)}" data-id="${inv.id}" value="0"></td>`;
+        tbody.appendChild(tr);
+      });
+      // bind inputs
+      document.querySelectorAll('.alloc-input').forEach(inp=> inp.addEventListener('input', updateAllocRemaining));
+      updateAllocRemaining();
+    }
+
+    function updateAllocRemaining(){
+      const amount = parseFloat(document.getElementById('payAmount').value || '0');
+      const allocated = Array.from(document.querySelectorAll('.alloc-input')).reduce((s,i)=> s + (parseFloat(i.value||'0')),0);
+      const rem = (amount - allocated);
+      const el = document.getElementById('allocRemaining'); if(el) el.textContent = rem.toFixed(2);
+    }
+
+    // Apply payment logic
+    function applyPayment(){
+      let amount = parseFloat(document.getElementById('payAmount').value || '0');
+      if(amount <= 0) return alert('أدخل مبلغ صحيح');
+      const method = document.getElementById('payMethod').value;
+      const mode = document.getElementById('applyMode').value;
+
+      const paymentIdStart = payments.length ? payments[payments.length-1].id + 1 : 1;
+      let nextId = paymentIdStart;
+
+      if(mode==='auto'){
+        // apply amount across selected invoices (oldest first)
+        const targetIds = currentSelected.length ? currentSelected : invoices.map(i=>i.id);
+        const targets = invoices.filter(i=> targetIds.includes(i.id)).sort((a,b)=> new Date(a.invoice_date) - new Date(b.invoice_date));
+        let remaining = amount;
+        for(const inv of targets){
+          const invRemaining = calcInvoiceRemaining(inv);
+          if(invRemaining <= 0) continue;
+          const toApply = Math.min(invRemaining, remaining);
+          if(toApply <= 0) continue;
+          payments.push({id:nextId, invoice_id:inv.id, amount:toApply, payment_date: new Date().toISOString().slice(0,10), method});
+          remaining -= toApply; nextId++;
+          if(remaining<=0) break;
+        }
+        if(remaining>0){ // leftover becomes credit (general payment)
+          payments.push({id:nextId, invoice_id:null, amount:remaining, payment_date:new Date().toISOString().slice(0,10), method});
+        }
+
+      } else {
+        // manual mode: read allocation inputs
+        const inputs = Array.from(document.querySelectorAll('.alloc-input'));
+        let totalAlloc = 0;
+        inputs.forEach(inp=> totalAlloc += parseFloat(inp.value||'0'));
+        if(totalAlloc > amount) return alert('مجموع المبالغ المخصصة أكبر من المبلغ المدخل');
+        // create payment entries per allocated invoice
+        inputs.forEach(inp=>{
+          const id = parseInt(inp.dataset.id);
+          const val = parseFloat(inp.value||'0');
+          if(val>0) { payments.push({id:nextId, invoice_id:id, amount:val, payment_date:new Date().toISOString().slice(0,10), method}); nextId++; }
+        });
+        const remaining = amount - totalAlloc;
+        if(remaining>0){ payments.push({id:nextId, invoice_id:null, amount:remaining, payment_date:new Date().toISOString().slice(0,10), method}); }
+      }
+
+      document.getElementById('modalBackdrop').style.display='none';
+      updateUI(document.querySelector('.tab.active').dataset.filter);
+      alert('تم تسجيل الدفعة بنجاح (محاكاة)');
+    }
+
+    function createCredit(invId){
+      const creditId = creditNotes.length ? creditNotes[creditNotes.length-1].id + 1 : 1;
+      const creditAmount = parseFloat(prompt('قيمة المرتجع (مثال: 200.00):','0') || '0');
+      if(creditAmount>0){ creditNotes.push({id:creditId, related_invoice_id:invId, total_credit:creditAmount, credit_date:new Date().toISOString().slice(0,10)}); updateUI(document.querySelector('.tab.active').dataset.filter); alert('تم إنشاء سند مرتجع (محاكاة)'); }
+    }
+
+    // طباعة مجمعة - الآن تعرض صفحة ملخص قبل كل الفواتير وتلصقها في PDF واحد
+    function printSelected(ids){
+      const selected = ids && ids.length ? ids : updateSelectedCount();
+      if(!selected.length) return alert('اختر فواتير للطباعة');
+      let totalSum = 0, totalPaid = 0, totalRemaining = 0;
+      const sections = [];
+      selected.forEach(id=>{
+        const inv = invoices.find(i=>i.id===id);
+        const paid = calcInvoicePaid(inv.id);
+        const remaining = calcInvoiceRemaining(inv);
+        totalSum += inv.total_amount; totalPaid += paid; totalRemaining += remaining;
+        sections.push({inv, paid, remaining});
+      });
+
+      let html = '<html dir="rtl"><head><meta charset="utf-8"><title>طباعة مجمعة</title><style>body{font-family:Arial,sans-serif;padding:18px} .summary{border:1px solid #eee;padding:12px;margin-bottom:18px} section{page-break-after:always;margin-bottom:20px}</style></head><body>';
+      // summary page
+      html += '<div class="summary"><h2>ملخص الطباعة - ' + sections.length + ' فاتورة</h2><div>الإجمالي: ' + totalSum.toFixed(2) + '</div><div>المدفوع: ' + totalPaid.toFixed(2) + '</div><div>المتبقي: ' + totalRemaining.toFixed(2) + '</div></div>';
+
+      sections.forEach(s=>{
+        html += '<section><h3>فاتورة: ' + s.inv.invoice_no + '</h3><div>تاريخ: ' + s.inv.invoice_date + ' | استحقاق: ' + s.inv.due_date + '</div>';
+        html += '<div>الإجمالي: ' + s.inv.total_amount.toFixed(2) + ' - مدفوع: ' + s.paid.toFixed(2) + ' - متبقي: ' + s.remaining.toFixed(2) + '</div>';
+        html += '</section>';
+      });
+      html += '</body></html>';
+      const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
+    }
+
+    document.getElementById('selectAll').addEventListener('change', function(){ document.querySelectorAll('.selectInv').forEach(cb=> cb.checked = this.checked); updateSelectedCount(); });
+    document.getElementById('applyPaymentSelected').addEventListener('click', ()=>{ const sel = updateSelectedCount(); if(!sel.length) return alert('اختر فواتير لتطبيق الدفعة عليها'); openPaymentModal(sel); });
+    document.getElementById('printSelected').addEventListener('click', ()=>{ const sel = updateSelectedCount(); printSelected(sel); });
+
+    document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', e=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); e.target.classList.add('active'); updateUI(e.target.dataset.filter); }));
+
+    // البداية
+    updateUI();
+  </script>
+</body>
+</html>

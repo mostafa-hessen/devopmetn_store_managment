@@ -1246,7 +1246,7 @@ require_once BASE_DIR . 'partials/header.php';
 
             <!-- الخصم -->
             <!-- في قسم الخصم، أضف زر الإلغاء -->
-            <div class="discount-section">
+            <div class="discount-section d-none">
                 <div class="panel-title">
                     <i class="fas fa-tag"></i>
                     الخصم
