@@ -55,7 +55,7 @@
         $notes_q = isset($_GET['notes_q']) ? trim((string)$_GET['notes_q']) : '';
         $date_from = isset($_GET['date_from']) ? trim($_GET['date_from']) : '';
         $date_to   = isset($_GET['date_to']) ? trim($_GET['date_to']) : '';
-        
+
         $sql_select = "SELECT i.id, i.invoice_group, i.created_at,
                         COALESCE(c.name,'(عميل نقدي)') AS customer_name,
                         COALESCE(c.mobile,'-') AS customer_mobile,
@@ -71,22 +71,22 @@
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN users u ON i.created_by = u.id
                 WHERE i.delivered = 'no' ";
-        
+
         $params = [];
         $types = "";
-        
+
         if ($customer_filter_id > 0) {
             $sql_select .= " AND i.customer_id = ? ";
             $params[] = $customer_filter_id;
             $types .= "i";
         }
-        
+
         if ($selected_group !== '') {
             $sql_select .= " AND i.invoice_group = ? ";
             $params[] = $selected_group;
             $types .= "s";
         }
-        
+
         if ($invoice_q !== '') {
             $digits = preg_replace('/\D/', '', $invoice_q);
             if ($digits !== '') {
@@ -99,13 +99,13 @@
             $params[] = '%' . $mobile_q . '%';
             $types .= "s";
         }
-        
+
         if ($notes_q !== '') {
             $sql_select .= " AND COALESCE(i.notes,'') LIKE ? ";
             $params[] = '%' . $notes_q . '%';
             $types .= "s";
         }
-        
+
         if ($date_from !== '') {
             $d = DateTime::createFromFormat('Y-m-d', $date_from);
             if ($d !== false) {
@@ -125,14 +125,14 @@
                 $types .= 's';
             }
         }
-        
+
         $sql_select .= " ORDER BY i.created_at DESC, i.id DESC LIMIT 2000";
-        
+
         $invoices = [];
         $count = 0;
         $displayed_total_after_discount = 0;
         $displayed_total_before_discount = 0;
-        
+
         if ($stmt = $conn->prepare($sql_select)) {
             if (!empty($params)) {
                 $bind_names[] = $types;
@@ -147,19 +147,19 @@
                     $total_before = floatval($row["total_before_discount"] ?? 0);
                     $total_after = floatval($row["total_after_discount"] ?? 0);
                     $invoice_total = floatval($row["invoice_total"] ?? 0);
-                    
+
                     if ($total_before <= 0) $total_before = $invoice_total;
                     if ($total_after <= 0) $total_after = $total_before;
-                    
+
                     $displayed_total_before_discount += $total_before;
                     $displayed_total_after_discount += $total_after;
-                    
+
                     $invoices[] = $row;
                 }
             }
             $stmt->close();
         }
-        
+
         // بناء HTML للقائمة
         ob_start();
         if (count($invoices) > 0) {
@@ -170,22 +170,24 @@
                 $discount_amount = floatval($row["discount_amount"] ?? 0);
                 $discount_type = $row["discount_type"] ?? 'percent';
                 $discount_value = floatval($row["discount_value"] ?? 0);
-                
+
                 if ($total_before_discount <= 0) $total_before_discount = $current_invoice_total_for_row;
                 if ($total_after_discount <= 0) $total_after_discount = $total_before_discount;
-                
+
                 $has_discount = ($discount_amount > 0 && abs($total_after_discount - $total_before_discount) > 0.01);
                 $final_amount = $has_discount ? $total_after_discount : $total_before_discount;
-                
+
                 $noteText = trim((string)($row['notes'] ?? ''));
                 $noteDisplay = $noteText;
                 if (mb_strlen($noteDisplay) > 30) {
                     $noteDisplay = mb_substr($noteDisplay, 0, 30) . '...';
                 }
                 $created_date = date('m/d/Y', strtotime($row["created_at"]));
-                ?>
+    ?>
                 <article class="invoice">
                     <div class="invoice-left">
+                        <!-- أضف هذا السطر -->
+                        <input type="checkbox" class="invoice-checkbox" data-invoice-id="<?php echo e($row["id"]); ?>">
                         <div class="badge">#<?php echo e($row["id"]); ?></div>
                         <div class="meta">
                             <div class="name"><?php echo e($row["customer_name"]); ?></div>
@@ -205,7 +207,7 @@
                                 <div class="amount-original"><?php echo number_format($total_before_discount, 2); ?> ج.م</div>
                                 <div class="amount-final"><?php echo number_format($total_after_discount, 2); ?> ج.م</div>
                                 <div class="discount-badge">
-                                    <?php 
+                                    <?php
                                     if ($discount_type === 'percent') {
                                         echo number_format($discount_value, 2) . '% خصم';
                                     } else {
@@ -229,22 +231,22 @@
                                 <button class="cancel btn-cancel-invoice" data-invoice-id="<?php echo e($row['id']); ?>">إلغاء</button>
                                 <button class="edit btn-edit-items" data-id="<?php echo e($row['id']); ?>">تعديل</button>
                                 <button class="edit btn-edit-items" data-id="<?php echo e($row['id']); ?>">تعديل</button>
- <button class="btn btn-sm btn-outline-secondary btn-return-invoice btn"
-                                                data-invoice-id="<?php echo e($row['id']); ?>"
-                                                title="ارجاع">
-                                                ارجاع
-                                            </button>  
+                                <button class="btn btn-sm btn-outline-secondary btn-return-invoice btn"
+                                    data-invoice-id="<?php echo e($row['id']); ?>"
+                                    title="ارجاع">
+                                    ارجاع
+                                </button>
                             <?php endif; ?>
                         </div>
                     </div>
                 </article>
-                <?php
+    <?php
             }
         } else {
             echo '<div style="text-align:center;padding:40px;color:var(--muted)">لا توجد فواتير غير مستلمة حالياً.</div>';
         }
         $html = ob_get_clean();
-        
+
         json_out([
             'success' => true,
             'html' => $html,
@@ -253,7 +255,7 @@
             'total_before_discount' => $displayed_total_before_discount
         ]);
     }
-    
+
     if (isset($_GET['action']) && $_GET['action'] === 'fetch_invoice_details' && isset($_GET['id'])) {
         $inv_id = intval($_GET['id']);
         if ($inv_id <= 0) json_out(['success' => false, 'message' => 'invoice id invalid']);
@@ -987,43 +989,43 @@
         unset($_SESSION['message']);
     }
 
-     // ---------------- POST: تسليم فاتورة (mark_delivered) ----------------
-  if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['mark_delivered'])) {
-    ob_start(); // علشان نمنع أي headers conflict
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $alert = ["error", "خطأ: طلب غير صالح (CSRF)."];
-    } elseif (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-        $alert = ["error", "ليس لديك صلاحية لتنفيذ هذه العملية."];
-    } else {
-        $invoice_id_to_deliver = intval($_POST['invoice_id_to_deliver'] ?? 0);
-        if ($invoice_id_to_deliver > 0) {
-            $updated_by = intval($_SESSION['id'] ?? 0);
-            $sql_update_delivery = "UPDATE invoices_out 
+    // ---------------- POST: تسليم فاتورة (mark_delivered) ----------------
+    if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['mark_delivered'])) {
+        ob_start(); // علشان نمنع أي headers conflict
+        if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+            $alert = ["error", "خطأ: طلب غير صالح (CSRF)."];
+        } elseif (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+            $alert = ["error", "ليس لديك صلاحية لتنفيذ هذه العملية."];
+        } else {
+            $invoice_id_to_deliver = intval($_POST['invoice_id_to_deliver'] ?? 0);
+            if ($invoice_id_to_deliver > 0) {
+                $updated_by = intval($_SESSION['id'] ?? 0);
+                $sql_update_delivery = "UPDATE invoices_out 
                                     SET delivered = 'yes', updated_by = ?, updated_at = NOW() 
                                     WHERE id = ?";
-            if ($stmt_update = $conn->prepare($sql_update_delivery)) {
-                $stmt_update->bind_param("ii", $updated_by, $invoice_id_to_deliver);
-                if ($stmt_update->execute()) {
-                    if ($stmt_update->affected_rows > 0) {
-                        $alert = ["success", "تم تحديث حالة الفاتورة رقم #{$invoice_id_to_deliver} إلى مستلمة."];
+                if ($stmt_update = $conn->prepare($sql_update_delivery)) {
+                    $stmt_update->bind_param("ii", $updated_by, $invoice_id_to_deliver);
+                    if ($stmt_update->execute()) {
+                        if ($stmt_update->affected_rows > 0) {
+                            $alert = ["success", "تم تحديث حالة الفاتورة رقم #{$invoice_id_to_deliver} إلى مستلمة."];
+                        } else {
+                            $alert = ["warning", "لم يتم تعديل الحالة — ربما كانت الفاتورة مستلمة سابقاً."];
+                        }
                     } else {
-                        $alert = ["warning", "لم يتم تعديل الحالة — ربما كانت الفاتورة مستلمة سابقاً."];
+                        $alert = ["error", "خطأ أثناء التحديث: " . e($stmt_update->error)];
                     }
+                    $stmt_update->close();
                 } else {
-                    $alert = ["error", "خطأ أثناء التحديث: " . e($stmt_update->error)];
+                    $alert = ["error", "خطأ في تحضير استعلام التحديث: " . e($conn->error)];
                 }
-                $stmt_update->close();
             } else {
-                $alert = ["error", "خطأ في تحضير استعلام التحديث: " . e($conn->error)];
+                $alert = ["warning", "رقم فاتورة غير صالح."];
             }
-        } else {
-            $alert = ["warning", "رقم فاتورة غير صالح."];
         }
-    }
 
-    // بعد التحديث، نعرض SweetAlert
-    echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
-    echo "<script>
+        // بعد التحديث، نعرض SweetAlert
+        echo "<script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>";
+        echo "<script>
       Swal.fire({
         icon: '{$alert[0]}',
         title: '{$alert[1]}',
@@ -1033,8 +1035,8 @@
         window.location.href = '" . htmlspecialchars($_SERVER['PHP_SELF']) . "';
       });
     </script>";
-    exit;
-}
+        exit;
+    }
 
 
     // ---------------- POST: حذف فاتورة (delete_sales_invoice) ----------------
@@ -1253,7 +1255,7 @@
         /* جميع الـ styles داخل pending-invoices-page لتجنب override */
 
 
-        
+
         /* منع scroll على body عند وجود pending-invoices-page */
         /* body:has(.pending-invoices-page) {
             overflow-x: hidden;
@@ -1263,7 +1265,8 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            min-height: calc(100vh - 70px); /* 70px navbar + 40px padding */
+            min-height: calc(100vh - 70px);
+            /* 70px navbar + 40px padding */
             overflow: hidden;
         }
 
@@ -1292,7 +1295,7 @@
             display: grid;
             place-items: center;
             font-weight: 700;
-            box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-1, 0 1px 3px rgba(0, 0, 0, 0.1));
         }
 
         .pending-invoices-page h1 {
@@ -1318,7 +1321,7 @@
             background: var(--surface, #fff);
             padding: 12px 16px;
             border-radius: var(--radius-sm, 8px);
-            box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-1, 0 1px 3px rgba(0, 0, 0, 0.1));
             min-width: 140px;
             border: 1px solid var(--border, #e5e7eb);
         }
@@ -1354,19 +1357,21 @@
             background: var(--surface, #fff);
             border-radius: var(--radius, 12px);
             padding: 16px;
-            box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-1, 0 1px 3px rgba(0, 0, 0, 0.1));
             border: 1px solid var(--border, #e5e7eb);
             display: flex;
             flex-direction: column;
             overflow-y: auto;
             flex-shrink: 0;
-           max-height: 67vh;
+            max-height: 67vh;
         }
 
         .pending-invoices-page .filters-section.col-3 {
             max-width: 100%;
-            flex: 0 0 25%; /* 25% من العرض */
-            min-width: 250px; /* الحد الأدنى للعرض */
+            flex: 0 0 25%;
+            /* 25% من العرض */
+            min-width: 250px;
+            /* الحد الأدنى للعرض */
             width: 25%;
         }
 
@@ -1377,14 +1382,15 @@
             gap: 16px;
             flex: 1;
             min-height: 0;
-            max-height:67vh;
+            max-height: 67vh;
             /* overflow-y: hidden; */
         }
 
         .pending-invoices-page .content.col-9 {
             max-width: 100%;
             flex: 1 1 auto;
-            min-width: 300px; /* الحد الأدنى للعرض */
+            min-width: 300px;
+            /* الحد الأدنى للعرض */
             width: 100%;
         }
 
@@ -1456,7 +1462,7 @@
         .pending-invoices-page .btn.apply {
             background: var(--primary, #3b82f6);
             color: #fff;
-            box-shadow: var(--shadow-2, 0 4px 6px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-2, 0 4px 6px rgba(0, 0, 0, 0.1));
             padding: 10px 20px;
             border-radius: var(--radius-sm, 8px);
             border: 0;
@@ -1467,7 +1473,7 @@
 
         .pending-invoices-page .btn.apply:hover {
             transform: translateY(-1px);
-            box-shadow: var(--shadow-2, 0 6px 12px rgba(0,0,0,0.15));
+            box-shadow: var(--shadow-2, 0 6px 12px rgba(0, 0, 0, 0.15));
         }
 
         .pending-invoices-page .btn.reset {
@@ -1497,7 +1503,7 @@
             background: var(--surface, #fff);
             border-radius: var(--radius, 12px);
             padding: 16px;
-            box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-1, 0 1px 3px rgba(0, 0, 0, 0.1));
             border: 1px solid var(--border, #e5e7eb);
         }
 
@@ -1533,10 +1539,10 @@
             background: var(--surface, #fff);
             border-radius: var(--radius, 12px);
             padding: 16px;
-            box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-1, 0 1px 3px rgba(0, 0, 0, 0.1));
             border: 1px solid var(--border, #e5e7eb);
             overflow-y: auto;
-         
+
             flex: 1;
             min-height: 0;
             /* max-height: 100%; */
@@ -1556,7 +1562,7 @@
             background: var(--surface, #fff);
             padding: 16px;
             border-radius: var(--radius-sm, 8px);
-            box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-1, 0 1px 3px rgba(0, 0, 0, 0.1));
             border: 1px solid var(--border, #e5e7eb);
             align-items: flex-start;
             transition: transform 0.2s, box-shadow 0.2s;
@@ -1565,7 +1571,7 @@
 
         .pending-invoices-page .invoice:hover {
             transform: translateY(-2px);
-            box-shadow: var(--shadow-2, 0 4px 6px rgba(0,0,0,0.1));
+            box-shadow: var(--shadow-2, 0 4px 6px rgba(0, 0, 0, 0.1));
         }
 
         .pending-invoices-page .invoice-left {
@@ -1636,7 +1642,7 @@
             flex-wrap: wrap;
         }
 
-        .pending-invoices-page .meta .extra > div {
+        .pending-invoices-page .meta .extra>div {
             display: flex;
             align-items: center;
             gap: 4px;
@@ -1795,6 +1801,7 @@
 
         /* Responsive - ممتاز */
         @media (max-width: 1200px) {
+
             /* إزالة تحويل layout إلى عمودي - نريد أن يبقى side-by-side */
             .pending-invoices-page .pending-invoices-main {
                 flex-direction: row;
@@ -1803,50 +1810,54 @@
             .pending-invoices-page .filters-section {
                 max-height: none;
                 /* height: 100%; */
-                flex: 0 0 30%; /* زيادة العرض قليلاً على الشاشات المتوسطة */
+                flex: 0 0 30%;
+                /* زيادة العرض قليلاً على الشاشات المتوسطة */
                 width: 30%;
                 min-width: 250px;
             }
-            
+
             .pending-invoices-page .content.col-9 {
-                flex: 1 1 70%; /* 70% للـ content */
-                min-width: 400px; /* زيادة الحد الأدنى */
+                flex: 1 1 70%;
+                /* 70% للـ content */
+                min-width: 400px;
+                /* زيادة الحد الأدنى */
             }
-            
+
             /* فقط على الشاشات الصغيرة جداً نجعله عمودي */
             @media (max-height: 600px) {
                 .pending-invoices-page .pending-invoices-main {
                     flex-direction: column;
                 }
-                
+
                 .pending-invoices-page .filters-section {
                     max-height: 300px;
                     width: 100% !important;
                 }
-                
-              
+
+
             }
         }
 
         @media (max-width: 992px) {
             .pending-invoices-page {
                 padding: 12px;
-                margin-top: 70px; /* الحفاظ على المسافة تحت navbar */
+                margin-top: 70px;
+                /* الحفاظ على المسافة تحت navbar */
             }
-            
+
             /* على الشاشات المتوسطة، يمكن تحويل layout إلى عمودي */
             .pending-invoices-page .pending-invoices-main {
                 flex-direction: column;
             }
-            
+
             .pending-invoices-page .filters-section {
                 max-height: 400px;
                 height: auto;
                 width: 100% !important;
                 flex: 0 0 auto !important;
             }
-            
-        
+
+
 
             .pending-invoices-page header.top {
                 flex-direction: column;
@@ -1866,7 +1877,8 @@
         @media (max-width: 768px) {
             .pending-invoices-page {
                 padding: 8px;
-                margin-top: 70px; /* الحفاظ على المسافة تحت navbar */
+                margin-top: 70px;
+                /* الحفاظ على المسافة تحت navbar */
             }
 
             .pending-invoices-page .filters-grid {
@@ -1956,7 +1968,8 @@
                 display: none !important;
             }
         }
-        .swal2-container{
+
+        .swal2-container {
             z-index: 10000;
         }
     </style>
@@ -1973,31 +1986,34 @@
                 </div>
 
                 <div class="top-stats">
-                    <div class="stat"><div class="lbl">عدد الفواتير</div><div class="num" id="stat-count"><?php echo ($result && $result->num_rows > 0) ? $result->num_rows : 0; ?></div></div>
-                   <?php
-                // حساب إجمالي الفواتير المعروضة بعد الخصم
-                $displayed_total_after_discount = 0;
-                $displayed_total_before_discount = 0;
-                if ($result && $result->num_rows > 0) {
-                    $result->data_seek(0);
-                    while ($row = $result->fetch_assoc()) {
-                        $total_before = floatval($row["total_before_discount"] ?? 0);
-                        $total_after = floatval($row["total_after_discount"] ?? 0);
-                        $invoice_total = floatval($row["invoice_total"] ?? 0);
-                        
-                        if ($total_before <= 0) {
-                            $total_before = $invoice_total;
+                    <div class="stat">
+                        <div class="lbl">عدد الفواتير</div>
+                        <div class="num" id="stat-count"><?php echo ($result && $result->num_rows > 0) ? $result->num_rows : 0; ?></div>
+                    </div>
+                    <?php
+                    // حساب إجمالي الفواتير المعروضة بعد الخصم
+                    $displayed_total_after_discount = 0;
+                    $displayed_total_before_discount = 0;
+                    if ($result && $result->num_rows > 0) {
+                        $result->data_seek(0);
+                        while ($row = $result->fetch_assoc()) {
+                            $total_before = floatval($row["total_before_discount"] ?? 0);
+                            $total_after = floatval($row["total_after_discount"] ?? 0);
+                            $invoice_total = floatval($row["invoice_total"] ?? 0);
+
+                            if ($total_before <= 0) {
+                                $total_before = $invoice_total;
+                            }
+                            if ($total_after <= 0) {
+                                $total_after = $total_before;
+                            }
+
+                            $displayed_total_before_discount += $total_before;
+                            $displayed_total_after_discount += $total_after;
                         }
-                        if ($total_after <= 0) {
-                            $total_after = $total_before;
-                        }
-                        
-                        $displayed_total_before_discount += $total_before;
-                        $displayed_total_after_discount += $total_after;
+                        $result->data_seek(0); // إعادة تعيين المؤشر
                     }
-                    $result->data_seek(0); // إعادة تعيين المؤشر
-                }
-                ?>
+                    ?>
                     <!-- <div class="summary-card">
                         <div class="title">💰 الإجمالي الكلي (جميع الفواتير المعلقة)</div>
                         <div class="value" style="color:var(--primary)"><?php echo number_format($grand_total_all_pending, 2); ?> ج.م</div>
@@ -2018,7 +2034,7 @@
                     </div>
 
                 </div>
-              
+
             </header>
 
 
@@ -2029,37 +2045,37 @@
 
                     <form method="get" action="<?php echo $current_page_link; ?>" id="filterForm">
                         <div class="filters-grid">
-                           <div class="row  ">
-                             <div class="col-6 col-md-6 field">
-                                <label for="fInvoice">بحث برقم الفاتورة</label>
-                                <input id="fInvoice" name="invoice_q" type="text" placeholder="مثال: 123" value="<?php echo e($invoice_q); ?>" />
-                            </div>
+                            <div class="row  ">
+                                <div class="col-6 col-md-6 field">
+                                    <label for="fInvoice">بحث برقم الفاتورة</label>
+                                    <input id="fInvoice" name="invoice_q" type="text" placeholder="مثال: 123" value="<?php echo e($invoice_q); ?>" />
+                                </div>
 
-                            <div class="col-6 col-md-6 field">
-                                <label for="fPhone"> برقم هاتف العميل</label>
-                                <input id="fPhone" name="mobile_q" type="text" placeholder="مثال: 01012345678" value="<?php echo e($mobile_q); ?>" />
-                            </div>
+                                <div class="col-6 col-md-6 field">
+                                    <label for="fPhone"> برقم هاتف العميل</label>
+                                    <input id="fPhone" name="mobile_q" type="text" placeholder="مثال: 01012345678" value="<?php echo e($mobile_q); ?>" />
+                                </div>
 
-                           </div>
+                            </div>
                             <div class="row">
                                 <div class="col-12 field">
-                                <label for="fNotes">بحث حسب الملاحظات</label>
-                                <input id="fNotes" name="notes_q" type="text" placeholder="كلمات من الملاحظات..." value="<?php echo e($notes_q); ?>" />
-                            </div>
-                            </div>
-
-                         <div class="row">
-                              
-                            <div class="col-6   field">
-                                <label>من تاريخ</label>
-                                <input id="fFrom" name="date_from" type="date" value="<?php echo isset($_GET['date_from']) ? htmlspecialchars($_GET['date_from']) : ''; ?>" />
+                                    <label for="fNotes">بحث حسب الملاحظات</label>
+                                    <input id="fNotes" name="notes_q" type="text" placeholder="كلمات من الملاحظات..." value="<?php echo e($notes_q); ?>" />
+                                </div>
                             </div>
 
-                            <div class="col-6 field">
-                                <label>إلى تاريخ</label>
-                                <input id="fTo" name="date_to" type="date" value="<?php echo isset($_GET['date_to']) ? htmlspecialchars($_GET['date_to']) : ''; ?>" />
+                            <div class="row">
+
+                                <div class="col-6   field">
+                                    <label>من تاريخ</label>
+                                    <input id="fFrom" name="date_from" type="date" value="<?php echo isset($_GET['date_from']) ? htmlspecialchars($_GET['date_from']) : ''; ?>" />
+                                </div>
+
+                                <div class="col-6 field">
+                                    <label>إلى تاريخ</label>
+                                    <input id="fTo" name="date_to" type="date" value="<?php echo isset($_GET['date_to']) ? htmlspecialchars($_GET['date_to']) : ''; ?>" />
+                                </div>
                             </div>
-                         </div>
                         </div>
 
                         <div class="filters-actions">
@@ -2070,150 +2086,160 @@
                     </form>
                 </section>
 
-            <!-- CONTENT -->
-            <main class="content col-12 col-md-12 col-lg-8" id="contentArea">
-                <!-- كارد الإجماليات -->
-             
+                <!-- CONTENT -->
+                <main class="content col-12 col-md-12 col-lg-8" id="contentArea">
+                    <!-- كارد الإجماليات -->
+                    <div class="top-actions" style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="selectAllInvoices">
+                            تحديد الكل
+                        </label>
+                        <button id="printSelectedInvoices" class="btn" style="background: var(--primary); color: white; padding: 8px 16px;">
+                            🖨️ طباعة الفواتير المحددة
+                        </button>
+                    </div>
 
-                <div class="list-wrapper">
-                    <section id="list" class="list" aria-label="قائمة الفواتير">
-                    <?php if ($result && $result->num_rows > 0): ?>
-                        <?php 
-                        $result->data_seek(0); // إعادة تعيين المؤشر
-                        while ($row = $result->fetch_assoc()):
-                            $current_invoice_total_for_row = floatval($row["invoice_total"] ?? 0);
-                            $displayed_invoices_sum += $current_invoice_total_for_row;
-                            
-                            // حساب الخصم
-                            $total_before_discount = floatval($row["total_before_discount"] ?? 0);
-                            $total_after_discount = floatval($row["total_after_discount"] ?? 0);
-                            $discount_amount = floatval($row["discount_amount"] ?? 0);
-                            $discount_type = $row["discount_type"] ?? 'percent';
-                            $discount_value = floatval($row["discount_value"] ?? 0);
-                            
-                            // إذا كان total_before_discount = 0 أو null، استخدم invoice_total
-                            if ($total_before_discount <= 0) {
-                                $total_before_discount = $current_invoice_total_for_row;
-                            }
-                            if ($total_after_discount <= 0) {
-                                $total_after_discount = $total_before_discount;
-                            }
-                            
-                            // التحقق من وجود خصم فعلي
-                            $has_discount = ($discount_amount > 0 && abs($total_after_discount - $total_before_discount) > 0.01);
-                            $final_amount = $has_discount ? $total_after_discount : $total_before_discount;
-                            
-                            $noteText = trim((string)($row['notes'] ?? ''));
-                            $noteDisplay = $noteText;
-                            if (mb_strlen($noteDisplay) > 30) {
-                                $noteDisplay = mb_substr($noteDisplay, 0, 30) . '...';
-                            }
-                            $created_date = date('m/d/Y', strtotime($row["created_at"]));
-                        ?>
-                            <article class="invoice">
-                                <div class="invoice-left">
-                                    <div class="badge">#<?php echo e($row["id"]); ?></div>
-                                    <div class="meta">
-                                        <div class="name"><?php echo e($row["customer_name"]); ?></div>
-                                        <?php if ($noteDisplay): ?>
-                                            <div class="notes" title="<?php echo e($noteText); ?>"><?php echo e($noteDisplay); ?></div>
-                                        <?php endif; ?>
-                                        <div class="extra">
-                                            <div class="phone">📞 <?php echo e($row["customer_mobile"]); ?></div>
-                                            <div class="creator">👤 <?php echo e($row["creator_name"] ?? 'غير معروف'); ?></div>
-                                            <div>📅 <?php echo e($created_date); ?></div>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="list-wrapper">
+                        <section id="list" class="list" aria-label="قائمة الفواتير">
+                            <?php if ($result && $result->num_rows > 0): ?>
+                                <?php
+                                $result->data_seek(0); // إعادة تعيين المؤشر
+                                while ($row = $result->fetch_assoc()):
+                                    $current_invoice_total_for_row = floatval($row["invoice_total"] ?? 0);
+                                    $displayed_invoices_sum += $current_invoice_total_for_row;
 
-                                <div class="invoice-right">
-                                    <?php if ($has_discount): ?>
-                                        <div class="amount-with-discount">
-                                            <div class="amount-original"><?php echo number_format($total_before_discount, 2); ?> ج.م</div>
-                                            <div class="amount-final"><?php echo number_format($total_after_discount, 2); ?> ج.م</div>
-                                            <div class="discount-badge">
-                                                <?php 
-                                                if ($discount_type === 'percent') {
-                                                    echo number_format($discount_value, 2) . '% خصم';
-                                                } else {
-                                                    echo number_format($discount_amount, 2) . ' ج.م خصم';
-                                                }
-                                                ?>
+                                    // حساب الخصم
+                                    $total_before_discount = floatval($row["total_before_discount"] ?? 0);
+                                    $total_after_discount = floatval($row["total_after_discount"] ?? 0);
+                                    $discount_amount = floatval($row["discount_amount"] ?? 0);
+                                    $discount_type = $row["discount_type"] ?? 'percent';
+                                    $discount_value = floatval($row["discount_value"] ?? 0);
+
+                                    // إذا كان total_before_discount = 0 أو null، استخدم invoice_total
+                                    if ($total_before_discount <= 0) {
+                                        $total_before_discount = $current_invoice_total_for_row;
+                                    }
+                                    if ($total_after_discount <= 0) {
+                                        $total_after_discount = $total_before_discount;
+                                    }
+
+                                    // التحقق من وجود خصم فعلي
+                                    $has_discount = ($discount_amount > 0 && abs($total_after_discount - $total_before_discount) > 0.01);
+                                    $final_amount = $has_discount ? $total_after_discount : $total_before_discount;
+
+                                    $noteText = trim((string)($row['notes'] ?? ''));
+                                    $noteDisplay = $noteText;
+                                    if (mb_strlen($noteDisplay) > 30) {
+                                        $noteDisplay = mb_substr($noteDisplay, 0, 30) . '...';
+                                    }
+                                    $created_date = date('m/d/Y', strtotime($row["created_at"]));
+                                ?>
+                                    <article class="invoice">
+                                        <div class="invoice-left">
+                                            <input type="checkbox" class="invoice-checkbox" data-invoice-id=<?php echo e($row["id"]); ?>>
+
+                                            <div class="badge">#<?php echo e($row["id"]); ?></div>
+                                            <div class="meta">
+                                                <div class="name"><?php echo e($row["customer_name"]); ?></div>
+                                                <?php if ($noteDisplay): ?>
+                                                    <div class="notes" title="<?php echo e($noteText); ?>"><?php echo e($noteDisplay); ?></div>
+                                                <?php endif; ?>
+                                                <div class="extra">
+                                                    <div class="phone">📞 <?php echo e($row["customer_mobile"]); ?></div>
+                                                    <div class="creator">👤 <?php echo e($row["creator_name"] ?? 'غير معروف'); ?></div>
+                                                    <div>📅 <?php echo e($created_date); ?></div>
+                                                </div>
                                             </div>
                                         </div>
-                                    <?php else: ?>
-                                        <div class="amount"><?php echo number_format($final_amount, 2); ?> ج.م</div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="status pending">
-                                        مؤجله
-                                    </div>
-                                    
-                                    <div class="actions">
-                                        <button class="show btn-open-modal" data-invoice-id="<?php echo e($row["id"]); ?>">عرض</button>
-                                        
-                                        <?php if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
-                                            <form action="<?php echo $current_page_link; ?>?<?php echo http_build_query($_GET); ?>" method="post" style="display:inline;">
-                                                <input type="hidden" name="invoice_id_to_deliver" value="<?php echo e($row["id"]); ?>">
-                                                <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
-                                                <button type="submit" name="mark_delivered" class="deliver">تسليم</button>
-                                            </form>
-                                            
-                                            <button class="cancel btn-cancel-invoice" data-invoice-id="<?php echo e($row['id']); ?>">إلغاء</button>
-                                            
-                                            <button class="edit btn-edit-items" data-id="<?php echo e($row['id']); ?>">تعديل</button>
- <button class="btn btn-sm btn-outline-secondary btn-return-invoice btn"
-                                                data-invoice-id="<?php echo e($row['id']); ?>"
-                                                title="ارجاع">
-                                                ارجاع
-                                            </button>                                        <?php endif; ?>
-                                    </div>
+
+                                        <div class="invoice-right">
+                                            <?php if ($has_discount): ?>
+                                                <div class="amount-with-discount">
+                                                    <div class="amount-original"><?php echo number_format($total_before_discount, 2); ?> ج.م</div>
+                                                    <div class="amount-final"><?php echo number_format($total_after_discount, 2); ?> ج.م</div>
+                                                    <div class="discount-badge">
+                                                        <?php
+                                                        if ($discount_type === 'percent') {
+                                                            echo number_format($discount_value, 2) . '% خصم';
+                                                        } else {
+                                                            echo number_format($discount_amount, 2) . ' ج.م خصم';
+                                                        }
+                                                        ?>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="amount"><?php echo number_format($final_amount, 2); ?> ج.م</div>
+                                            <?php endif; ?>
+
+                                            <div class="status pending">
+                                                مؤجله
+                                            </div>
+
+                                            <div class="actions">
+                                                <button class="show btn-open-modal" data-invoice-id="<?php echo e($row["id"]); ?>">عرض</button>
+
+                                                <?php if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                                                    <form action="<?php echo $current_page_link; ?>?<?php echo http_build_query($_GET); ?>" method="post" style="display:inline;">
+                                                        <input type="hidden" name="invoice_id_to_deliver" value="<?php echo e($row["id"]); ?>">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                                                        <button type="submit" name="mark_delivered" class="deliver">تسليم</button>
+                                                    </form>
+
+                                                    <button class="cancel btn-cancel-invoice" data-invoice-id="<?php echo e($row['id']); ?>">إلغاء</button>
+
+                                                    <button class="edit btn-edit-items" data-id="<?php echo e($row['id']); ?>">تعديل</button>
+                                                    <button class="btn btn-sm btn-outline-secondary btn-return-invoice btn"
+                                                        data-invoice-id="<?php echo e($row['id']); ?>"
+                                                        title="ارجاع">
+                                                        ارجاع
+                                                    </button> <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </article>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <div style="text-align:center;padding:40px;color:var(--muted)">
+                                    لا توجد فواتير غير مستلمة حالياً.
                                 </div>
-                            </article>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <div style="text-align:center;padding:40px;color:var(--muted)">
-                            لا توجد فواتير غير مستلمة حالياً.
-                        </div>
-                    <?php endif; ?>
-                    </section>
-                </div>
-            </main>
+                            <?php endif; ?>
+                        </section>
+                    </div>
+                </main>
+            </div>
         </div>
-    </div>
 
-    <!-- ======= مودال التفاصيل المحسّن (مضمّن داخل الصفحة ويستخدم endpoint JSON الحالي) ======= -->
-    <div id="invoiceModal" class="modal-backdrop" aria-hidden="true" aria-labelledby="modalTitle" role="dialog">
-        <div class="modal-card mymodal" role="document" id="invoiceModalCard">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <h4 id="modalTitle">تفاصيل الفاتورة</h4>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <div id="modalTotal" class="fw-bold" style="min-width:160px;text-align:left;"></div>
+        <!-- ======= مودال التفاصيل المحسّن (مضمّن داخل الصفحة ويستخدم endpoint JSON الحالي) ======= -->
+        <div id="invoiceModal" class="modal-backdrop" aria-hidden="true" aria-labelledby="modalTitle" role="dialog">
+            <div class="modal-card mymodal" role="document" id="invoiceModalCard">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <h4 id="modalTitle">تفاصيل الفاتورة</h4>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div id="modalTotal" class="fw-bold" style="min-width:160px;text-align:left;"></div>
 
-                    <button id="modalPrintBtn" class="btn btn-secondary btn-sm" title="طباعة"><i class="fas fa-print"></i></button>
-                    <form id="modalDeliverForm" method="post" style="display:inline-block;">
-                        <input type="hidden" name="invoice_id_to_deliver" id="modal_invoice_id_deliver" value="">
-                        <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
-                        <input type="hidden" name="redirect_to" value="pending">
-                        <button type="submit" name="mark_delivered" class="btn btn-success" id="modalDeliverBtn"><i class="fas fa-check-circle"></i> تسليم</button>
-                    </form>
+                        <button id="modalPrintBtn" class="btn btn-secondary btn-sm" title="طباعة"><i class="fas fa-print"></i></button>
+                        <form id="modalDeliverForm" method="post" style="display:inline-block;">
+                            <input type="hidden" name="invoice_id_to_deliver" id="modal_invoice_id_deliver" value="">
+                            <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                            <input type="hidden" name="redirect_to" value="pending">
+                            <button type="submit" name="mark_delivered" class="btn btn-success" id="modalDeliverBtn"><i class="fas fa-check-circle"></i> تسليم</button>
+                        </form>
 
-                    <form id="modalDeleteForm" method="post" style="display:inline-block;" onsubmit="return confirm('تأكيد حذف الفاتورة؟ سيتم إعادة الكميات إذا كانت الفاتورة مستلمة.');">
-                        <input type="hidden" name="invoice_out_id_to_delete" id="modal_invoice_id_delete" value="">
-                        <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
-                        <input type="hidden" name="redirect_to" value="pending">
-                        <!-- <button type="submit" name="delete_sales_invoice" class="btn btn-danger" id="modalDeleteBtn"><i class="fas fa-trash"></i> حذف</button> -->
-                    </form>
-                    <!-- <br/> -->
+                        <form id="modalDeleteForm" method="post" style="display:inline-block;" onsubmit="return confirm('تأكيد حذف الفاتورة؟ سيتم إعادة الكميات إذا كانت الفاتورة مستلمة.');">
+                            <input type="hidden" name="invoice_out_id_to_delete" id="modal_invoice_id_delete" value="">
+                            <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                            <input type="hidden" name="redirect_to" value="pending">
+                            <!-- <button type="submit" name="delete_sales_invoice" class="btn btn-danger" id="modalDeleteBtn"><i class="fas fa-trash"></i> حذف</button> -->
+                        </form>
+                        <!-- <br/> -->
+                    </div>
                 </div>
-            </div>
 
-            <div id="modalContentArea">
-                <!-- سيتم بناء المحتوى هنا بالـ JS من JSON المرسل من endpoint -->
-                <div style="padding:20px;text-align:center;color:#6b7280;">جارٍ التحميل...</div>
-            </div>
+                <div id="modalContentArea">
+                    <!-- سيتم بناء المحتوى هنا بالـ JS من JSON المرسل من endpoint -->
+                    <div style="padding:20px;text-align:center;color:#6b7280;">جارٍ التحميل...</div>
+                </div>
 
-            <!-- <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+                <!-- <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
                 <div id="modalActionsLeft" class="ipc-actions">
                     <form id="modalDeliverForm" method="post" style="display:inline-block;">
                         <input type="hidden" name="invoice_id_to_deliver" id="modal_invoice_id_deliver" value="">
@@ -2233,1091 +2259,108 @@
                 <div id="modalTotal" class="fw-bold" style="min-width:160px;text-align:left;"></div>
             </div> -->
 
-            <button id="modalClose" class="text-left mt-4 btn btn-outline-secondary btn-sm">إغلاق</button>
+                <button id="modalClose" class="text-left mt-4 btn btn-outline-secondary btn-sm">إغلاق</button>
 
-        </div>
-    </div>
-    <!-- Cancel Modal (ضعه لمرة واحدة في الصفحة) -->
-    <div id="cancelInvoiceModal" class="modal-backdrop">
-        <div class="mymodal">
-            <h3>تأكيد إلغاء الفاتورة</h3>
-            <p id="cancelInvoiceInfo">هل تريد حقاً إلغاء الفاتورة <strong id="ci_invoice_id"></strong>؟</p>
-            <label for="ci_reason">سبب الإلغاء (مطلوب):</label>
-            <textarea id="ci_reason" rows="3" style="width:100%;" required placeholder="اكتب سبب الإلغاء هنا"></textarea>
-
-            <div style="margin-top:12px; text-align:right;">
-                <button id="ci_cancel_btn" class="btn btn-warning" style="margin-right:8px;">إغلاق</button>
-                <button id="ci_confirm_btn" class="btn btn-danger">تأكيد الإلغاء</button>
-            </div>
-            <div id="ci_feedback" style="margin-top:10px;color:#d00;display:none;"></div>
-        </div>
-    </div>
-
-    <!-- مودال إرجاع الأصناف (structure مثل اللي طلبته) -->
-    <!-- مودال تعديل/ارجاع الفاتورة-->
-    <div id="invoiceReturnModal" class="modal-backdrop" style="display:non=e;">
-        <div class="mymodal">
-            <h3>تعديل/إرجاع بنود الفاتورة</h3>
-            <p>الفاتورة: <strong id="ir_invoice_id"></strong></p>
-
-            <div style="max-height:420px; overflow:auto; margin-top:8px;">
-                <table class="custom-table" id="ir_items_table">
-                    <thead>
-                        <tr>
-                            <th style="text-align:right">#</th>
-                            <th style="text-align:right">المنتج</th>
-                            <th style="text-align:right">الكمية الحالية</th>
-                            <th style="text-align:right">الكمية الجديدة</th>
-                            <th style="text-align:center">حذف</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
-            </div>
-
-            <label for="ir_note" style="display:block;margin-top:8px;">ملاحظة (اختياري)</label>
-            <textarea id="ir_note" rows="2" style="width:100%"></textarea>
-
-            <div style="margin-top:12px; text-align:right;">
-                <button id="ir_close_btn" class="btn btn-warning" style="margin-right:8px;">إغلاق</button>
-                <button id="ir_confirm_btn" class="btn btn-danger">تطبيق التعديلات</button>
-            </div>
-
-            <div id="ir_feedback" style="margin-top:10px; display:none;color:#d00"></div>
-        </div>
-    </div> 
-    <div id="returnInvoiceModal" class="modal-backdrop">
-        <div class="mymodal" id="returnInvoiceModalInner">
-            <h3>إرجاع من الفاتورة — <span id="rim_invoice_no"></span></h3>
-            <div id="rim_body">
-                <p>تحميل بيانات...</p>
-            </div>
-
-            <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
-                <button id="rim_cancel" class="btn btn-danger">إغلاق</button>
-                <button id="rim_submit" class="btn btn-primary">تنفيذ الإرجاع</button>
             </div>
         </div>
-    </div>
+        <!-- Cancel Modal (ضعه لمرة واحدة في الصفحة) -->
+        <div id="cancelInvoiceModal" class="modal-backdrop">
+            <div class="mymodal">
+                <h3>تأكيد إلغاء الفاتورة</h3>
+                <p id="cancelInvoiceInfo">هل تريد حقاً إلغاء الفاتورة <strong id="ci_invoice_id"></strong>؟</p>
+                <label for="ci_reason">سبب الإلغاء (مطلوب):</label>
+                <textarea id="ci_reason" rows="3" style="width:100%;" required placeholder="اكتب سبب الإلغاء هنا"></textarea>
+
+                <div style="margin-top:12px; text-align:right;">
+                    <button id="ci_cancel_btn" class="btn btn-warning" style="margin-right:8px;">إغلاق</button>
+                    <button id="ci_confirm_btn" class="btn btn-danger">تأكيد الإلغاء</button>
+                </div>
+                <div id="ci_feedback" style="margin-top:10px;color:#d00;display:none;"></div>
+            </div>
+        </div>
+
+        <!-- مودال إرجاع الأصناف (structure مثل اللي طلبته) -->
+        <!-- مودال تعديل/ارجاع الفاتورة-->
+        <div id="invoiceReturnModal" class="modal-backdrop" style="display:non=e;">
+            <div class="mymodal">
+                <h3>تعديل/إرجاع بنود الفاتورة</h3>
+                <p>الفاتورة: <strong id="ir_invoice_id"></strong></p>
+
+                <div style="max-height:420px; overflow:auto; margin-top:8px;">
+                    <table class="custom-table" id="ir_items_table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:right">#</th>
+                                <th style="text-align:right">المنتج</th>
+                                <th style="text-align:right">الكمية الحالية</th>
+                                <th style="text-align:right">الكمية الجديدة</th>
+                                <th style="text-align:center">حذف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+
+                <label for="ir_note" style="display:block;margin-top:8px;">ملاحظة (اختياري)</label>
+                <textarea id="ir_note" rows="2" style="width:100%"></textarea>
+
+                <div style="margin-top:12px; text-align:right;">
+                    <button id="ir_close_btn" class="btn btn-warning" style="margin-right:8px;">إغلاق</button>
+                    <button id="ir_confirm_btn" class="btn btn-danger">تطبيق التعديلات</button>
+                </div>
+
+                <div id="ir_feedback" style="margin-top:10px; display:none;color:#d00"></div>
+            </div>
+        </div>
+        <div id="returnInvoiceModal" class="modal-backdrop">
+            <div class="mymodal" id="returnInvoiceModalInner">
+                <h3>إرجاع من الفاتورة — <span id="rim_invoice_no"></span></h3>
+                <div id="rim_body">
+                    <p>تحميل بيانات...</p>
+                </div>
+
+                <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+                    <button id="rim_cancel" class="btn btn-danger">إغلاق</button>
+                    <button id="rim_submit" class="btn btn-primary">تنفيذ الإرجاع</button>
+                </div>
+            </div>
+        </div>
 
 
-    <!-- Button: ضع هذا الزر داخل صف الفاتورة -->
+        <!-- Button: ضع هذا الزر داخل صف الفاتورة -->
 
-    <!-- Modal container (مخفي) — نستخدمه لعرض المحتوى داخل SweetAlert أو كـ inline modal -->
-    <!-- <div id="return-modal-root" style="display:none;"></div> -->
-
-
-    <!-- ستملىء ديناميكياً -->
+        <!-- Modal container (مخفي) — نستخدمه لعرض المحتوى داخل SweetAlert أو كـ inline modal -->
+        <!-- <div id="return-modal-root" style="display:none;"></div> -->
 
 
+        <!-- ستملىء ديناميكياً -->
 
 
-    <div id="ipc_toast_holder"></div>
-    <!-- زر الارجاع داخل صف الفاتورة -->
-
-    <!-- مودال تعديل/ارجاع الفاتورة (انت طلبت نفس الكلاسات modal_backdrop و mymodal) -->
-    <!-- sweetalert2 (كما طلبت) -->
-
-    <!-- Return modal (نفس نمط modal_backdrop الذي تستعمله) -->
 
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- الزر (مثال واحد لصف) - ضع مثيلاً داخل حلقة عرض الفواتير -->
-    <!--
+        <div id="ipc_toast_holder"></div>
+        <!-- زر الارجاع داخل صف الفاتورة -->
+
+        <!-- مودال تعديل/ارجاع الفاتورة (انت طلبت نفس الكلاسات modal_backdrop و mymodal) -->
+        <!-- sweetalert2 (كما طلبت) -->
+
+        <!-- Return modal (نفس نمط modal_backdrop الذي تستعمله) -->
+
+
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <!-- الزر (مثال واحد لصف) - ضع مثيلاً داخل حلقة عرض الفواتير -->
+        <!--
 <button class="btn-return-invoice" data-invoice-id="<?= $inv['id'] ?>">إرجاع</button>
 -->
 
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-document.addEventListener("click", (e) => {
-  if (e.target.classList.contains("btn-edit-items")) {
-    const id = e.target.dataset.id;
-    
-    Swal.fire({
-      title: 'تأكيد الدخول لوضع تعديل البنود',
-      text: 'هل ترغب في تعديل بنود هذه الفاتورة؟',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'نعم، تعديل البنود',
-      cancelButtonText: 'إلغاء'
-    }).then((result) => {
-    if (result.isConfirmed) {
-        const redirectBase = (typeof baseUrl !== 'undefined') ? baseUrl : (window.BASE_URL || (location.origin + '/store_v1/'));
-        window.location.href = redirectBase + 'invoices_out/create_invoice.php?mode=edit&id=' + encodeURIComponent(id);
-    }
-    });
-  }
-});
-</script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+            document.addEventListener("click", (e) => {
+                if (e.target.classList.contains("btn-edit-items")) {
+                    const id = e.target.dataset.id;
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const modal = document.getElementById('invoiceModal');
-            const modalCard = document.getElementById('invoiceModalCard');
-            const modalClose = document.getElementById('modalClose');
-            const modalContent = document.getElementById('modalContentArea');
-            const modalTotal = document.getElementById('modalTotal');
-            const deliverIdInput = document.getElementById('modal_invoice_id_deliver');
-            const deleteIdInput = document.getElementById('modal_invoice_id_delete');
-            const printBtn = document.getElementById('modalPrintBtn');
-            const toastHolder = document.getElementById('ipc_toast_holder');
-
-            const baseUrl = <?php echo json_encode(BASE_URL); ?>;
-            const currentQuery = <?php echo json_encode(http_build_query($_GET)); ?>;
-            const currentPage = <?php echo json_encode($current_page_link); ?>;
-
-            function showModal() {
-                modal.style.display = 'flex';
-                modal.setAttribute('aria-hidden', 'false');
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            }
-
-            function hideModal() {
-                modal.style.display = 'none';
-                modal.setAttribute('aria-hidden', 'true');
-                modalContent.innerHTML = '';
-                modalTotal.innerText = '';
-                deliverIdInput.value = '';
-                deleteIdInput.value = '';
-            }
-
-            modalClose.addEventListener('click', hideModal);
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) hideModal();
-            });
-
-            function showToast(msg, type = 'info', ms = 3000) {
-                const t = document.createElement('div');
-                t.className = 'ipc-toast';
-                if (type === 'success') t.style.background = 'linear-gradient(90deg,#10b981,#059669)';
-                if (type === 'error') t.style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
-                t.innerText = msg;
-                toastHolder.appendChild(t);
-                requestAnimationFrame(() => t.classList.add('show'));
-                setTimeout(() => {
-                    t.classList.remove('show');
-                    setTimeout(() => t.remove(), 350);
-                }, ms);
-            }
-
-            // زر العرض في كل صف
-            document.querySelectorAll('.btn-open-modal').forEach(btn => {
-                btn.addEventListener('click', async function() {
-                    const invId = parseInt(this.dataset.invoiceId || 0, 10);
-                    if (!invId) {
-                        showToast('معرف الفاتورة غير صالح', 'error');
-                        return;
-                    }
-                    modalContent.innerHTML = '<div style="padding:30px;text-align:center;color:#6b7280">جارٍ التحميل...</div>';
-                    showModal();
-
-                    try {
-                        // استخدم endpoint الموجود في أعلى الملف الذي يعيد JSON
-                        const url = location.pathname + '?action=fetch_invoice_details&id=' + encodeURIComponent(invId);
-                        const res = await fetch(url, {
-                            credentials: 'same-origin'
-                        });
-                        const contentType = res.headers.get('content-type') || '';
-                        const txt = await res.text();
-
-                        if (contentType.includes('application/json')) {
-                            const data = JSON.parse(txt);
-                            if (!data.success) {
-                                showToast(data.message || 'خطأ: لم نتمكن من جلب التفاصيل', 'error');
-                                console.error('server message:', data);
-                                modalContent.innerHTML = '<div style="padding:20px;color:#b91c1c">الفاتورة غير موجودة أو حدث خطأ.</div>';
-                                return;
-                            }
-                            buildModalFromJson(data.invoice, data.items);
-                        } else {
-                            // إذا لم يرجع JSON قد يكون خطأ PHP => عرض النص في الـ console
-                            console.error('Non-JSON response when fetching invoice:', txt);
-                            modalContent.innerHTML = '<div style="padding:20px;color:#b91c1c">استجابة غير متوقعة من السيرفر. افتح Console لرؤية التفاصيل.</div>';
-                        }
-                    } catch (err) {
-                        console.error('fetch error:', err);
-                        modalContent.innerHTML = '<div style="padding:20px;color:#b91c1c">خطأ في الاتصال عند جلب تفاصيل الفاتورة.</div>';
-                    }
-                });
-            });
-
-            function buildModalFromJson(inv, items) {
-                // header
-                const titleHtml = `
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
-                <div style="flex:1">
-                <div style="font-weight:700;font-size:1.05rem">فاتورة مبيعات — <span style="color:var(--bs-primary,#0d6efd)">#${escapeHtml(inv.id)}</span></div>
-                <div style="font-size:0.85rem;color:#6b7280">تاريخ الإنشاء: ${escapeHtml(fmt_dt(inv.created_at))}</div>
-                </div>
-                <div style="text-align:left">
-                ${inv.delivered === 'yes' ? '<span style="display:inline-block;padding:6px 12px;border-radius:24px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff">تم الدفع</span>' : '<span style="display:inline-block;padding:6px 12px;border-radius:24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">مؤجل</span>'}
-                </div>
-            </div>
-            `;
-
-                // info cards
-                const infoHtml = `
-            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
-                <div style="flex:1;min-width:220px;padding:12px;border-radius:10px;background:var(--card-bg,rgba(0,0,0,0.03))">
-                <div style="font-weight:700;margin-bottom:6px">معلومات الفاتورة</div>
-                <div><strong>المجموعة:</strong> ${escapeHtml(inv.invoice_group || '—')}</div>
-                <div><strong>منشأ الفاتورة:</strong> ${escapeHtml(inv.creator_name || '-')}</div>
-                <div><strong>آخر تحديث:</strong> ${escapeHtml(fmt_dt(inv.updated_at || inv.created_at))}</div>
-                </div>
-                <div style="flex:1;min-width:220px;padding:12px;border-radius:10px;background:var(--card-bg,rgba(0,0,0,0.03))">
-                <div style="font-weight:700;margin-bottom:6px">معلومات العميل</div>
-                <div><strong>الاسم:</strong> ${escapeHtml(inv.customer_name || 'غير محدد')}</div>
-                <div><strong>الموبايل:</strong> ${escapeHtml(inv.customer_mobile || '—')}</div>
-                <div><strong>المدينة:</strong> ${escapeHtml(inv.customer_city || '—')}</div>
-                </div>
-            </div>
-            `;
-
-                // items table
-                let itemsHtml = `<div class="custom-table-wrapper">
-    <table class="custom-table">
-      <thead class="center">
-        <tr>
-          <th style="width:40px">#</th>
-          <th style="text-align:right;">اسم المنتج</th>
-          <th style="text-align:right;">الكمية</th>
-          <th style="text-align:right;">سعر الوحدة</th>
-          <th style="text-align:right;">الإجمالي</th>
-        </tr>
-      </thead>
-      <tbody>`;
-                let total = 0;
-                if (items && items.length) {
-                    items.forEach((it, idx) => {
-                        const name = it.product_name ? (it.product_name + (it.product_code ? (' — ' + it.product_code) : '')) : ('#' + it.product_id);
-                        const qty = parseFloat(it.quantity || 0).toFixed(2);
-                        const price = parseFloat(it.selling_price || it.cost_price_per_unit || 0).toFixed(2);
-                        const line = parseFloat(it.total_price || 0).toFixed(2);
-                        total += parseFloat(line || 0);
-
-                        itemsHtml += `<tr>
-            <td style="padding:10px">${idx+1}</td>
-            <td style="padding:10px;text-align:right">${escapeHtml(name)}</td>
-            <td style="padding:10px;text-align:right">${qty}</td>
-            <td style="padding:10px;text-align:right">${price}</td>
-            <td style="padding:10px;text-align:right;font-weight:700">${line} ج.م</td>
-        </tr>`;
-                    });
-                } else {
-                    itemsHtml += `<tr><td colspan="5" style="padding:12px;text-align:center;color:#6b7280">لا يوجد بنود</td></tr>`;
-                }
-                itemsHtml += `</tbody></table></div>`;
-
-                // حساب الخصم
-                let totalBeforeDiscount = parseFloat(inv.total_before_discount || total);
-                let totalAfterDiscount = parseFloat(inv.total_after_discount || total);
-                const discountAmount = parseFloat(inv.discount_amount || 0);
-                const discountType = inv.discount_type || 'percent';
-                const discountValue = parseFloat(inv.discount_value || 0);
-                
-                // إذا كان total_before_discount = 0 أو null، استخدم total من البنود
-                if (totalBeforeDiscount <= 0) {
-                    totalBeforeDiscount = total;
-                }
-                if (totalAfterDiscount <= 0) {
-                    totalAfterDiscount = totalBeforeDiscount;
-                }
-                
-                // التحقق من وجود خصم فعلي
-                const hasDiscount = (discountAmount > 0 && Math.abs(totalAfterDiscount - totalBeforeDiscount) > 0.01);
-
-                // ملخص الإجماليات مع الخصم
-                let summaryHtml = `<div style="margin-top:16px;padding:16px;border-radius:10px;background:rgba(0,0,0,0.02);border-top:2px solid var(--accent,#0d6efd)">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                        <strong>المجموع قبل الخصم:</strong>
-                        <span style="font-weight:700">${totalBeforeDiscount.toFixed(2)} ج.م</span>
-                    </div>`;
-                
-                if (hasDiscount) {
-                    summaryHtml += `
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#b45309">
-                        <strong>الخصم:</strong>
-                        <span style="font-weight:700">
-                            ${discountType === 'percent' ? discountValue.toFixed(2) + '%' : discountAmount.toFixed(2) + ' ج.م'}
-                        </span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:2px solid #e5e7eb">
-                        <strong style="font-size:1.1rem">المجموع بعد الخصم:</strong>
-                        <span style="font-weight:800;font-size:1.2rem;color:var(--accent,#0d6efd)">${totalAfterDiscount.toFixed(2)} ج.م</span>
-                    </div>`;
-                } else {
-                    summaryHtml += `
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:2px solid #e5e7eb">
-                        <strong style="font-size:1.1rem">الإجمالي:</strong>
-                        <span style="font-weight:800;font-size:1.2rem;color:var(--accent,#0d6efd)">${totalBeforeDiscount.toFixed(2)} ج.م</span>
-                    </div>`;
-                }
-                summaryHtml += `</div>`;
-
-                // notes
-                let notesHtml = '';
-                if (inv.notes && inv.notes.trim() !== '') {
-                    notesHtml = `<div style="margin-top:12px;padding:12px;border-radius:8px;background:rgba(0,0,0,0.02)"  class="no-print">
-                <div style="font-weight:700;margin-bottom:8px ">ملاحظات</div><div style="white-space:pre-wrap;">${escapeHtml(inv.notes).replace(/\n/g,'<br>')}</div><div style="margin-top:8px"><button class="btn-copy-notes btn btn-outline-secondary btn-sm" data-notes="${escapeHtml(inv.notes)}">نسخ الملاحظات</button></div></div>`;
-                }
-
-                modalContent.innerHTML = titleHtml + infoHtml + itemsHtml + summaryHtml + notesHtml;
-
-                // set modal forms values
-                deliverIdInput.value = inv.id;
-                deleteIdInput.value = inv.id;
-                modalTotal.innerText = hasDiscount ? 
-                    `الإجمالي: ${totalAfterDiscount.toFixed(2)} ج.م (بعد خصم ${discountType === 'percent' ? discountValue.toFixed(2) + '%' : discountAmount.toFixed(2) + ' ج.م'})` :
-                    `الإجمالي: ${totalBeforeDiscount.toFixed(2)} ج.م`;
-
-                // attach copy notes handler if present
-                const copyBtn = modalContent.querySelector('.btn-copy-notes');
-                if (copyBtn) {
-                    copyBtn.addEventListener('click', function() {
-                        const notes = this.dataset.notes || '';
-                        if (!notes) return showToast('لا توجد ملاحظات للنسخ', 'error');
-                        navigator.clipboard?.writeText(notes).then(() => showToast('تم نسخ الملاحظات', 'success')).catch(() => {
-                            alert('نسخ فشل');
-                        });
-                    });
-                }
-
-                showModal();
-            }
-
-            // طباعة المودال (يطبع المحتوى الداخلي فقط)
-            
-
-            // utility funcs
-            function escapeHtml(s) {
-                if (s === null || s === undefined) return '';
-                return String(s).replace(/[&<>"']/g, function(m) {
-                    return {
-                        '&': '&amp;',
-                        '<': '&lt;',
-                        '>': '&gt;',
-                        '"': '&quot;',
-                        "'": '&#39;'
-                    } [m];
-                });
-            }
-
-            function fmt_dt(raw) {
-                if (!raw) return '—';
-                try {
-                    const d = new Date(raw);
-                    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + d.toLocaleTimeString();
-                } catch (e) {
-                    return raw;
-                }
-            }
-
-            // expose open function
-            window.openInvoiceModal = function(id) {
-                const btn = document.querySelector('.btn-open-modal[data-invoice-id="' + id + '"]');
-                if (btn) btn.click();
-            };
-
-
-            const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
-
-
-
-
-            (function() {
-                const modal = document.getElementById('cancelInvoiceModal');
-                const info = document.getElementById('ci_invoice_id');
-                const reasonInput = document.getElementById('ci_reason');
-                const feedback = document.getElementById('ci_feedback');
-                const btnClose = document.getElementById('ci_cancel_btn');
-                const btnConfirm = document.getElementById('ci_confirm_btn');
-                let currentInvoiceId = null;
-
-                // delegate click on cancel buttons
-                document.addEventListener('click', function(e) {
-                    if (e.target && e.target.classList.contains('btn-cancel-invoice')) {
-                        currentInvoiceId = e.target.dataset.invoiceId;
-                        info.textContent = currentInvoiceId;
-                        reasonInput.value = '';
-                        feedback.style.display = 'none';
-                        modal.style.display = 'flex';
-                    }
-                });
-
-                btnClose.addEventListener('click', function() {
-                    modal.style.display = 'none';
-                });
-
-                btnConfirm.addEventListener('click', function() {
-                    feedback.style.display = 'none';
-
-                    // validation on client: reason is required
-                    const reasonTrim = (reasonInput.value || '').trim();
-                    if (!reasonTrim) {
-                        feedback.style.display = 'block';
-                        feedback.textContent = 'حقل السبب مطلوب. من فضلك اشرح سبب الإلغاء.';
-                        reasonInput.focus();
-                        return;
-                    }
-                    btnConfirm.disabled = true;
-                    btnConfirm.textContent = 'جارٍ الإلغاء...';
-
-                    const fd = new FormData();
-                    fd.append('action', 'cancel_invoice');
-                    fd.append('invoice_id', currentInvoiceId);
-                    fd.append('csrf_token', CSRF_TOKEN);
-                    fd.append('reason', reasonInput.value || '');
-
-                    fetch(window.location.href, {
-                            method: 'POST',
-                            body: fd,
-                            credentials: 'same-origin'
-                        })
-                        .then(r => r.json())
-                        .then(json => {
-                            btnConfirm.disabled = false;
-                            btnConfirm.textContent = 'تأكيد الإلغاء';
-                            if (json.success) {
-                                // إغلاق المودال وإعلام المستخدم
-                                modal.style.display = 'none';
-                                alert(json.message || 'تم الإلغاء');
-                                window.location.reload()
-
-                                // تحديث الواجهة: ابحث عن صف الفاتورة وقم بتغيير عمود delivered إلى 'canceled' أو أحذفه
-                                const btn = document.querySelector('.btn-cancel-invoice[data-invoice-id="' + currentInvoiceId + '"]');
-                                if (btn) {
-                                    const row = btn.closest('tr');
-                                    if (row) {
-                                        // مثال: تغيير خلية delivered (ابحث فيها حسب بنية الجدول)
-                                        const deliveredCell = row.querySelector('.cell-delivered');
-                                        if (deliveredCell) {
-                                            deliveredCell.textContent = 'canceled'; // أو 'ملغاة' حسب الترجمة
-                                        }
-                                        // تعطيل الزر
-                                        btn.disabled = true;
-                                    }
-                                }
-                            } else {
-                                feedback.style.display = 'block';
-                                feedback.textContent = json.error || 'حدث خطأ أثناء الإلغاء.';
-                            }
-                        })
-                        .catch(err => {
-                            btnConfirm.disabled = false;
-                            btnConfirm.textContent = 'تأكيد الإلغاء';
-                            feedback.style.display = 'block';
-                            feedback.textContent = 'خطأ في الاتصال.';
-                            console.error(err);
-                        });
-                });
-
-                // إغلاق المودال عند الضغط خارج الصندوق (اختياري)
-                modal.addEventListener('click', function(e) {
-                    if (e.target === modal) modal.style.display = 'none';
-                });
-
-            })();
-
-
-            // Open Invoice Return modal when clicking the invoice-level return button
-            // Open Invoice Return modal when clicking the invoice-level return button
-            document.addEventListener('click', async function(e) {
-                if (e.target && e.target.classList.contains('btn-return-invoice')) {
-                    const invoiceId = e.target.dataset.invoiceId;
-                    if (!invoiceId) return;
-
-                    const modal = document.getElementById('invoiceReturnModal');
-                    const feedback = document.getElementById('ir_feedback');
-                    feedback.style.display = 'none';
-                    document.getElementById('ir_note').value = '';
-
-                    // fetch invoice items
-                    try {
-                        const res = await fetch(location.pathname + '?action=get_invoice_return_info&invoice_id=' + encodeURIComponent(invoiceId), {
-                            credentials: 'same-origin'
-                        });
-                        const j = await res.json();
-                        if (!j.success) {
-                            feedback.style.display = 'block';
-                            feedback.textContent = j.message || 'فشل في جلب بنود الفاتورة';
-                            return;
-                        }
-
-                        const items = j.items || [];
-                        const tbody = document.querySelector('#ir_items_table tbody');
-                        tbody.innerHTML = '';
-                        items.forEach((it, idx) => {
-                            const name = (it.product_name || '') + (it.product_code ? (' — ' + it.product_code) : '');
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                    <td style="text-align:right">${idx+1}</td>
-                    <td style="text-align:right">${escapeHtml(name)}</td>
-                    <td style="text-align:right">${it.quantity}</td>
-                    <td style="text-align:right">
-                        <input type="number" class="ir_new_qty" data-item-id="${it.id}" min="0" step="0.01" value="${it.quantity}" style="width:110px;padding:6px;text-align:right" />
-                    </td>
-                    <td style="text-align:center">
-                        <button type="button" class="btn btn-sm btn-outline-danger ir_delete_btn" data-item-id="${it.id}">حذف</button>
-                    </td>
-                `;
-                            tbody.appendChild(tr);
-                        });
-
-                        document.getElementById('ir_invoice_id').textContent = invoiceId;
-                        modal.style.display = 'flex';
-                    } catch (err) {
-                        feedback.style.display = 'block';
-                        feedback.textContent = 'خطأ في الاتصال';
-                        console.error(err);
-                    }
-                }
-            });
-
-            // helper: simple escape
-            function escapeHtml(s) {
-                return String(s || '').replace(/[&<>"']/g, function(m) {
-                    return ({
-                        '&': '&amp;',
-                        '<': '&lt;',
-                        '>': '&gt;',
-                        '"': '&quot;',
-                        "'": '&#39;'
-                    })[m];
-                });
-            }
-
-            // Delete button: set qty to 0 visually
-            document.addEventListener('click', function(e) {
-                if (e.target && e.target.classList.contains('ir_delete_btn')) {
-                    const id = e.target.dataset.itemId;
-                    const input = document.querySelector('.ir_new_qty[data-item-id="' + id + '"]');
-                    if (input) {
-                        input.value = 0;
-                        input.classList.add('marked-for-delete');
-                    }
-                }
-            });
-
-            // Close modal
-            document.addEventListener('click', function(e) {
-                if (e.target && e.target.id === 'ir_close_btn') {
-                    document.getElementById('invoiceReturnModal').style.display = 'none';
-                }
-            });
-
-            // Confirm and send changes
-            document.addEventListener('click', async function(e) {
-                if (e.target && e.target.id === 'ir_confirm_btn') {
-                    const modal = document.getElementById('invoiceReturnModal');
-                    const feedback = document.getElementById('ir_feedback');
-                    feedback.style.display = 'none';
-
-                    const invoiceId = document.getElementById('ir_invoice_id').textContent;
-                    if (!invoiceId) {
-                        feedback.style.display = 'block';
-                        feedback.textContent = 'خطأ: رقم الفاتورة غير موجود';
-                        return;
-                    }
-
-                    // collect changes
-                    const inputs = Array.from(document.querySelectorAll('.ir_new_qty'));
-                    const items = [];
-                    inputs.forEach(inp => {
-                        const itemId = inp.dataset.itemId;
-                        const newQty = parseFloat(inp.value || '0');
-                        const origQty = parseFloat(inp.getAttribute('value') || '0'); // initial value attribute
-                        // include item if changed (or zero)
-                        if (isNaN(newQty)) return;
-                        if (Math.abs(newQty - origQty) > 1e-9) {
-                            items.push({
-                                item_id: parseInt(itemId, 10),
-                                new_qty: newQty
-                            });
-                        }
-                    });
-
-                    if (items.length === 0) {
-                        feedback.style.display = 'block';
-                        feedback.textContent = 'لا تغييرات تم إدخالها';
-                        return;
-                    }
-
-                    // prepare POST
-                    const fd = new FormData();
-                    fd.append('action', 'return_invoice_items');
-                    fd.append('invoice_id', invoiceId);
-                    fd.append('items', JSON.stringify(items));
-                    fd.append('csrf_token', typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '');
-
-                    e.target.disabled = true;
-                    e.target.textContent = 'جارٍ التطبيق...';
-                    try {
-                        const resp = await fetch(location.pathname, {
-                            method: 'POST',
-                            body: fd,
-                            credentials: 'same-origin'
-                        });
-                        const j = await resp.json();
-                        if (j.success) {
-                            // نجاح: اغلاق المودال واعادة تحميل لعرض التغييرات
-                            modal.style.display = 'none';
-                            // يمكنك اختيار تحديث جزئي بدلاً من reload
-                            window.location.reload();
-                        } else {
-                            feedback.style.display = 'block';
-                            feedback.textContent = j.message || 'فشل تطبيق التعديلات';
-                        }
-                    } catch (err) {
-                        feedback.style.display = 'block';
-                        feedback.textContent = 'خطأ في الاتصال';
-                        console.error(err);
-                    } finally {
-                        e.target.disabled = false;
-                        e.target.textContent = 'تطبيق التعديلات';
-                    }
-                }
-            });
-
-
-
-
-        });
-    </script>
-
-
-    <script>
-        const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
-
-        (function() {
-            // عناصر DOM
-            const modal = document.getElementById('returnInvoiceModal');
-            const modalBody = document.getElementById('rim_body');
-            const invoiceNoSpan = document.getElementById('rim_invoice_no');
-            const btnCancel = document.getElementById('rim_cancel');
-            const btnSubmit = document.getElementById('rim_submit');
-            let currentInvoiceId = 0;
-            let originalItems = []; // array of objects { invoice_item_id, product_id, product_name, qty_sold }
-            // دالة بسيطة لقراءة التوكن من الميتا
-            function readCsrfTokenFromPage() {
-                const m = document.querySelector('meta[name="csrf_token"]');
-                if (m) return m.getAttribute('content') || '';
-                return (window.csrf_token || '');
-            }
-
-            // قبل بناء FormData
-
-            // send request with credentials so cookie (PHPSESSID) يروح
-
-
-            // فتح المودال: يتم تحميل بنود الفاتورة عبر AJAX (endpoint بسيط يعيد JSON ببنود الفاتورة)
-            async function openReturnModal(invoiceId) {
-                currentInvoiceId = invoiceId;
-                invoiceNoSpan.textContent = invoiceId;
-                modalBody.innerHTML = '<p>جاري جلب بنود الفاتورة...</p>';
-                modal.style.display = 'flex';
-
-                try {
-                    const csrf = document.querySelector('meta[name="csrf_token"]')?.content || window.csrf_token || '';
-
-                    const resp = await fetch('pending_invoices.php?action=get_invoice_items&invoice_id=' + encodeURIComponent(invoiceId), {
-                        credentials: 'same-origin'
-                    });
-                    const data = await resp.json();
-                    if (!data.success) {
-                        modalBody.innerHTML = `<div class="alert alert-danger">${data.error || 'خطأ في جلب بنود الفاتورة'}</div>`;
-                        return;
-                    }
-                    originalItems = data.items; // expected array
-                    renderItemsTable();
-                } catch (err) {
-                    modalBody.innerHTML = '<div class="alert alert-danger">خطأ في الاتصال.</div>';
-                    console.error(err);
-                }
-            }
-
-            function renderItemsTable() {
-                if (!originalItems || originalItems.length === 0) {
-                    modalBody.innerHTML = '<p>لا توجد بنود.</p>';
-                    return;
-                }
-
-                // build table
-                let html = `<table class="custom-table" id="rim_items_table">
-      <thead><tr><th>المنتج</th><th>كمية مباعة</th><th>كمية لإرجاع</th><th>إجراء</th></tr></thead>
-      <tbody>`;
-                originalItems.forEach(it => {
-                    // each item must include invoice_item_id, product_id, name, qty
-                    html += `<tr data-invoice-item-id="${it.invoice_item_id}">
-        <td>${escapeHtml(it.name)}</td>
-        <td>${it.qty}</td>
-        <td><input class="rim-qty-input" type="number" min="0" max="${it.qty}" step="0.01" value="0" data-max="${it.qty}"></td>
-        <td><button class="rim-delete-btn btn btn-danger text-white"   title="حذف البند">حذف</button></td>
-      </tr>`;
-                });
-                html += `</tbody></table>`;
-                modalBody.innerHTML = html;
-
-                // attach handlers
-                modalBody.querySelectorAll('.rim-delete-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const tr = e.target.closest('tr');
-                        const iid = parseInt(tr.dataset.invoiceItemId || tr.getAttribute('data-invoice-item-id'), 10);
-                        handleDeleteItemClick(iid, tr);
-                    });
-                });
-            }
-
-            function handleDeleteItemClick(invoiceItemId, trElem) {
-                // if invoice contains only 1 item, show message: cancel invoice instead
-                if (originalItems.length === 1) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'لا يمكن حذف بند وحيد',
-                        text: 'الفاتورة تحتوي على بند واحد فقط. لإزالة كل البنود يرجى إلغاء الفاتورة بدلاً من حذف البند.',
-                    });
-                    return;
-                }
-                // confirmation
-                Swal.fire({
-                    title: 'تأكيد حذف البند',
-                    text: 'هل تريد حذف هذا البند بالكامل واستعادة كمياته إلى الدفعات؟',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'نعم حذف واستعادة',
-                    cancelButtonText: 'إلغاء'
-                }).then(result => {
-                    if (result.isConfirmed) {
-                        // set return input to max (simulate full remove) and mark row with data-delete="1"
-                        const input = trElem.querySelector('.rim-qty-input');
-                        input.value = input.dataset.max || input.max || input.getAttribute('max') || 0;
-                        trElem.dataset.toDelete = '1';
-                        trElem.style.opacity = '0.6';
-                    }
-                });
-            }
-
-            // helper escape
-            function escapeHtml(s) {
-                return String(s).replace(/[&<>"']/g, function(m) {
-                    return {
-                        '&': '&amp;',
-                        '<': '&lt;',
-                        '>': '&gt;',
-                        '"': '&quot;',
-                        "'": '&#39;'
-                    } [m];
-                });
-            }
-
-            // close
-            btnCancel.addEventListener('click', () => {
-                modal.style.display = 'none';
-            });
-            // submit handler
-            btnSubmit.addEventListener('click', async () => {
-                // gather requested returns
-                const rows = Array.from(modalBody.querySelectorAll('tbody tr'));
-                const payloadItems = [];
-                let totalReturnQty = 0;
-                for (const r of rows) {
-                    const iid = parseInt(r.dataset.invoiceItemId, 10);
-                    const inp = r.querySelector('.rim-qty-input');
-                    const q = parseFloat(inp.value || 0);
-                    const max = parseFloat(inp.dataset.max || 0);
-                    if (isNaN(q) || q < 0) {
-                        Swal.fire('قيمة غير صحيحة', 'أدخل قيمة صالحة للكمية', 'error');
-                        return;
-                    }
-                    if (q > max) {
-                        Swal.fire('الكمية أكبر من المسموح', 'حاول إرجاع أقل أو تواصل مع الدعم', 'error');
-                        return;
-                    }
-                    if (q > 0) {
-                        payloadItems.push({
-                            invoice_item_id: iid,
-                            qty: q,
-                            delete: r.dataset.toDelete === '1' ? 1 : 0
-                        });
-                        totalReturnQty += q;
-                    }
-                }
-
-                if (payloadItems.length === 0) {
-                    Swal.fire('لا شيء للإرجاع', 'حدد كمية أو اضغط إلغاء', 'info');
-                    return;
-                }
-
-                // if the invoice has only 1 item, prevent full return (server also enforces)
-                if (originalItems.length === 1) {
-                    const only = originalItems[0];
-                    // if user tries to return equal to sold qty for that single item -> forbid
-                    if (payloadItems.length === 1 && Math.abs(payloadItems[0].qty - only.qty) < 1e-9) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'لا يمكن إرجاع الكمية كلها',
-                            text: 'الفاتورة تحتوي على بند واحد فقط. لإلغاء الفاتورة استخدم خيار إلغاء الفاتورة.',
-                        });
-                        return;
-                    }
-                }
-
-                // confirm
-                const confirm = await Swal.fire({
-                    title: 'تأكيد تنفيذ الإرجاع',
-                    html: `سيتم استعادة مجموع <b>${totalReturnQty}</b> وحدة(وحدات). هل تتابع؟`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'نعم نفّذ الإرجاع',
-                    cancelButtonText: 'إلغاء'
-                });
-                if (!confirm.isConfirmed) return;
-
-                // send to server
-                try {
-                    // build form data
-                    const fd = new FormData();
-                    fd.append('action', 'process_return');
-                    fd.append('invoice_id', currentInvoiceId);
-                    // include CSRF token present on page as meta[name="csrf"] or a hidden field (adjust selector if different)
-                    fd.append('csrf_token', typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '');
-
-                    fd.append('items', JSON.stringify(payloadItems));
-
-                    const r = await fetch('pending_invoices.php', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        body: fd
-                    });
-                    const resp = await r.json();
-                    if (!resp.success) {
-                        Swal.fire('خطأ', resp.error || 'فشل تنفيذ الإرجاع', 'error');
-                        return;
-                    }
-                    Swal.fire('تم بنجاح', resp.message || 'تمت عملية الإرجاع بنجاح', 'success');
-                    modal.style.display = 'none';
-                    // optional: تحديث السطر في الجدول (reload الصفحة أو تحديث جزئي)
-                    setTimeout(() => location.reload(), 800);
-                } catch (err) {
-                    console.error(err);
-                    Swal.fire('خطأ اتصال', 'تعذر الاتصال بالخادم', 'error');
-                }
-            });
-
-            // delegate buttons (افتراض أن الزر يملك class .btn-return-invoice)
-            document.addEventListener('click', function(e) {
-                const btn = e.target.closest('.btn-return-invoice');
-                if (!btn) return;
-                const invoiceId = btn.dataset.invoiceId || btn.getAttribute('data-invoice-id');
-                if (!invoiceId) {
-                    Swal.fire('خطأ', 'معرف الفاتورة غير موجود في الزر', 'error');
-                    return;
-                }
-                openReturnModal(invoiceId);
-            });
-
-        })();
-    </script>
-
-    <!-- Live Search & Filter Reset Script -->
-    <script>
-        (function() {
-            'use strict';
-            
-            const filterForm = document.getElementById('filterForm');
-            const filterInputs = {
-                invoice_q: document.getElementById('fInvoice'),
-                mobile_q: document.getElementById('fPhone'),
-                notes_q: document.getElementById('fNotes'),
-                date_from: document.getElementById('fFrom'),
-                date_to: document.getElementById('fTo')
-            };
-            
-            const listWrapper = document.querySelector('.pending-invoices-page .list-wrapper');
-            const contentArea = document.getElementById('contentArea');
-            const resetBtn = document.querySelector('.pending-invoices-page .btn.reset');
-            
-            // 1. إعادة الفلاتر للوضع الافتراضي عند refresh (إذا لم تكن هناك query params)
-            // ملاحظة: القيم يتم جلبها من PHP، لكن إذا كان URL نظيف سنمسحها
-            const urlParams = new URLSearchParams(window.location.search);
-            const hasFilters = Array.from(urlParams.keys()).some(key => 
-                ['invoice_q', 'mobile_q', 'notes_q', 'date_from', 'date_to', 'filter_group_val', 'customer_id'].includes(key)
-            );
-            
-            // إذا لم تكن هناك فلاتر في URL، تأكد من أن القيم فارغة
-            if (!hasFilters) {
-                Object.keys(filterInputs).forEach(key => {
-                    if (filterInputs[key] && filterInputs[key].value) {
-                        // فقط إذا كانت القيمة موجودة لكن غير موجودة في URL
-                        filterInputs[key].value = '';
-                    }
-                });
-            }
-            
-            // 2. Live Search مع debounce
-            let searchTimeout = null;
-            const debounceDelay = 500; // 500ms تأخير
-            
-            function performLiveSearch() {
-                const params = new URLSearchParams();
-                params.append('action', 'fetch_invoices_list');
-                
-                Object.keys(filterInputs).forEach(key => {
-                    const input = filterInputs[key];
-                    if (input && input.value && input.value.trim() !== '') {
-                        params.append(key, input.value.trim());
-                    }
-                });
-                
-                const queryString = params.toString();
-                const url = window.location.pathname + '?' + queryString;
-                
-                // تحديث URL بدون reload (لكن بدون action param)
-                const urlParams = new URLSearchParams();
-                Object.keys(filterInputs).forEach(key => {
-                    const input = filterInputs[key];
-                    if (input && input.value && input.value.trim() !== '') {
-                        urlParams.append(key, input.value.trim());
-                    }
-                });
-                const cleanUrl = urlParams.toString() 
-                    ? window.location.pathname + '?' + urlParams.toString()
-                    : window.location.pathname;
-                window.history.pushState({}, '', cleanUrl);
-                
-                // إظهار loading
-                const listSection = listWrapper ? listWrapper.querySelector('.list') : null;
-                if (listSection) {
-                    listSection.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">جاري البحث...</div>';
-                } else if (listWrapper) {
-                    listWrapper.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">جاري البحث...</div>';
-                }
-                
-                // جلب البيانات من AJAX endpoint
-                fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        throw new Error(data.message || 'فشل البحث');
-                    }
-                    
-                    // تحديث قائمة الفواتير
-                    if (listSection) {
-                        listSection.innerHTML = data.html || '';
-                    } else if (listWrapper) {
-                        const list = listWrapper.querySelector('.list');
-                        if (list) {
-                            list.innerHTML = data.html || '';
-                        } else {
-                            listWrapper.innerHTML = '<section class="list">' + (data.html || '') + '</section>';
-                        }
-                    }
-                    
-                    // تحديث الإحصائيات
-                    const countStat = document.querySelector('.pending-invoices-page .stat .num');
-                    if (countStat && data.count !== undefined) {
-                        countStat.textContent = data.count;
-                    }
-                    
-                    // تحديث الإجمالي
-                    const summaryCard = document.querySelector('.pending-invoices-page .summary-card .value');
-                    if (summaryCard && data.total_after_discount !== undefined) {
-                        summaryCard.textContent = parseFloat(data.total_after_discount).toFixed(2) + ' ج.م';
-                    }
-                    
-                    // إعادة ربط event listeners للأزرار الجديدة
-                    reattachEventListeners();
-                })
-                .catch(error => {
-                    console.error('خطأ في البحث:', error);
-                    if (listSection) {
-                        listSection.innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">حدث خطأ أثناء البحث. يرجى تحديث الصفحة.</div>';
-                    } else if (listWrapper) {
-                        listWrapper.innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">حدث خطأ أثناء البحث. يرجى تحديث الصفحة.</div>';
-                    }
-                });
-            }
-            
-            // إضافة event listeners للبحث المباشر
-            Object.keys(filterInputs).forEach(key => {
-                const input = filterInputs[key];
-                if (input) {
-                    input.addEventListener('input', function() {
-                        clearTimeout(searchTimeout);
-                        searchTimeout = setTimeout(performLiveSearch, debounceDelay);
-                    });
-                    
-                    // للتواريخ، استخدم change بدلاً من input
-                    if (input.type === 'date') {
-                        input.addEventListener('change', function() {
-                            clearTimeout(searchTimeout);
-                            searchTimeout = setTimeout(performLiveSearch, debounceDelay);
-                        });
-                    }
-                }
-            });
-            
-            // 3. زر إعادة التعيين
-            if (resetBtn) {
-                resetBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // مسح جميع القيم
-                    Object.keys(filterInputs).forEach(key => {
-                        if (filterInputs[key]) {
-                            filterInputs[key].value = '';
-                        }
-                    });
-                    
-                    // إعادة التوجيه بدون query params
-                    window.location.href = window.location.pathname;
-                });
-            }
-            
-            // 4. إعادة ربط event listeners بعد تحديث DOM
-            function reattachEventListeners() {
-                // إعادة ربط أزرار العرض
-                document.querySelectorAll('.pending-invoices-page .btn-open-modal').forEach(btn => {
-                    btn.removeEventListener('click', handleOpenModal);
-                    btn.addEventListener('click', handleOpenModal);
-                });
-                
-                // إعادة ربط أزرار التعديل
-                document.querySelectorAll('.pending-invoices-page .btn-edit-items').forEach(btn => {
-                    btn.removeEventListener('click', handleEditItems);
-                    btn.addEventListener('click', handleEditItems);
-                });
-                
-                // إعادة ربط أزرار الإلغاء
-                document.querySelectorAll('.pending-invoices-page .btn-cancel-invoice').forEach(btn => {
-                    btn.removeEventListener('click', handleCancelInvoice);
-                    btn.addEventListener('click', handleCancelInvoice);
-                });
-            }
-            
-            // Handlers للأزرار
-            function handleOpenModal(e) {
-                const invId = parseInt(this.dataset.invoiceId || 0, 10);
-                if (invId && window.openInvoiceModal) {
-                    window.openInvoiceModal(invId);
-                }
-            }
-            
-            function handleEditItems(e) {
-                const id = this.dataset.id;
-                if (id) {
                     Swal.fire({
                         title: 'تأكيد الدخول لوضع تعديل البنود',
                         text: 'هل ترغب في تعديل بنود هذه الفاتورة؟',
@@ -3334,43 +2377,1028 @@ document.addEventListener("click", (e) => {
                         }
                     });
                 }
-            }
-            
-            function handleCancelInvoice(e) {
-                const invoiceId = this.dataset.invoiceId;
-                if (invoiceId && window.dispatchEvent) {
-                    const event = new CustomEvent('cancelInvoice', { detail: { invoiceId } });
-                    document.dispatchEvent(event);
-                }
-            }
-            
-            // منع submit للـ form (لأننا نستخدم live search)
-            if (filterForm) {
-                filterForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    performLiveSearch();
-                });
-            }
-            
-            // التأكد من أن scroll يعمل فقط داخل list-wrapper
-            if (listWrapper) {
-                listWrapper.style.overflowY = 'auto';
-                listWrapper.style.overflowX = 'hidden';
-            }
-            
-        })();
-    </script>
-<!-- في قسم الـ script، استبدل دالة الطباعة الحالية بهذا الكود -->
+            });
+        </script>
 
-    <script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const modal = document.getElementById('invoiceModal');
+                const modalCard = document.getElementById('invoiceModalCard');
+                const modalClose = document.getElementById('modalClose');
+                const modalContent = document.getElementById('modalContentArea');
+                const modalTotal = document.getElementById('modalTotal');
+                const deliverIdInput = document.getElementById('modal_invoice_id_deliver');
+                const deleteIdInput = document.getElementById('modal_invoice_id_delete');
                 const printBtn = document.getElementById('modalPrintBtn');
-                    const deliverIdInput = document.getElementById('modal_invoice_id_deliver');
+                const toastHolder = document.getElementById('ipc_toast_holder');
 
-        function printPOSReceipt(invoice, items) {
-            const printWindow = window.open('', '_blank', 'width=300,height=600');
-            const receiptContent = generatePOSReceiptHTML(invoice, items);
-            
-            printWindow.document.write(`
+                const baseUrl = <?php echo json_encode(BASE_URL); ?>;
+                const currentQuery = <?php echo json_encode(http_build_query($_GET)); ?>;
+                const currentPage = <?php echo json_encode($current_page_link); ?>;
+
+                function showModal() {
+                    modal.style.display = 'flex';
+                    modal.setAttribute('aria-hidden', 'false');
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                }
+
+                function hideModal() {
+                    modal.style.display = 'none';
+                    modal.setAttribute('aria-hidden', 'true');
+                    modalContent.innerHTML = '';
+                    modalTotal.innerText = '';
+                    deliverIdInput.value = '';
+                    deleteIdInput.value = '';
+                }
+
+                modalClose.addEventListener('click', hideModal);
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) hideModal();
+                });
+
+                function showToast(msg, type = 'info', ms = 3000) {
+                    const t = document.createElement('div');
+                    t.className = 'ipc-toast';
+                    if (type === 'success') t.style.background = 'linear-gradient(90deg,#10b981,#059669)';
+                    if (type === 'error') t.style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
+                    t.innerText = msg;
+                    toastHolder.appendChild(t);
+                    requestAnimationFrame(() => t.classList.add('show'));
+                    setTimeout(() => {
+                        t.classList.remove('show');
+                        setTimeout(() => t.remove(), 350);
+                    }, ms);
+                }
+
+                // زر العرض في كل صف
+                document.querySelectorAll('.btn-open-modal').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const invId = parseInt(this.dataset.invoiceId || 0, 10);
+                        if (!invId) {
+                            showToast('معرف الفاتورة غير صالح', 'error');
+                            return;
+                        }
+                        modalContent.innerHTML = '<div style="padding:30px;text-align:center;color:#6b7280">جارٍ التحميل...</div>';
+                        showModal();
+
+                        try {
+                            // استخدم endpoint الموجود في أعلى الملف الذي يعيد JSON
+                            const url = location.pathname + '?action=fetch_invoice_details&id=' + encodeURIComponent(invId);
+                            const res = await fetch(url, {
+                                credentials: 'same-origin'
+                            });
+                            const contentType = res.headers.get('content-type') || '';
+                            const txt = await res.text();
+
+                            if (contentType.includes('application/json')) {
+                                const data = JSON.parse(txt);
+                                if (!data.success) {
+                                    showToast(data.message || 'خطأ: لم نتمكن من جلب التفاصيل', 'error');
+                                    console.error('server message:', data);
+                                    modalContent.innerHTML = '<div style="padding:20px;color:#b91c1c">الفاتورة غير موجودة أو حدث خطأ.</div>';
+                                    return;
+                                }
+                                buildModalFromJson(data.invoice, data.items);
+                            } else {
+                                // إذا لم يرجع JSON قد يكون خطأ PHP => عرض النص في الـ console
+                                console.error('Non-JSON response when fetching invoice:', txt);
+                                modalContent.innerHTML = '<div style="padding:20px;color:#b91c1c">استجابة غير متوقعة من السيرفر. افتح Console لرؤية التفاصيل.</div>';
+                            }
+                        } catch (err) {
+                            console.error('fetch error:', err);
+                            modalContent.innerHTML = '<div style="padding:20px;color:#b91c1c">خطأ في الاتصال عند جلب تفاصيل الفاتورة.</div>';
+                        }
+                    });
+                });
+
+                function buildModalFromJson(inv, items) {
+                    // header
+                    const titleHtml = `
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                <div style="flex:1">
+                <div style="font-weight:700;font-size:1.05rem">فاتورة مبيعات — <span style="color:var(--bs-primary,#0d6efd)">#${escapeHtml(inv.id)}</span></div>
+                <div style="font-size:0.85rem;color:#6b7280">تاريخ الإنشاء: ${escapeHtml(fmt_dt(inv.created_at))}</div>
+                </div>
+                <div style="text-align:left">
+                ${inv.delivered === 'yes' ? '<span style="display:inline-block;padding:6px 12px;border-radius:24px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff">تم الدفع</span>' : '<span style="display:inline-block;padding:6px 12px;border-radius:24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">مؤجل</span>'}
+                </div>
+            </div>
+            `;
+
+                    // info cards
+                    const infoHtml = `
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
+                <div style="flex:1;min-width:220px;padding:12px;border-radius:10px;background:var(--card-bg,rgba(0,0,0,0.03))">
+                <div style="font-weight:700;margin-bottom:6px">معلومات الفاتورة</div>
+                <div><strong>المجموعة:</strong> ${escapeHtml(inv.invoice_group || '—')}</div>
+                <div><strong>منشأ الفاتورة:</strong> ${escapeHtml(inv.creator_name || '-')}</div>
+                <div><strong>آخر تحديث:</strong> ${escapeHtml(fmt_dt(inv.updated_at || inv.created_at))}</div>
+                </div>
+                <div style="flex:1;min-width:220px;padding:12px;border-radius:10px;background:var(--card-bg,rgba(0,0,0,0.03))">
+                <div style="font-weight:700;margin-bottom:6px">معلومات العميل</div>
+                <div><strong>الاسم:</strong> ${escapeHtml(inv.customer_name || 'غير محدد')}</div>
+                <div><strong>الموبايل:</strong> ${escapeHtml(inv.customer_mobile || '—')}</div>
+                <div><strong>المدينة:</strong> ${escapeHtml(inv.customer_city || '—')}</div>
+                </div>
+            </div>
+            `;
+
+                    // items table
+                    let itemsHtml = `<div class="custom-table-wrapper">
+    <table class="custom-table">
+      <thead class="center">
+        <tr>
+          <th style="width:40px">#</th>
+          <th style="text-align:right;">اسم المنتج</th>
+          <th style="text-align:right;">الكمية</th>
+          <th style="text-align:right;">سعر الوحدة</th>
+          <th style="text-align:right;">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>`;
+                    let total = 0;
+                    if (items && items.length) {
+                        items.forEach((it, idx) => {
+                            const name = it.product_name ? (it.product_name + (it.product_code ? (' — ' + it.product_code) : '')) : ('#' + it.product_id);
+                            const qty = parseFloat(it.quantity || 0).toFixed(2);
+                            const price = parseFloat(it.selling_price || it.cost_price_per_unit || 0).toFixed(2);
+                            const line = parseFloat(it.total_price || 0).toFixed(2);
+                            total += parseFloat(line || 0);
+
+                            itemsHtml += `<tr>
+            <td style="padding:10px">${idx+1}</td>
+            <td style="padding:10px;text-align:right">${escapeHtml(name)}</td>
+            <td style="padding:10px;text-align:right">${qty}</td>
+            <td style="padding:10px;text-align:right">${price}</td>
+            <td style="padding:10px;text-align:right;font-weight:700">${line} ج.م</td>
+        </tr>`;
+                        });
+                    } else {
+                        itemsHtml += `<tr><td colspan="5" style="padding:12px;text-align:center;color:#6b7280">لا يوجد بنود</td></tr>`;
+                    }
+                    itemsHtml += `</tbody></table></div>`;
+
+                    // حساب الخصم
+                    let totalBeforeDiscount = parseFloat(inv.total_before_discount || total);
+                    let totalAfterDiscount = parseFloat(inv.total_after_discount || total);
+                    const discountAmount = parseFloat(inv.discount_amount || 0);
+                    const discountType = inv.discount_type || 'percent';
+                    const discountValue = parseFloat(inv.discount_value || 0);
+
+                    // إذا كان total_before_discount = 0 أو null، استخدم total من البنود
+                    if (totalBeforeDiscount <= 0) {
+                        totalBeforeDiscount = total;
+                    }
+                    if (totalAfterDiscount <= 0) {
+                        totalAfterDiscount = totalBeforeDiscount;
+                    }
+
+                    // التحقق من وجود خصم فعلي
+                    const hasDiscount = (discountAmount > 0 && Math.abs(totalAfterDiscount - totalBeforeDiscount) > 0.01);
+
+                    // ملخص الإجماليات مع الخصم
+                    let summaryHtml = `<div style="margin-top:16px;padding:16px;border-radius:10px;background:rgba(0,0,0,0.02);border-top:2px solid var(--accent,#0d6efd)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <strong>المجموع قبل الخصم:</strong>
+                        <span style="font-weight:700">${totalBeforeDiscount.toFixed(2)} ج.م</span>
+                    </div>`;
+
+                    if (hasDiscount) {
+                        summaryHtml += `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#b45309">
+                        <strong>الخصم:</strong>
+                        <span style="font-weight:700">
+                            ${discountType === 'percent' ? discountValue.toFixed(2) + '%' : discountAmount.toFixed(2) + ' ج.م'}
+                        </span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:2px solid #e5e7eb">
+                        <strong style="font-size:1.1rem">المجموع بعد الخصم:</strong>
+                        <span style="font-weight:800;font-size:1.2rem;color:var(--accent,#0d6efd)">${totalAfterDiscount.toFixed(2)} ج.م</span>
+                    </div>`;
+                    } else {
+                        summaryHtml += `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:2px solid #e5e7eb">
+                        <strong style="font-size:1.1rem">الإجمالي:</strong>
+                        <span style="font-weight:800;font-size:1.2rem;color:var(--accent,#0d6efd)">${totalBeforeDiscount.toFixed(2)} ج.م</span>
+                    </div>`;
+                    }
+                    summaryHtml += `</div>`;
+
+                    // notes
+                    let notesHtml = '';
+                    if (inv.notes && inv.notes.trim() !== '') {
+                        notesHtml = `<div style="margin-top:12px;padding:12px;border-radius:8px;background:rgba(0,0,0,0.02)"  class="no-print">
+                <div style="font-weight:700;margin-bottom:8px ">ملاحظات</div><div style="white-space:pre-wrap;">${escapeHtml(inv.notes).replace(/\n/g,'<br>')}</div><div style="margin-top:8px"><button class="btn-copy-notes btn btn-outline-secondary btn-sm" data-notes="${escapeHtml(inv.notes)}">نسخ الملاحظات</button></div></div>`;
+                    }
+
+                    modalContent.innerHTML = titleHtml + infoHtml + itemsHtml + summaryHtml + notesHtml;
+
+                    // set modal forms values
+                    deliverIdInput.value = inv.id;
+                    deleteIdInput.value = inv.id;
+                    modalTotal.innerText = hasDiscount ?
+                        `الإجمالي: ${totalAfterDiscount.toFixed(2)} ج.م (بعد خصم ${discountType === 'percent' ? discountValue.toFixed(2) + '%' : discountAmount.toFixed(2) + ' ج.م'})` :
+                        `الإجمالي: ${totalBeforeDiscount.toFixed(2)} ج.م`;
+
+                    // attach copy notes handler if present
+                    const copyBtn = modalContent.querySelector('.btn-copy-notes');
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', function() {
+                            const notes = this.dataset.notes || '';
+                            if (!notes) return showToast('لا توجد ملاحظات للنسخ', 'error');
+                            navigator.clipboard?.writeText(notes).then(() => showToast('تم نسخ الملاحظات', 'success')).catch(() => {
+                                alert('نسخ فشل');
+                            });
+                        });
+                    }
+
+                    showModal();
+                }
+
+                // طباعة المودال (يطبع المحتوى الداخلي فقط)
+
+
+                // utility funcs
+                function escapeHtml(s) {
+                    if (s === null || s === undefined) return '';
+                    return String(s).replace(/[&<>"']/g, function(m) {
+                        return {
+                            '&': '&amp;',
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            "'": '&#39;'
+                        } [m];
+                    });
+                }
+
+                function fmt_dt(raw) {
+                    if (!raw) return '—';
+                    try {
+                        const d = new Date(raw);
+                        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + d.toLocaleTimeString();
+                    } catch (e) {
+                        return raw;
+                    }
+                }
+
+                // expose open function
+                window.openInvoiceModal = function(id) {
+                    const btn = document.querySelector('.btn-open-modal[data-invoice-id="' + id + '"]');
+                    if (btn) btn.click();
+                };
+
+
+                const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
+
+
+
+
+                (function() {
+                    const modal = document.getElementById('cancelInvoiceModal');
+                    const info = document.getElementById('ci_invoice_id');
+                    const reasonInput = document.getElementById('ci_reason');
+                    const feedback = document.getElementById('ci_feedback');
+                    const btnClose = document.getElementById('ci_cancel_btn');
+                    const btnConfirm = document.getElementById('ci_confirm_btn');
+                    let currentInvoiceId = null;
+
+                    // delegate click on cancel buttons
+                    document.addEventListener('click', function(e) {
+                        if (e.target && e.target.classList.contains('btn-cancel-invoice')) {
+                            currentInvoiceId = e.target.dataset.invoiceId;
+                            info.textContent = currentInvoiceId;
+                            reasonInput.value = '';
+                            feedback.style.display = 'none';
+                            modal.style.display = 'flex';
+                        }
+                    });
+
+                    btnClose.addEventListener('click', function() {
+                        modal.style.display = 'none';
+                    });
+
+                    btnConfirm.addEventListener('click', function() {
+                        feedback.style.display = 'none';
+
+                        // validation on client: reason is required
+                        const reasonTrim = (reasonInput.value || '').trim();
+                        if (!reasonTrim) {
+                            feedback.style.display = 'block';
+                            feedback.textContent = 'حقل السبب مطلوب. من فضلك اشرح سبب الإلغاء.';
+                            reasonInput.focus();
+                            return;
+                        }
+                        btnConfirm.disabled = true;
+                        btnConfirm.textContent = 'جارٍ الإلغاء...';
+
+                        const fd = new FormData();
+                        fd.append('action', 'cancel_invoice');
+                        fd.append('invoice_id', currentInvoiceId);
+                        fd.append('csrf_token', CSRF_TOKEN);
+                        fd.append('reason', reasonInput.value || '');
+
+                        fetch(window.location.href, {
+                                method: 'POST',
+                                body: fd,
+                                credentials: 'same-origin'
+                            })
+                            .then(r => r.json())
+                            .then(json => {
+                                btnConfirm.disabled = false;
+                                btnConfirm.textContent = 'تأكيد الإلغاء';
+                                if (json.success) {
+                                    // إغلاق المودال وإعلام المستخدم
+                                    modal.style.display = 'none';
+                                    alert(json.message || 'تم الإلغاء');
+                                    window.location.reload()
+
+                                    // تحديث الواجهة: ابحث عن صف الفاتورة وقم بتغيير عمود delivered إلى 'canceled' أو أحذفه
+                                    const btn = document.querySelector('.btn-cancel-invoice[data-invoice-id="' + currentInvoiceId + '"]');
+                                    if (btn) {
+                                        const row = btn.closest('tr');
+                                        if (row) {
+                                            // مثال: تغيير خلية delivered (ابحث فيها حسب بنية الجدول)
+                                            const deliveredCell = row.querySelector('.cell-delivered');
+                                            if (deliveredCell) {
+                                                deliveredCell.textContent = 'canceled'; // أو 'ملغاة' حسب الترجمة
+                                            }
+                                            // تعطيل الزر
+                                            btn.disabled = true;
+                                        }
+                                    }
+                                } else {
+                                    feedback.style.display = 'block';
+                                    feedback.textContent = json.error || 'حدث خطأ أثناء الإلغاء.';
+                                }
+                            })
+                            .catch(err => {
+                                btnConfirm.disabled = false;
+                                btnConfirm.textContent = 'تأكيد الإلغاء';
+                                feedback.style.display = 'block';
+                                feedback.textContent = 'خطأ في الاتصال.';
+                                console.error(err);
+                            });
+                    });
+
+                    // إغلاق المودال عند الضغط خارج الصندوق (اختياري)
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) modal.style.display = 'none';
+                    });
+
+                })();
+
+
+                // Open Invoice Return modal when clicking the invoice-level return button
+                // Open Invoice Return modal when clicking the invoice-level return button
+                document.addEventListener('click', async function(e) {
+                    if (e.target && e.target.classList.contains('btn-return-invoice')) {
+                        const invoiceId = e.target.dataset.invoiceId;
+                        if (!invoiceId) return;
+
+                        const modal = document.getElementById('invoiceReturnModal');
+                        const feedback = document.getElementById('ir_feedback');
+                        feedback.style.display = 'none';
+                        document.getElementById('ir_note').value = '';
+
+                        // fetch invoice items
+                        try {
+                            const res = await fetch(location.pathname + '?action=get_invoice_return_info&invoice_id=' + encodeURIComponent(invoiceId), {
+                                credentials: 'same-origin'
+                            });
+                            const j = await res.json();
+                            if (!j.success) {
+                                feedback.style.display = 'block';
+                                feedback.textContent = j.message || 'فشل في جلب بنود الفاتورة';
+                                return;
+                            }
+
+                            const items = j.items || [];
+                            const tbody = document.querySelector('#ir_items_table tbody');
+                            tbody.innerHTML = '';
+                            items.forEach((it, idx) => {
+                                const name = (it.product_name || '') + (it.product_code ? (' — ' + it.product_code) : '');
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `
+                    <td style="text-align:right">${idx+1}</td>
+                    <td style="text-align:right">${escapeHtml(name)}</td>
+                    <td style="text-align:right">${it.quantity}</td>
+                    <td style="text-align:right">
+                        <input type="number" class="ir_new_qty" data-item-id="${it.id}" min="0" step="0.01" value="${it.quantity}" style="width:110px;padding:6px;text-align:right" />
+                    </td>
+                    <td style="text-align:center">
+                        <button type="button" class="btn btn-sm btn-outline-danger ir_delete_btn" data-item-id="${it.id}">حذف</button>
+                    </td>
+                `;
+                                tbody.appendChild(tr);
+                            });
+
+                            document.getElementById('ir_invoice_id').textContent = invoiceId;
+                            modal.style.display = 'flex';
+                        } catch (err) {
+                            feedback.style.display = 'block';
+                            feedback.textContent = 'خطأ في الاتصال';
+                            console.error(err);
+                        }
+                    }
+                });
+
+                // helper: simple escape
+                function escapeHtml(s) {
+                    return String(s || '').replace(/[&<>"']/g, function(m) {
+                        return ({
+                            '&': '&amp;',
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            "'": '&#39;'
+                        })[m];
+                    });
+                }
+
+                // Delete button: set qty to 0 visually
+                document.addEventListener('click', function(e) {
+                    if (e.target && e.target.classList.contains('ir_delete_btn')) {
+                        const id = e.target.dataset.itemId;
+                        const input = document.querySelector('.ir_new_qty[data-item-id="' + id + '"]');
+                        if (input) {
+                            input.value = 0;
+                            input.classList.add('marked-for-delete');
+                        }
+                    }
+                });
+
+                // Close modal
+                document.addEventListener('click', function(e) {
+                    if (e.target && e.target.id === 'ir_close_btn') {
+                        document.getElementById('invoiceReturnModal').style.display = 'none';
+                    }
+                });
+
+                // Confirm and send changes
+                document.addEventListener('click', async function(e) {
+                    if (e.target && e.target.id === 'ir_confirm_btn') {
+                        const modal = document.getElementById('invoiceReturnModal');
+                        const feedback = document.getElementById('ir_feedback');
+                        feedback.style.display = 'none';
+
+                        const invoiceId = document.getElementById('ir_invoice_id').textContent;
+                        if (!invoiceId) {
+                            feedback.style.display = 'block';
+                            feedback.textContent = 'خطأ: رقم الفاتورة غير موجود';
+                            return;
+                        }
+
+                        // collect changes
+                        const inputs = Array.from(document.querySelectorAll('.ir_new_qty'));
+                        const items = [];
+                        inputs.forEach(inp => {
+                            const itemId = inp.dataset.itemId;
+                            const newQty = parseFloat(inp.value || '0');
+                            const origQty = parseFloat(inp.getAttribute('value') || '0'); // initial value attribute
+                            // include item if changed (or zero)
+                            if (isNaN(newQty)) return;
+                            if (Math.abs(newQty - origQty) > 1e-9) {
+                                items.push({
+                                    item_id: parseInt(itemId, 10),
+                                    new_qty: newQty
+                                });
+                            }
+                        });
+
+                        if (items.length === 0) {
+                            feedback.style.display = 'block';
+                            feedback.textContent = 'لا تغييرات تم إدخالها';
+                            return;
+                        }
+
+                        // prepare POST
+                        const fd = new FormData();
+                        fd.append('action', 'return_invoice_items');
+                        fd.append('invoice_id', invoiceId);
+                        fd.append('items', JSON.stringify(items));
+                        fd.append('csrf_token', typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '');
+
+                        e.target.disabled = true;
+                        e.target.textContent = 'جارٍ التطبيق...';
+                        try {
+                            const resp = await fetch(location.pathname, {
+                                method: 'POST',
+                                body: fd,
+                                credentials: 'same-origin'
+                            });
+                            const j = await resp.json();
+                            if (j.success) {
+                                // نجاح: اغلاق المودال واعادة تحميل لعرض التغييرات
+                                modal.style.display = 'none';
+                                // يمكنك اختيار تحديث جزئي بدلاً من reload
+                                window.location.reload();
+                            } else {
+                                feedback.style.display = 'block';
+                                feedback.textContent = j.message || 'فشل تطبيق التعديلات';
+                            }
+                        } catch (err) {
+                            feedback.style.display = 'block';
+                            feedback.textContent = 'خطأ في الاتصال';
+                            console.error(err);
+                        } finally {
+                            e.target.disabled = false;
+                            e.target.textContent = 'تطبيق التعديلات';
+                        }
+                    }
+                });
+
+
+
+
+            });
+        </script>
+
+
+        <script>
+            const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
+
+            (function() {
+                // عناصر DOM
+                const modal = document.getElementById('returnInvoiceModal');
+                const modalBody = document.getElementById('rim_body');
+                const invoiceNoSpan = document.getElementById('rim_invoice_no');
+                const btnCancel = document.getElementById('rim_cancel');
+                const btnSubmit = document.getElementById('rim_submit');
+                let currentInvoiceId = 0;
+                let originalItems = []; // array of objects { invoice_item_id, product_id, product_name, qty_sold }
+                // دالة بسيطة لقراءة التوكن من الميتا
+                function readCsrfTokenFromPage() {
+                    const m = document.querySelector('meta[name="csrf_token"]');
+                    if (m) return m.getAttribute('content') || '';
+                    return (window.csrf_token || '');
+                }
+
+                // قبل بناء FormData
+
+                // send request with credentials so cookie (PHPSESSID) يروح
+
+
+                // فتح المودال: يتم تحميل بنود الفاتورة عبر AJAX (endpoint بسيط يعيد JSON ببنود الفاتورة)
+                async function openReturnModal(invoiceId) {
+                    currentInvoiceId = invoiceId;
+                    invoiceNoSpan.textContent = invoiceId;
+                    modalBody.innerHTML = '<p>جاري جلب بنود الفاتورة...</p>';
+                    modal.style.display = 'flex';
+
+                    try {
+                        const csrf = document.querySelector('meta[name="csrf_token"]')?.content || window.csrf_token || '';
+
+                        const resp = await fetch('pending_invoices.php?action=get_invoice_items&invoice_id=' + encodeURIComponent(invoiceId), {
+                            credentials: 'same-origin'
+                        });
+                        const data = await resp.json();
+                        if (!data.success) {
+                            modalBody.innerHTML = `<div class="alert alert-danger">${data.error || 'خطأ في جلب بنود الفاتورة'}</div>`;
+                            return;
+                        }
+                        originalItems = data.items; // expected array
+                        renderItemsTable();
+                    } catch (err) {
+                        modalBody.innerHTML = '<div class="alert alert-danger">خطأ في الاتصال.</div>';
+                        console.error(err);
+                    }
+                }
+
+                function renderItemsTable() {
+                    if (!originalItems || originalItems.length === 0) {
+                        modalBody.innerHTML = '<p>لا توجد بنود.</p>';
+                        return;
+                    }
+
+                    // build table
+                    let html = `<table class="custom-table" id="rim_items_table">
+      <thead><tr><th>المنتج</th><th>كمية مباعة</th><th>كمية لإرجاع</th><th>إجراء</th></tr></thead>
+      <tbody>`;
+                    originalItems.forEach(it => {
+                        // each item must include invoice_item_id, product_id, name, qty
+                        html += `<tr data-invoice-item-id="${it.invoice_item_id}">
+        <td>${escapeHtml(it.name)}</td>
+        <td>${it.qty}</td>
+        <td><input class="rim-qty-input" type="number" min="0" max="${it.qty}" step="0.01" value="0" data-max="${it.qty}"></td>
+        <td><button class="rim-delete-btn btn btn-danger text-white"   title="حذف البند">حذف</button></td>
+      </tr>`;
+                    });
+                    html += `</tbody></table>`;
+                    modalBody.innerHTML = html;
+
+                    // attach handlers
+                    modalBody.querySelectorAll('.rim-delete-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const tr = e.target.closest('tr');
+                            const iid = parseInt(tr.dataset.invoiceItemId || tr.getAttribute('data-invoice-item-id'), 10);
+                            handleDeleteItemClick(iid, tr);
+                        });
+                    });
+                }
+
+                function handleDeleteItemClick(invoiceItemId, trElem) {
+                    // if invoice contains only 1 item, show message: cancel invoice instead
+                    if (originalItems.length === 1) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'لا يمكن حذف بند وحيد',
+                            text: 'الفاتورة تحتوي على بند واحد فقط. لإزالة كل البنود يرجى إلغاء الفاتورة بدلاً من حذف البند.',
+                        });
+                        return;
+                    }
+                    // confirmation
+                    Swal.fire({
+                        title: 'تأكيد حذف البند',
+                        text: 'هل تريد حذف هذا البند بالكامل واستعادة كمياته إلى الدفعات؟',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'نعم حذف واستعادة',
+                        cancelButtonText: 'إلغاء'
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            // set return input to max (simulate full remove) and mark row with data-delete="1"
+                            const input = trElem.querySelector('.rim-qty-input');
+                            input.value = input.dataset.max || input.max || input.getAttribute('max') || 0;
+                            trElem.dataset.toDelete = '1';
+                            trElem.style.opacity = '0.6';
+                        }
+                    });
+                }
+
+                // helper escape
+                function escapeHtml(s) {
+                    return String(s).replace(/[&<>"']/g, function(m) {
+                        return {
+                            '&': '&amp;',
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            "'": '&#39;'
+                        } [m];
+                    });
+                }
+
+                // close
+                btnCancel.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+                // submit handler
+                btnSubmit.addEventListener('click', async () => {
+                    // gather requested returns
+                    const rows = Array.from(modalBody.querySelectorAll('tbody tr'));
+                    const payloadItems = [];
+                    let totalReturnQty = 0;
+                    for (const r of rows) {
+                        const iid = parseInt(r.dataset.invoiceItemId, 10);
+                        const inp = r.querySelector('.rim-qty-input');
+                        const q = parseFloat(inp.value || 0);
+                        const max = parseFloat(inp.dataset.max || 0);
+                        if (isNaN(q) || q < 0) {
+                            Swal.fire('قيمة غير صحيحة', 'أدخل قيمة صالحة للكمية', 'error');
+                            return;
+                        }
+                        if (q > max) {
+                            Swal.fire('الكمية أكبر من المسموح', 'حاول إرجاع أقل أو تواصل مع الدعم', 'error');
+                            return;
+                        }
+                        if (q > 0) {
+                            payloadItems.push({
+                                invoice_item_id: iid,
+                                qty: q,
+                                delete: r.dataset.toDelete === '1' ? 1 : 0
+                            });
+                            totalReturnQty += q;
+                        }
+                    }
+
+                    if (payloadItems.length === 0) {
+                        Swal.fire('لا شيء للإرجاع', 'حدد كمية أو اضغط إلغاء', 'info');
+                        return;
+                    }
+
+                    // if the invoice has only 1 item, prevent full return (server also enforces)
+                    if (originalItems.length === 1) {
+                        const only = originalItems[0];
+                        // if user tries to return equal to sold qty for that single item -> forbid
+                        if (payloadItems.length === 1 && Math.abs(payloadItems[0].qty - only.qty) < 1e-9) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'لا يمكن إرجاع الكمية كلها',
+                                text: 'الفاتورة تحتوي على بند واحد فقط. لإلغاء الفاتورة استخدم خيار إلغاء الفاتورة.',
+                            });
+                            return;
+                        }
+                    }
+
+                    // confirm
+                    const confirm = await Swal.fire({
+                        title: 'تأكيد تنفيذ الإرجاع',
+                        html: `سيتم استعادة مجموع <b>${totalReturnQty}</b> وحدة(وحدات). هل تتابع؟`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'نعم نفّذ الإرجاع',
+                        cancelButtonText: 'إلغاء'
+                    });
+                    if (!confirm.isConfirmed) return;
+
+                    // send to server
+                    try {
+                        // build form data
+                        const fd = new FormData();
+                        fd.append('action', 'process_return');
+                        fd.append('invoice_id', currentInvoiceId);
+                        // include CSRF token present on page as meta[name="csrf"] or a hidden field (adjust selector if different)
+                        fd.append('csrf_token', typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '');
+
+                        fd.append('items', JSON.stringify(payloadItems));
+
+                        const r = await fetch('pending_invoices.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            body: fd
+                        });
+                        const resp = await r.json();
+                        if (!resp.success) {
+                            Swal.fire('خطأ', resp.error || 'فشل تنفيذ الإرجاع', 'error');
+                            return;
+                        }
+                        Swal.fire('تم بنجاح', resp.message || 'تمت عملية الإرجاع بنجاح', 'success');
+                        modal.style.display = 'none';
+                        // optional: تحديث السطر في الجدول (reload الصفحة أو تحديث جزئي)
+                        setTimeout(() => location.reload(), 800);
+                    } catch (err) {
+                        console.error(err);
+                        Swal.fire('خطأ اتصال', 'تعذر الاتصال بالخادم', 'error');
+                    }
+                });
+
+                // delegate buttons (افتراض أن الزر يملك class .btn-return-invoice)
+                document.addEventListener('click', function(e) {
+                    const btn = e.target.closest('.btn-return-invoice');
+                    if (!btn) return;
+                    const invoiceId = btn.dataset.invoiceId || btn.getAttribute('data-invoice-id');
+                    if (!invoiceId) {
+                        Swal.fire('خطأ', 'معرف الفاتورة غير موجود في الزر', 'error');
+                        return;
+                    }
+                    openReturnModal(invoiceId);
+                });
+
+            })();
+        </script>
+
+        <!-- Live Search & Filter Reset Script -->
+        <script>
+            (function() {
+                'use strict';
+
+                const filterForm = document.getElementById('filterForm');
+                const filterInputs = {
+                    invoice_q: document.getElementById('fInvoice'),
+                    mobile_q: document.getElementById('fPhone'),
+                    notes_q: document.getElementById('fNotes'),
+                    date_from: document.getElementById('fFrom'),
+                    date_to: document.getElementById('fTo')
+                };
+
+                const listWrapper = document.querySelector('.pending-invoices-page .list-wrapper');
+                const contentArea = document.getElementById('contentArea');
+                const resetBtn = document.querySelector('.pending-invoices-page .btn.reset');
+
+                // 1. إعادة الفلاتر للوضع الافتراضي عند refresh (إذا لم تكن هناك query params)
+                // ملاحظة: القيم يتم جلبها من PHP، لكن إذا كان URL نظيف سنمسحها
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasFilters = Array.from(urlParams.keys()).some(key => ['invoice_q', 'mobile_q', 'notes_q', 'date_from', 'date_to', 'filter_group_val', 'customer_id'].includes(key));
+
+                // إذا لم تكن هناك فلاتر في URL، تأكد من أن القيم فارغة
+                if (!hasFilters) {
+                    Object.keys(filterInputs).forEach(key => {
+                        if (filterInputs[key] && filterInputs[key].value) {
+                            // فقط إذا كانت القيمة موجودة لكن غير موجودة في URL
+                            filterInputs[key].value = '';
+                        }
+                    });
+                }
+
+                // 2. Live Search مع debounce
+                let searchTimeout = null;
+                const debounceDelay = 500; // 500ms تأخير
+
+                function performLiveSearch() {
+                    const params = new URLSearchParams();
+                    params.append('action', 'fetch_invoices_list');
+
+                    Object.keys(filterInputs).forEach(key => {
+                        const input = filterInputs[key];
+                        if (input && input.value && input.value.trim() !== '') {
+                            params.append(key, input.value.trim());
+                        }
+                    });
+
+                    const queryString = params.toString();
+                    const url = window.location.pathname + '?' + queryString;
+
+                    // تحديث URL بدون reload (لكن بدون action param)
+                    const urlParams = new URLSearchParams();
+                    Object.keys(filterInputs).forEach(key => {
+                        const input = filterInputs[key];
+                        if (input && input.value && input.value.trim() !== '') {
+                            urlParams.append(key, input.value.trim());
+                        }
+                    });
+                    const cleanUrl = urlParams.toString() ?
+                        window.location.pathname + '?' + urlParams.toString() :
+                        window.location.pathname;
+                    window.history.pushState({}, '', cleanUrl);
+
+                    // إظهار loading
+                    const listSection = listWrapper ? listWrapper.querySelector('.list') : null;
+                    if (listSection) {
+                        listSection.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">جاري البحث...</div>';
+                    } else if (listWrapper) {
+                        listWrapper.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">جاري البحث...</div>';
+                    }
+
+                    // جلب البيانات من AJAX endpoint
+                    fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.success) {
+                                throw new Error(data.message || 'فشل البحث');
+                            }
+
+                            // تحديث قائمة الفواتير
+                            if (listSection) {
+                                listSection.innerHTML = data.html || '';
+                            } else if (listWrapper) {
+                                const list = listWrapper.querySelector('.list');
+                                if (list) {
+                                    list.innerHTML = data.html || '';
+                                } else {
+                                    listWrapper.innerHTML = '<section class="list">' + (data.html || '') + '</section>';
+                                }
+                            }
+
+                            // تحديث الإحصائيات
+                            const countStat = document.querySelector('.pending-invoices-page .stat .num');
+                            if (countStat && data.count !== undefined) {
+                                countStat.textContent = data.count;
+                            }
+
+                            // تحديث الإجمالي
+                            const summaryCard = document.querySelector('.pending-invoices-page .summary-card .value');
+                            if (summaryCard && data.total_after_discount !== undefined) {
+                                summaryCard.textContent = parseFloat(data.total_after_discount).toFixed(2) + ' ج.م';
+                            }
+
+                            // إعادة ربط event listeners للأزرار الجديدة
+                            reattachEventListeners();
+                        })
+                        .catch(error => {
+                            console.error('خطأ في البحث:', error);
+                            if (listSection) {
+                                listSection.innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">حدث خطأ أثناء البحث. يرجى تحديث الصفحة.</div>';
+                            } else if (listWrapper) {
+                                listWrapper.innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">حدث خطأ أثناء البحث. يرجى تحديث الصفحة.</div>';
+                            }
+                        });
+                }
+
+                // إضافة event listeners للبحث المباشر
+                Object.keys(filterInputs).forEach(key => {
+                    const input = filterInputs[key];
+                    if (input) {
+                        input.addEventListener('input', function() {
+                            clearTimeout(searchTimeout);
+                            searchTimeout = setTimeout(performLiveSearch, debounceDelay);
+                        });
+
+                        // للتواريخ، استخدم change بدلاً من input
+                        if (input.type === 'date') {
+                            input.addEventListener('change', function() {
+                                clearTimeout(searchTimeout);
+                                searchTimeout = setTimeout(performLiveSearch, debounceDelay);
+                            });
+                        }
+                    }
+                });
+
+                // 3. زر إعادة التعيين
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+
+                        // مسح جميع القيم
+                        Object.keys(filterInputs).forEach(key => {
+                            if (filterInputs[key]) {
+                                filterInputs[key].value = '';
+                            }
+                        });
+
+                        // إعادة التوجيه بدون query params
+                        window.location.href = window.location.pathname;
+                    });
+                }
+
+                // 4. إعادة ربط event listeners بعد تحديث DOM
+                function reattachEventListeners() {
+                    // إعادة ربط أزرار العرض
+                    document.querySelectorAll('.pending-invoices-page .btn-open-modal').forEach(btn => {
+                        btn.removeEventListener('click', handleOpenModal);
+                        btn.addEventListener('click', handleOpenModal);
+                    });
+
+                    // إعادة ربط أزرار التعديل
+                    document.querySelectorAll('.pending-invoices-page .btn-edit-items').forEach(btn => {
+                        btn.removeEventListener('click', handleEditItems);
+                        btn.addEventListener('click', handleEditItems);
+                    });
+
+                    // إعادة ربط أزرار الإلغاء
+                    document.querySelectorAll('.pending-invoices-page .btn-cancel-invoice').forEach(btn => {
+                        btn.removeEventListener('click', handleCancelInvoice);
+                        btn.addEventListener('click', handleCancelInvoice);
+                    });
+                }
+
+                // Handlers للأزرار
+                function handleOpenModal(e) {
+                    const invId = parseInt(this.dataset.invoiceId || 0, 10);
+                    if (invId && window.openInvoiceModal) {
+                        window.openInvoiceModal(invId);
+                    }
+                }
+
+                function handleEditItems(e) {
+                    const id = this.dataset.id;
+                    if (id) {
+                        Swal.fire({
+                            title: 'تأكيد الدخول لوضع تعديل البنود',
+                            text: 'هل ترغب في تعديل بنود هذه الفاتورة؟',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'نعم، تعديل البنود',
+                            cancelButtonText: 'إلغاء'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                const redirectBase = (typeof baseUrl !== 'undefined') ? baseUrl : (window.BASE_URL || (location.origin + '/store_v1/'));
+                                window.location.href = redirectBase + 'invoices_out/create_invoice.php?mode=edit&id=' + encodeURIComponent(id);
+                            }
+                        });
+                    }
+                }
+
+                function handleCancelInvoice(e) {
+                    const invoiceId = this.dataset.invoiceId;
+                    if (invoiceId && window.dispatchEvent) {
+                        const event = new CustomEvent('cancelInvoice', {
+                            detail: {
+                                invoiceId
+                            }
+                        });
+                        document.dispatchEvent(event);
+                    }
+                }
+
+                // منع submit للـ form (لأننا نستخدم live search)
+                if (filterForm) {
+                    filterForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        performLiveSearch();
+                    });
+                }
+
+                // التأكد من أن scroll يعمل فقط داخل list-wrapper
+                if (listWrapper) {
+                    listWrapper.style.overflowY = 'auto';
+                    listWrapper.style.overflowX = 'hidden';
+                }
+
+            })();
+        </script>
+        <!-- في قسم الـ script، استبدل دالة الطباعة الحالية بهذا الكود -->
+
+        <script>
+            const printBtn = document.getElementById('modalPrintBtn');
+            const deliverIdInput = document.getElementById('modal_invoice_id_deliver');
+
+            function printPOSReceipt(invoice, items) {
+                const printWindow = window.open('', '_blank', 'width=300,height=600');
+                const receiptContent = generatePOSReceiptHTML(invoice, items);
+
+                printWindow.document.write(`
                 <!DOCTYPE html>
                 <html dir="rtl">
             <head>
@@ -3543,32 +3571,32 @@ document.addEventListener("click", (e) => {
             </body>
             </html>
         `);
-        
-        printWindow.document.close();
-    }
 
-        // دالة توليد محتوى الإيصال المحسن
-        function generatePOSReceiptHTML(invoice, items) {
-            const totalBeforeDiscount = parseFloat(invoice.total_before_discount || 0);
-            const totalAfterDiscount = parseFloat(invoice.total_after_discount || 0);
-            const discountAmount = parseFloat(invoice.discount_amount || 0);
-            const discountType = invoice.discount_type || 'percent';
-            const discountValue = parseFloat(invoice.discount_value || 0);
-            
-            let itemsTotal = 0;
-        items.forEach(item => {
-            itemsTotal += parseFloat(item.total_price || 0);
-        });
-        
-        const finalTotal = totalAfterDiscount > 0 ? totalAfterDiscount : (totalBeforeDiscount > 0 ? totalBeforeDiscount : itemsTotal);
-        const hasDiscount = discountAmount > 0;
+                printWindow.document.close();
+            }
 
-        // <div class="header">
-        //     <div class="company-name">${escapeHtml(invoice.store_name || 'متجرنا')}</div>
-        //     <div class="store-info">${escapeHtml(invoice.store_address || 'عنوان المتجر')}</div>
-        //     <div class="store-info">هاتف: ${escapeHtml(invoice.store_phone || '01xxxxxxxx')}</div>
-        // </div>
-        return `
+            // دالة توليد محتوى الإيصال المحسن
+            function generatePOSReceiptHTML(invoice, items) {
+                const totalBeforeDiscount = parseFloat(invoice.total_before_discount || 0);
+                const totalAfterDiscount = parseFloat(invoice.total_after_discount || 0);
+                const discountAmount = parseFloat(invoice.discount_amount || 0);
+                const discountType = invoice.discount_type || 'percent';
+                const discountValue = parseFloat(invoice.discount_value || 0);
+
+                let itemsTotal = 0;
+                items.forEach(item => {
+                    itemsTotal += parseFloat(item.total_price || 0);
+                });
+
+                const finalTotal = totalAfterDiscount > 0 ? totalAfterDiscount : (totalBeforeDiscount > 0 ? totalBeforeDiscount : itemsTotal);
+                const hasDiscount = discountAmount > 0;
+
+                // <div class="header">
+                //     <div class="company-name">${escapeHtml(invoice.store_name || 'متجرنا')}</div>
+                //     <div class="store-info">${escapeHtml(invoice.store_address || 'عنوان المتجر')}</div>
+                //     <div class="store-info">هاتف: ${escapeHtml(invoice.store_phone || '01xxxxxxxx')}</div>
+                // </div>
+                return `
             
             <div class="invoice-title">فاتورة مبيعات</div>
             
@@ -3659,72 +3687,364 @@ ${items.map((item, index) => {
                 <div style="margin-top: 8px; font-weight: 900;">نتمنى لكم يومًا سعيداً</div>
             </div>
         `;
-    }
-
-    // دالة مساعدة لتنسيق التاريخ
-    function formatDate(dateString) {
-        if (!dateString) return '--';
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('ar-EG') + ' ' + 
-                date.toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'});
-        } catch (e) {
-            return dateString;
-        }
-    }
-
-    // تحديث event listener للطباعة
-    printBtn.addEventListener('click', function() {
-        const invoiceId = deliverIdInput.value;
-        if (!invoiceId) {
-            alert('خطأ: لا يوجد معرف فاتورة');
-            return;
-        }
-        
-        // إظهار رسالة تحميل
-        const originalText = printBtn.innerHTML;
-        printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الطباعة...';
-        printBtn.disabled = true;
-        
-        fetch(location.pathname + '?action=fetch_invoice_details&id=' + encodeURIComponent(invoiceId), {
-            credentials: 'same-origin'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                printPOSReceipt(data.invoice, data.items);
-            } else {
-                alert('خطأ في جلب بيانات الفاتورة للطباعة: ' + (data.message || ''));
             }
-        })
-        .catch(err => {
-            console.error('Error fetching invoice for print:', err);
-            alert('خطأ في الاتصال بالخادم');
-        })
-        .finally(() => {
-            // إعادة حالة الزر
-            printBtn.innerHTML = originalText;
-            printBtn.disabled = false;
-        });
-    });
 
-    // دالة escapeHtml
-    function escapeHtml(s) {
-        if (s === null || s === undefined) return '';
-        return String(s).replace(/[&<>"']/g, function(m) {
-            return {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[m];
-        });
-    }
-    </script>
-    <?php
-    // تحرير الموارد
-    if ($result && is_object($result)) $result->free();
-    $conn->close();
-    require_once BASE_DIR . 'partials/footer.php';
-    ?>
+            // دالة مساعدة لتنسيق التاريخ
+            function formatDate(dateString) {
+                if (!dateString) return '--';
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('ar-EG') + ' ' +
+                        date.toLocaleTimeString('ar-EG', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                } catch (e) {
+                    return dateString;
+                }
+            }
+
+            // تحديث event listener للطباعة
+            printBtn.addEventListener('click', function() {
+                const invoiceId = deliverIdInput.value;
+                if (!invoiceId) {
+                    alert('خطأ: لا يوجد معرف فاتورة');
+                    return;
+                }
+
+                // إظهار رسالة تحميل
+                const originalText = printBtn.innerHTML;
+                printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الطباعة...';
+                printBtn.disabled = true;
+
+                fetch(location.pathname + '?action=fetch_invoice_details&id=' + encodeURIComponent(invoiceId), {
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            printPOSReceipt(data.invoice, data.items);
+                        } else {
+                            alert('خطأ في جلب بيانات الفاتورة للطباعة: ' + (data.message || ''));
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error fetching invoice for print:', err);
+                        alert('خطأ في الاتصال بالخادم');
+                    })
+                    .finally(() => {
+                        // إعادة حالة الزر
+                        printBtn.innerHTML = originalText;
+                        printBtn.disabled = false;
+                    });
+            });
+
+            // دالة escapeHtml
+            function escapeHtml(s) {
+                if (s === null || s === undefined) return '';
+                return String(s).replace(/[&<>"']/g, function(m) {
+                    return {
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;'
+                    } [m];
+                });
+            }
+        </script>
+
+        <script>
+            // دالة لتحديد الكل
+            document.addEventListener('DOMContentLoaded', function() {
+                const selectAllCheckbox = document.getElementById('selectAllInvoices');
+                const printSelectedBtn = document.getElementById('printSelectedInvoices');
+
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', function() {
+                        const checkboxes = document.querySelectorAll('.invoice-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = this.checked;
+                        });
+                        updatePrintButtonState();
+                    });
+                }
+
+                // تحديث حالة زر الطباعة
+                function updatePrintButtonState() {
+                    const selectedCheckboxes = document.querySelectorAll('.invoice-checkbox:checked');
+                    printSelectedBtn.disabled = selectedCheckboxes.length === 0;
+                }
+
+                // تحديث عند تغيير أي checkbox
+                document.addEventListener('change', function(e) {
+                    if (e.target.classList.contains('invoice-checkbox')) {
+                        updatePrintButtonState();
+
+                        // تحديث selectAll إذا تم تحديد جميع الفواتير
+                        const allCheckboxes = document.querySelectorAll('.invoice-checkbox');
+                        const checkedCheckboxes = document.querySelectorAll('.invoice-checkbox:checked');
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                        }
+                    }
+                });
+
+                // طباعة الفواتير المحددة
+                if (printSelectedBtn) {
+                    printSelectedBtn.addEventListener('click', printSelectedInvoices);
+                }
+            });
+
+            // دالة طباعة الفواتير المحددة
+            async function printSelectedInvoices() {
+                const selectedCheckboxes = document.querySelectorAll('.invoice-checkbox:checked');
+
+                if (selectedCheckboxes.length === 0) {
+                    Swal.fire('تنبيه', 'يرجى تحديد فواتير للطباعة', 'warning');
+                    return;
+                }
+
+                try {
+                    // إظهار تحميل
+                    Swal.fire({
+                        title: 'جاري التحميل',
+                        text: 'جارٍ تجميع بيانات الفواتير المحددة...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const invoiceIds = Array.from(selectedCheckboxes).map(checkbox =>
+                        parseInt(checkbox.getAttribute('data-invoice-id'))
+                    );
+
+                    // جلب بيانات جميع الفواتير المحددة
+                    const invoicesData = await Promise.all(
+                        invoiceIds.map(id => fetchInvoiceData(id))
+                    );
+
+                    // إنشاء التقرير المجمع
+                    const aggregatedReport = createAggregatedReport(invoicesData);
+
+                    // طباعة التقرير
+                    printAggregatedReport(aggregatedReport);
+
+                    Swal.close();
+
+                } catch (error) {
+                    console.error('Error printing selected invoices:', error);
+                    Swal.fire('خطأ', 'حدث خطأ أثناء تجميع البيانات', 'error');
+                }
+            }
+
+            // دالة لجلب بيانات الفاتورة
+            async function fetchInvoiceData(invoiceId) {
+                const response = await fetch(location.pathname + '?action=fetch_invoice_details&id=' + encodeURIComponent(invoiceId), {
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error('Failed to fetch invoice data');
+                }
+
+                return data;
+            }
+
+            // دالة لإنشاء التقرير المجمع
+            function createAggregatedReport(invoicesData) {
+                const aggregatedItems = {};
+                let totalBeforeDiscount = 0;
+                let totalAfterDiscount = 0;
+                let totalDiscount = 0;
+
+                // تجميع البنود
+                invoicesData.forEach(({
+                    invoice,
+                    items
+                }) => {
+                    // جمع الإجماليات
+                    const invoiceTotalBefore = parseFloat(invoice.total_before_discount || 0);
+                    const invoiceTotalAfter = parseFloat(invoice.total_after_discount || 0);
+
+                    totalBeforeDiscount += invoiceTotalBefore > 0 ? invoiceTotalBefore :
+                        items.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0);
+                    totalAfterDiscount += invoiceTotalAfter > 0 ? invoiceTotalAfter : invoiceTotalBefore;
+
+                    // تجميع البنود
+                    items.forEach(item => {
+                        const productId = item.product_id;
+                        const productName = item.product_name || `منتج #${productId}`;
+                        const quantity = parseFloat(item.quantity || 0);
+                        const price = parseFloat(item.selling_price || item.cost_price_per_unit || 0);
+                        const total = parseFloat(item.total_price || 0);
+
+                        if (!aggregatedItems[productId]) {
+                            aggregatedItems[productId] = {
+                                name: productName,
+                                quantity: 0,
+                                price: price,
+                                total: 0
+                            };
+                        }
+
+                        aggregatedItems[productId].quantity += quantity;
+                        aggregatedItems[productId].total += total;
+                    });
+                });
+
+                totalDiscount = totalBeforeDiscount - totalAfterDiscount;
+
+                return {
+                    invoicesCount: invoicesData.length,
+                    items: Object.values(aggregatedItems),
+                    totals: {
+                        beforeDiscount: totalBeforeDiscount,
+                        afterDiscount: totalAfterDiscount,
+                        discount: totalDiscount
+                    },
+                    invoices: invoicesData.map(({
+                        invoice
+                    }) => ({
+                        id: invoice.id,
+                        customer: invoice.customer_name,
+                        total: parseFloat(invoice.total_after_discount || invoice.total_before_discount || 0)
+                    }))
+                };
+            }
+
+            // دالة طباعة التقرير المجمع
+            function printAggregatedReport(report) {
+                const printWindow = window.open('', '_blank', 'width=300,height=600');
+
+                const itemsHTML = report.items.map(item => `
+        <div class="item-row">
+            <div class="item-name">${escapeHtml(item.name)}</div>
+            <div class="item-qty">${item.quantity.toFixed(2)}</div>
+            <div class="item-price">${item.price.toFixed(2)}</div>
+            <div class="item-total">${item.total.toFixed(2)}</div>
+        </div>
+    `).join('');
+
+                const invoicesHTML = report.invoices.map(inv => `
+        <div style="display: flex; justify-content: space-between; margin: 5px 0; font-size: 12px;">
+            <span>#${inv.id} - ${escapeHtml(inv.customer)}</span>
+            <span>${inv.total.toFixed(2)} ج.م</span>
+        </div>
+    `).join('');
+
+                const receiptContent = `
+        <div class="header">
+            <div class="company-name">تقرير الفواتير المجمع</div>
+        </div>
+        
+        <div class="invoice-info">
+            <span>عدد الفواتير: ${report.invoicesCount}</span>
+        </div>
+        
+      
+        
+        <div class="items-section">
+            <div class="items-header">
+                <div class="item-name">المنتج</div>
+                <div class="item-qty">الكمية</div>
+                <div class="item-price">السعر</div>
+                <div class="item-total">المجموع</div>
+            </div>
+            ${itemsHTML}
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div class="totals-section">
+            <div class="total-row subtotal">
+                <span>المجموع قبل الخصم:</span>
+                <span>${report.totals.beforeDiscount.toFixed(2)} ج.م</span>
+            </div>
+            
+            ${report.totals.discount > 0 ? `
+                <div class="total-row discount-row">
+                    <span>إجمالي الخصم:</span>
+                    <span>-${report.totals.discount.toFixed(2)} ج.م</span>
+                </div>
+            ` : ''}
+            
+            <div class="final-total">
+                <span>الإجمالي النهائي: ${report.totals.afterDiscount.toFixed(2)} ج.م</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="print-date">${new Date().toLocaleString('ar-EG')}</div>
+            <div style="margin-top: 8px; font-weight: bold;">تم الطباعة من النظام</div>
+        </div>
+    `;
+
+                printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير الفواتير المجمع</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Courier New', Courier, monospace;
+                    font-size: 14px;
+                    font-weight: bold;
+                    width: 72mm;
+                    margin: 0 auto;
+                    padding: 1px 3px;
+                    line-height: 1.2;
+                    background: white;
+                    color: #000;
+                }
+                .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; }
+                .company-name { font-weight: 900; font-size: 18px; margin-bottom: 4px; }
+                .invoice-info { margin: 6px 0; display: flex; justify-content: space-between; }
+                .separator { border-bottom: 1px dashed #000; margin: 8px 0; }
+                .items-header, .item-row { 
+                    display: grid; 
+                    grid-template-columns: 1fr 50px 60px 60px;
+                    gap: 4px;
+                    align-items: center;
+                    padding: 6px 0;
+                }
+                .items-header { border-bottom: 2px solid #000; border-top: 2px solid #000; font-weight: 900; }
+                .item-name { text-align: right; padding-right: 6px; }
+                .total-row { display: flex; justify-content: space-between; margin: 4px 0; }
+                .final-total { font-weight: 900; font-size: 16px; padding: 8px; margin-top: 8px; text-align: center; }
+                .footer { text-align: center; margin-top: 15px; padding-top: 10px; border-top: 2px solid #000; }
+                .print-date { font-weight: bold; margin: 4px 0; }
+                .discount-row { color: #d00; }
+                .invoices-list { margin: 8px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="receipt-container">
+                ${receiptContent}
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 1000);
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+
+                printWindow.document.close();
+            }
+        </script>
+        <?php
+        // تحرير الموارد
+        if ($result && is_object($result)) $result->free();
+        $conn->close();
+        require_once BASE_DIR . 'partials/footer.php';
+        ?>

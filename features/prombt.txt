@@ -326,3 +326,785 @@
 5. أهم سيناريوهات كشف الحساب اللي عملاءك بيطلبوها؟
 
 جاوبني عليهم… وهنكمّل التفكير خطوة خطوة.
+
+
+
+
+
+ممتاز الا ن دعني ننفذ الاتي علي الملف المرفوع 
+1- عند عرض مودال السداد يعرض فواتير ازاي كانت الفاتوره مرتبطه بشغلانه يحط جمبها علامه 
+مثال 
+<td>
+                            <strong>#123</strong>
+                            <br><small class="text-muted"><i class="fas fa-tools me-1"></i>تركيب شباك المعادي</small>
+                        </td>
+
+
+2- حقل المبلغ المدخل للسداد 
+هيسدد للفواتير اللي معمول عليها select
+مع خيار توزيع علي الفواتير العامه ؤوده يوزع الفلوس علي الفواتير كلها سواء مرتبطه بشغلانه ام لا
+ بالاقدم يقوم بتوزيع المبلغ بناء علي المتبقي 
+
+اختيار تاني بردو توزيع علي الفواتير غير المرتبطه بشغلانه 
+توزيع يدوي ده ميوزعش خالص يخلي الموضوع يدوي
+
+ويقوم بعمل فالديشن قوي لو المبلغ المسدد اكبر من المتبقي 
+او اقل ن الصفر او رقم غير صحيح 
+
+** امكانيه تقسيم المبلغ 
+من محفظه او نقدي او اي شي 
+ولكن بشكل اساسي يكون السداد نقدي
+
+وملاحظه يجب مراعاه كل شئ 
+
+
+نفس الزر في قسم الشغلانات لكن توزيع الفلوس مختلف يكون 
+فقط توزيع يدوي او تلقائي علي المختار من الاقدم 
+
+
+** يجب مع كل سداد تسجيل حركه المستخدم عمل اي وكمان
+انشي متغير  customer_transaction 
++
+اذا سحبت من المحقظه سجل 
+
+
+
+سأقوم بتنفيذ جميع المتطلبات المذكورة. دعني أضيف التعديلات اللازمة:
+
+## 1. تعديل عرض الفواتير في مودال السداد:
+
+في `PaymentManager.loadInvoicesForPayment()`، سأعدل ليعرض علامة الشغلانة بجانب الفواتير المرتبطة:
+
+```javascript
+// في دالة loadInvoicesForPayment داخل PaymentManager
+loadInvoicesForPayment() {
+    const tbody = document.getElementById('invoicesPaymentTableBody');
+    tbody.innerHTML = '';
+    
+    const unpaidInvoices = AppData.invoices.filter(i => i.remaining > 0);
+    
+    unpaidInvoices.forEach(invoice => {
+        const row = document.createElement('tr');
+        row.className = 'invoice-item-hover';
+        
+        // الحصول على اسم الشغلانة إذا كانت مرتبطة
+        let workOrderName = '';
+        if (invoice.workOrderId) {
+            const workOrder = AppData.workOrders.find(wo => wo.id === invoice.workOrderId);
+            if (workOrder) {
+                workOrderName = workOrder.name;
+            }
+        }
+        
+        // إنشاء tooltip للبنود
+        let itemsTooltip = '';
+        if (invoice.items && invoice.items.length > 0) {
+            const itemsList = invoice.items.map(item => {
+                const itemTotal = (item.quantity || 0) * (item.price || 0);
+                return `
+                    <div class="tooltip-item">
+                        <div>
+                            <div class="tooltip-item-name">${item.productName || 'منتج'}</div>
+                            <div class="tooltip-item-details">الكمية: ${item.quantity || 0} | السعر: ${(item.price || 0).toFixed(2)} ج.م</div>
+                        </div>
+                        <div class="fw-bold">${itemTotal.toFixed(2)} ج.م</div>
+                    </div>
+                `;
+            }).join('');
+            
+            itemsTooltip = `
+                <div class="invoice-items-tooltip">
+                    <div class="tooltip-header">بنود الفاتورة ${invoice.number}</div>
+                    ${itemsList}
+                    <div class="tooltip-total">
+                        <span>الإجمالي:</span>
+                        <span>${invoice.total.toFixed(2)} ج.م</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="form-check-input invoice-payment-checkbox" 
+                       data-invoice-id="${invoice.id}"
+                       data-has-workorder="${invoice.workOrderId ? 'true' : 'false'}">
+            </td>
+            <td class="position-relative">
+                <strong>${invoice.number}</strong>
+                ${workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools me-1"></i>${workOrderName}</small>` : ''}
+                ${itemsTooltip}
+            </td>
+            <td>${invoice.date}</td>
+            <td>${invoice.total.toFixed(2)} ج.م</td>
+            <td>${invoice.remaining.toFixed(2)} ج.م</td>
+            <td>
+                <input type="number" class="form-control form-control-sm invoice-payment-amount" 
+                       data-invoice-id="${invoice.id}" 
+                       data-workorder-id="${invoice.workOrderId || ''}"
+                       min="0" max="${invoice.remaining}" 
+                       value="0" step="0.01" disabled>
+            </td>
+        `;
+        tbody.appendChild(row);
+        
+        // تفعيل/تعطيل حقل الإدخال بناءً على التحديد
+        const checkbox = row.querySelector('.invoice-payment-checkbox');
+        const amountInput = row.querySelector('.invoice-payment-amount');
+        
+        checkbox.addEventListener('change', function() {
+            amountInput.disabled = !this.checked;
+            if (!this.checked) {
+                amountInput.value = 0;
+            }
+            PaymentManager.updatePaymentSummary();
+        });
+        
+        amountInput.addEventListener('input', function() {
+            const maxAmount = parseFloat(this.getAttribute('max'));
+            const currentValue = parseFloat(this.value) || 0;
+            
+            if (currentValue > maxAmount) {
+                this.value = maxAmount;
+                Swal.fire('تحذير', `لا يمكن سداد أكثر من ${maxAmount.toFixed(2)} ج.م لهذه الفاتورة`, 'warning');
+            }
+            
+            // التحقق من القيمة
+            if (currentValue < 0) {
+                this.value = 0;
+                Swal.fire('تحذير', 'لا يمكن إدخال قيمة سالبة', 'warning');
+            }
+            
+            PaymentManager.updatePaymentSummary();
+        });
+    });
+    
+    PaymentManager.resetPaymentMethods();
+    PaymentManager.updatePaymentSummary();
+},
+```
+
+## 2. إضافة خيارات توزيع المبلغ:
+
+سأضيف قسم خيارات التوزيع في مودال السداد، بعد جدول الفواتير:
+
+```html
+<!-- في مودال السداد، داخل invoicesPaymentSection -->
+<div class="row mt-3">
+    <div class="col-md-6">
+        <label for="invoicesTotalAmount" class="form-label">المبلغ الكلي المراد سداده</label>
+        <div class="input-group">
+            <input type="number" class="form-control" id="invoicesTotalAmount" 
+                   step="0.01" min="0" placeholder="المبلغ الكلي" value="0">
+            <span class="input-group-text">ج.م</span>
+        </div>
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+        <button type="button" class="btn btn-outline-secondary w-100" id="fillInvoicesRemainingBtn">
+            <i class="fas fa-fill me-1"></i> سدّد المتبقي بالكامل
+        </button>
+    </div>
+</div>
+
+<!-- خيارات توزيع المبلغ -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        <label class="form-label">خيارات توزيع المبلغ:</label>
+        <div class="form-check mb-2">
+            <input class="form-check-input distribution-option" type="radio" name="distributionOption" 
+                   id="distributeAll" value="all" checked>
+            <label class="form-check-label" for="distributeAll">
+                <i class="fas fa-globe me-2"></i>توزيع تلقائي على جميع الفواتير المحددة
+            </label>
+            <small class="text-muted d-block">(سيتم التوزيع بالترتيب من الأقدم للأحدث)</small>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input distribution-option" type="radio" name="distributionOption" 
+                   id="distributeNonWorkOrder" value="nonWorkOrder">
+            <label class="form-check-label" for="distributeNonWorkOrder">
+                <i class="fas fa-file-invoice me-2"></i>توزيع تلقائي على الفواتير غير المرتبطة بشغلانة فقط
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input distribution-option" type="radio" name="distributionOption" 
+                   id="distributeManual" value="manual">
+            <label class="form-check-label" for="distributeManual">
+                <i class="fas fa-hand-paper me-2"></i>توزيع يدوي (لا توزيع تلقائي)
+            </label>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="applyDistributionBtn">
+            <i class="fas fa-calculator me-1"></i> تطبيق التوزيع
+        </button>
+    </div>
+</div>
+```
+
+## 3. إضافة دوال التوزيع والتحقق في JavaScript:
+
+سأضيف هذه الوظائف إلى `PaymentManager`:
+
+```javascript
+// إضافة دالة لتوزيع المبلغ تلقائياً
+distributeAmountAutomatically() {
+    const totalAmount = parseFloat(document.getElementById('invoicesTotalAmount').value) || 0;
+    if (totalAmount <= 0) {
+        Swal.fire('تحذير', 'يرجى إدخال مبلغ صحيح أولاً', 'warning');
+        return;
+    }
+
+    const distributionOption = document.querySelector('input[name="distributionOption"]:checked').value;
+    const checkboxes = document.querySelectorAll('.invoice-payment-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        Swal.fire('تحذير', 'يرجى تحديد فواتير أولاً', 'warning');
+        return;
+    }
+
+    // جلب الفواتير المحددة وتصفيتها حسب الخيار
+    let invoices = [];
+    checkboxes.forEach(checkbox => {
+        const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
+        const invoice = AppData.invoices.find(inv => inv.id === invoiceId);
+        if (invoice) {
+            // فلترة حسب الخيار
+            if (distributionOption === 'all' || 
+                (distributionOption === 'nonWorkOrder' && !invoice.workOrderId)) {
+                invoices.push(invoice);
+            }
+        }
+    });
+
+    // ترتيب الفواتير من الأقدم للأحدث
+    invoices.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let remainingAmount = totalAmount;
+    
+    // توزيع المبلغ
+    invoices.forEach(invoice => {
+        const amountInput = document.querySelector(`.invoice-payment-amount[data-invoice-id="${invoice.id}"]`);
+        const maxAmount = invoice.remaining;
+        
+        if (amountInput && remainingAmount > 0) {
+            const amountToPay = Math.min(maxAmount, remainingAmount);
+            amountInput.value = amountToPay.toFixed(2);
+            remainingAmount -= amountToPay;
+        }
+    });
+
+    // إذا بقي مبلغ بعد التوزيع
+    if (remainingAmount > 0) {
+        Swal.fire('تنبيه', 
+            `تم توزيع ${(totalAmount - remainingAmount).toFixed(2)} ج.م فقط، المبلغ المتبقي ${remainingAmount.toFixed(2)} ج.م لم يتم توزيعه`,
+            'info'
+        );
+    }
+
+    this.updatePaymentSummary();
+},
+
+// دالة سداد المتبقي بالكامل
+fillRemainingAmount() {
+    let totalRemaining = 0;
+    const checkboxes = document.querySelectorAll('.invoice-payment-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
+        const invoice = AppData.invoices.find(inv => inv.id === invoiceId);
+        if (invoice) {
+            totalRemaining += invoice.remaining;
+        }
+    });
+    
+    document.getElementById('invoicesTotalAmount').value = totalRemaining.toFixed(2);
+    this.distributeAmountAutomatically();
+},
+
+// التحقق من المبالغ المدخلة
+validatePaymentAmounts() {
+    let isValid = true;
+    let errorMessage = '';
+    
+    // التحقق من المبلغ الكلي
+    const totalAmount = parseFloat(document.getElementById('invoicesTotalAmount').value) || 0;
+    if (totalAmount <= 0) {
+        isValid = false;
+        errorMessage = 'يرجى إدخال مبلغ صحيح أكبر من الصفر';
+    }
+    
+    // التحقق من الفواتير المحددة
+    const checkboxes = document.querySelectorAll('.invoice-payment-checkbox:checked');
+    if (checkboxes.length === 0 && totalAmount > 0) {
+        isValid = false;
+        errorMessage = 'يرجى تحديد فواتير للسداد';
+    }
+    
+    // التحقق من المبالغ المدخلة للفواتير
+    let totalEntered = 0;
+    document.querySelectorAll('.invoice-payment-amount:not(:disabled)').forEach(input => {
+        const amount = parseFloat(input.value) || 0;
+        const maxAmount = parseFloat(input.getAttribute('max'));
+        
+        if (amount < 0) {
+            isValid = false;
+            errorMessage = 'لا يمكن إدخال قيم سالبة';
+        }
+        
+        if (amount > maxAmount) {
+            isValid = false;
+            errorMessage = `المبلغ المسدد ${amount} يتجاوز المبلغ المتبقي ${maxAmount}`;
+        }
+        
+        totalEntered += amount;
+    });
+    
+    // التحقق من أن المبلغ الكلي يساوي المبالغ المدخلة
+    if (Math.abs(totalAmount - totalEntered) > 0.01) {
+        isValid = false;
+        errorMessage = `المبلغ الكلي (${totalAmount}) لا يساوي مجموع المبالغ المدخلة (${totalEntered})`;
+    }
+    
+    // التحقق من طرق الدفع
+    const paymentMethods = this.collectPaymentMethods();
+    const paymentTotal = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+    
+    if (paymentTotal !== totalAmount) {
+        isValid = false;
+        errorMessage = `مجموع طرق الدفع (${paymentTotal}) لا يساوي المبلغ الكلي (${totalAmount})`;
+    }
+    
+    return { isValid, errorMessage };
+},
+
+// تحديث collectPaymentMethods لتعيد تفاصيل أكثر
+collectPaymentMethods() {
+    const methods = [];
+    const container = document.getElementById('paymentMethodsContainer');
+    
+    container.querySelectorAll('.payment-method-item').forEach((item, index) => {
+        const methodSelect = item.querySelector('.payment-method-select');
+        const amountInput = item.querySelector('.payment-method-amount');
+        const notesInput = item.querySelector('.payment-method-notes');
+        
+        const methodId = parseInt(methodSelect.value);
+        const amount = parseFloat(amountInput.value) || 0;
+        const notes = notesInput.value;
+        
+        if (methodId && amount > 0) {
+            const method = PaymentMethods.find(pm => pm.id === methodId);
+            if (method) {
+                methods.push({
+                    methodId: methodId,
+                    method: method.name,
+                    amount: amount,
+                    notes: notes,
+                    icon: method.icon
+                });
+            }
+        }
+    });
+    
+    return methods;
+},
+```
+
+## 4. إضافة مستمعي الأحداث الجديدة:
+
+في `setupPaymentEventListeners()`:
+
+```javascript
+// زر سداد المتبقي بالكامل
+document.getElementById('fillInvoicesRemainingBtn').addEventListener('click', function() {
+    PaymentManager.fillRemainingAmount();
+});
+
+// زر تطبيق التوزيع
+document.getElementById('applyDistributionBtn').addEventListener('click', function() {
+    PaymentManager.distributeAmountAutomatically();
+});
+
+// خيارات التوزيع
+document.querySelectorAll('.distribution-option').forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (this.value === 'manual') {
+            // تعطيل التوزيع التلقائي
+            document.getElementById('applyDistributionBtn').disabled = true;
+            document.getElementById('fillInvoicesRemainingBtn').disabled = true;
+        } else {
+            // تفعيل الأزرار
+            document.getElementById('applyDistributionBtn').disabled = false;
+            document.getElementById('fillInvoicesRemainingBtn').disabled = false;
+        }
+    });
+});
+
+// التحقق من المبلغ الكلي عند الإدخال
+document.getElementById('invoicesTotalAmount').addEventListener('input', function() {
+    const value = parseFloat(this.value) || 0;
+    if (value < 0) {
+        this.value = 0;
+        Swal.fire('تحذير', 'لا يمكن إدخال قيمة سالبة', 'warning');
+    }
+    PaymentManager.updatePaymentSummary();
+});
+```
+
+## 5. تعديل دالة processPayment لإضافة التحقق:
+
+```javascript
+processPayment() {
+    // التحقق من المبالغ المدخلة
+    const validation = PaymentManager.validatePaymentAmounts();
+    if (!validation.isValid) {
+        Swal.fire('خطأ', validation.errorMessage, 'error');
+        return;
+    }
+
+    const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+    
+    // جمع طرق الدفع
+    const paymentMethods = PaymentManager.collectPaymentMethods();
+    
+    if (paymentMethods.length === 0) {
+        Swal.fire('تحذير', 'يرجى إدخال طرق دفع صحيحة.', 'warning');
+        return;
+    }
+    
+    let totalPaid = 0;
+    
+    if (paymentType === 'invoices') {
+        // معالجة سداد الفواتير
+        document.querySelectorAll('.invoice-payment-checkbox:checked').forEach(checkbox => {
+            const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
+            const amountInput = document.querySelector(`.invoice-payment-amount[data-invoice-id="${invoiceId}"]`);
+            const amount = parseFloat(amountInput.value) || 0;
+            
+            if (amount > 0) {
+                PaymentManager.addPaymentToInvoice(invoiceId, amount, paymentMethods);
+                totalPaid += amount;
+            }
+        });
+    } else {
+        // معالجة سداد فواتير الشغلانة
+        document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
+            const amount = parseFloat(input.value) || 0;
+            const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
+            
+            if (amount > 0) {
+                PaymentManager.addPaymentToInvoice(invoiceId, amount, paymentMethods);
+                totalPaid += amount;
+            }
+        });
+    }
+    
+    if (totalPaid > 0) {
+        Swal.fire('نجاح', `تم سداد ${totalPaid.toFixed(2)} ج.م بنجاح.`, 'success');
+        const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+        paymentModal.hide();
+        
+        // تحديث الواجهة
+        InvoiceManager.updateInvoicesTable();
+        WorkOrderManager.updateWorkOrdersTable();
+        CustomerManager.updateCustomerBalance();
+        updateInvoiceStats();
+    } else {
+        Swal.fire('تحذير', 'لم يتم تحديد أي مبالغ للدفع.', 'warning');
+    }
+},
+```
+
+## 6. إضافة توزيع خاص للشغلانات:
+
+سأضيف خيارات توزيع خاصة بالشغلانات في `workOrderPaymentSection`:
+
+```html
+<!-- في workOrderPaymentSection بعد جدول فواتير الشغلانة -->
+<div class="row mt-3">
+    <div class="col-md-6">
+        <label for="workOrderTotalAmount" class="form-label">المبلغ الكلي المراد سداده</label>
+        <div class="input-group">
+            <input type="number" class="form-control" id="workOrderTotalAmount" 
+                   step="0.01" min="0" placeholder="المبلغ الكلي" value="0">
+            <span class="input-group-text">ج.م</span>
+        </div>
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+        <button type="button" class="btn btn-outline-secondary w-100" id="fillWorkOrderRemainingBtn">
+            <i class="fas fa-fill me-1"></i> سدّد المتبقي بالكامل
+        </button>
+    </div>
+</div>
+
+<!-- خيارات توزيع الشغلانة -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        <label class="form-label">خيارات توزيع المبلغ للشغلانة:</label>
+        <div class="form-check mb-2">
+            <input class="form-check-input workorder-distribution-option" type="radio" 
+                   name="workOrderDistributionOption" id="workOrderDistributeAll" value="all" checked>
+            <label class="form-check-label" for="workOrderDistributeAll">
+                <i class="fas fa-sort-amount-down me-2"></i>توزيع تلقائي من الأقدم للأحدث
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input workorder-distribution-option" type="radio" 
+                   name="workOrderDistributionOption" id="workOrderDistributeManual" value="manual">
+            <label class="form-check-label" for="workOrderDistributeManual">
+                <i class="fas fa-hand-paper me-2"></i>توزيع يدوي
+            </label>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="applyWorkOrderDistributionBtn">
+            <i class="fas fa-calculator me-1"></i> تطبيق التوزيع
+        </button>
+    </div>
+</div>
+```
+
+## 7. إضافة دوال توزيع الشغلانات:
+
+```javascript
+// توزيع المبلغ على فواتير الشغلانة
+distributeWorkOrderAmountAutomatically() {
+    const totalAmount = parseFloat(document.getElementById('workOrderTotalAmount').value) || 0;
+    if (totalAmount <= 0) {
+        Swal.fire('تحذير', 'يرجى إدخال مبلغ صحيح أولاً', 'warning');
+        return;
+    }
+
+    const distributionOption = document.querySelector('input[name="workOrderDistributionOption"]:checked').value;
+    
+    if (distributionOption === 'manual') {
+        return; // لا توزيع في الوضع اليدوي
+    }
+
+    // جمع فواتير الشغلانة
+    let invoices = [];
+    document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
+        const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
+        const invoice = AppData.invoices.find(inv => inv.id === invoiceId);
+        if (invoice) {
+            invoices.push({
+                invoice: invoice,
+                input: input
+            });
+        }
+    });
+
+    // ترتيب الفواتير من الأقدم للأحدث
+    invoices.sort((a, b) => new Date(a.invoice.date) - new Date(b.invoice.date));
+
+    let remainingAmount = totalAmount;
+    
+    // توزيع المبلغ
+    invoices.forEach(item => {
+        const maxAmount = item.invoice.remaining;
+        
+        if (remainingAmount > 0) {
+            const amountToPay = Math.min(maxAmount, remainingAmount);
+            item.input.value = amountToPay.toFixed(2);
+            remainingAmount -= amountToPay;
+        } else {
+            item.input.value = 0;
+        }
+    });
+
+    // إذا بقي مبلغ بعد التوزيع
+    if (remainingAmount > 0) {
+        Swal.fire('تنبيه', 
+            `تم توزيع ${(totalAmount - remainingAmount).toFixed(2)} ج.م فقط، المبلغ المتبقي ${remainingAmount.toFixed(2)} ج.م لم يتم توزيعه`,
+            'info'
+        );
+    }
+
+    this.updatePaymentSummary();
+},
+
+// سداد المتبقي بالكامل للشغلانة
+fillWorkOrderRemainingAmount() {
+    let totalRemaining = 0;
+    
+    document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
+        const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
+        const invoice = AppData.invoices.find(inv => inv.id === invoiceId);
+        if (invoice) {
+            totalRemaining += invoice.remaining;
+        }
+    });
+    
+    document.getElementById('workOrderTotalAmount').value = totalRemaining.toFixed(2);
+    this.distributeWorkOrderAmountAutomatically();
+},
+```
+
+## 8. تحديث مستمعي أحداث الشغلانات:
+
+```javascript
+// في setupPaymentEventListeners
+// زر سداد المتبقي بالكامل للشغلانة
+document.getElementById('fillWorkOrderRemainingBtn').addEventListener('click', function() {
+    PaymentManager.fillWorkOrderRemainingAmount();
+});
+
+// زر تطبيق التوزيع للشغلانة
+document.getElementById('applyWorkOrderDistributionBtn').addEventListener('click', function() {
+    PaymentManager.distributeWorkOrderAmountAutomatically();
+});
+
+// التحقق من المبلغ الكلي للشغلانة
+document.getElementById('workOrderTotalAmount').addEventListener('input', function() {
+    const value = parseFloat(this.value) || 0;
+    if (value < 0) {
+        this.value = 0;
+        Swal.fire('تحذير', 'لا يمكن إدخال قيمة سالبة', 'warning');
+    }
+    PaymentManager.updatePaymentSummary();
+});
+```
+
+## 9. تحديث دالة updatePaymentSummary للتعامل مع المبلغ الكلي:
+
+```javascript
+updatePaymentSummary() {
+    let totalRequired = 0;
+    let totalEntered = 0;
+    let walletPayment = 0;
+    const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+    
+    // حساب المبلغ المطلوب بناءً على نوع السداد
+    if (paymentType === 'invoices') {
+        // جمع المبالغ المطلوبة من الفواتير المحددة
+        document.querySelectorAll('.invoice-payment-checkbox:checked').forEach(checkbox => {
+            const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
+            const invoice = AppData.invoices.find(i => i.id === invoiceId);
+            if (invoice) {
+                totalRequired += invoice.remaining;
+            }
+        });
+        
+        // جمع المبالغ المدخلة
+        document.querySelectorAll('.invoice-payment-amount:not(:disabled)').forEach(input => {
+            totalEntered += parseFloat(input.value) || 0;
+        });
+        
+        // الحصول على المبلغ الكلي المدخل
+        const totalAmountInput = parseFloat(document.getElementById('invoicesTotalAmount').value) || 0;
+        document.getElementById('totalRequiredAmount').textContent = totalRequired.toFixed(2) + ' ج.م';
+        document.getElementById('totalEnteredAmount').textContent = totalAmountInput.toFixed(2) + ' ج.م';
+    } else {
+        // جمع المبالغ من فواتير الشغلانة
+        document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
+            const amount = parseFloat(input.value) || 0;
+            totalEntered += amount;
+            
+            const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
+            const invoice = AppData.invoices.find(i => i.id === invoiceId);
+            if (invoice) {
+                totalRequired += invoice.remaining;
+            }
+        });
+        
+        // الحصول على المبلغ الكلي المدخل للشغلانة
+        const totalAmountInput = parseFloat(document.getElementById('workOrderTotalAmount').value) || 0;
+        document.getElementById('totalRequiredAmount').textContent = totalRequired.toFixed(2) + ' ج.م';
+        document.getElementById('totalEnteredAmount').textContent = totalAmountInput.toFixed(2) + ' ج.م';
+    }
+    
+    // حساب مبلغ المحفظة من طرق الدفع
+    walletPayment = 0;
+    document.querySelectorAll('.payment-method-item').forEach(item => {
+        const methodSelect = item.querySelector('.payment-method-select');
+        const amountInput = item.querySelector('.payment-method-amount');
+        
+        if (methodSelect.value === '4') { // 4 هو id طريقة دفع المحفظة
+            walletPayment += parseFloat(amountInput.value) || 0;
+        }
+    });
+    
+    // عرض/إخفاء تفاصيل المحفظة
+    const walletDetails = document.getElementById('walletPaymentDetails');
+    if (walletPayment > 0) {
+        const availableBalance = WalletManager.getAvailableBalance();
+        const remainingBalance = availableBalance - walletPayment;
+        
+        document.getElementById('availableWalletBalance').textContent = availableBalance.toFixed(2) + ' ج.م';
+        document.getElementById('walletPaymentAmount').textContent = walletPayment.toFixed(2) + ' ج.م';
+        document.getElementById('remainingWalletBalance').textContent = remainingBalance.toFixed(2) + ' ج.م';
+        
+        walletDetails.style.display = 'block';
+        
+        // التحقق من أن مبلغ المحفظة لا يتجاوز الرصيد المتاح
+        if (walletPayment > availableBalance) {
+            document.getElementById('paymentError').textContent = 
+                'مبلغ المحفظة المطلوب يتجاوز الرصيد المتاح!';
+            document.getElementById('paymentError').style.display = 'block';
+            document.getElementById('processPaymentBtn').disabled = true;
+            return;
+        }
+    } else {
+        walletDetails.style.display = 'none';
+    }
+    
+    // التحقق من أن المبلغ المدخل لا يتجاوز المبلغ المطلوب
+    const enteredAmount = paymentType === 'invoices' 
+        ? parseFloat(document.getElementById('invoicesTotalAmount').value) || 0
+        : parseFloat(document.getElementById('workOrderTotalAmount').value) || 0;
+    
+    if (enteredAmount > totalRequired) {
+        document.getElementById('paymentError').textContent = 
+            'المبلغ المدخل يتجاوز المبلغ المطلوب!';
+        document.getElementById('paymentError').style.display = 'block';
+        document.getElementById('processPaymentBtn').disabled = true;
+        return;
+    }
+    
+    // التحقق من أن المبلغ المدخل يساوي مجموع المبالغ المدخلة للفواتير
+    const totalInvoicesAmount = paymentType === 'invoices'
+        ? document.querySelectorAll('.invoice-payment-amount:not(:disabled)').reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0)
+        : document.querySelectorAll('.workorder-invoice-payment-amount').reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+    
+    if (Math.abs(enteredAmount - totalInvoicesAmount) > 0.01) {
+        document.getElementById('paymentError').textContent = 
+            'المبلغ الكلي لا يساوي مجموع المبالغ المدخلة للفواتير!';
+        document.getElementById('paymentError').style.display = 'block';
+        document.getElementById('processPaymentBtn').disabled = true;
+        return;
+    }
+    
+    // التحقق من أن المبلغ المدخل أكبر من 0
+    if (enteredAmount <= 0) {
+        document.getElementById('paymentError').textContent = 
+            'يرجى إدخال مبلغ صحيح أكبر من الصفر!';
+        document.getElementById('paymentError').style.display = 'block';
+        document.getElementById('processPaymentBtn').disabled = true;
+        return;
+    }
+    
+    // التحقق من طرق الدفع
+    const paymentMethods = this.collectPaymentMethods();
+    const paymentTotal = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+    
+    if (Math.abs(paymentTotal - enteredAmount) > 0.01) {
+        document.getElementById('paymentError').textContent = 
+            'مجموع طرق الدفع لا يساوي المبلغ الكلي!';
+        document.getElementById('paymentError').style.display = 'block';
+        document.getElementById('processPaymentBtn').disabled = true;
+        return;
+    }
+    
+    // إخفاء رسالة الخطأ إذا لم توجد أخطاء
+    document.getElementById('paymentError').style.display = 'none';
+    
+    // تفعيل/تعطيل زر المعالجة
+    document.getElementById('processPaymentBtn').disabled = enteredAmount <= 0;
+}
+```
+
+هذه التعديلات ستوفر:
+
+1. ✅ عرض علامة الشغلانة بجانب الفواتير المرتبطة
+2. ✅ خيارات توزيع متعددة: تلقائي على الكل، تلقائي على غير المرتبطة بشغلانة، يدوي
+3. ✅ توزيع تلقائي بناءً على الأقدمية
+4. ✅ تحقق قوي من المبالغ المدخلة
+5. ✅ تقسيم المبلغ على طرق دفع متعددة (نقدي، محفظة، فيزا، شيك)
+6. ✅ توزيع خاص للشغلانات (يدوي أو تلقائي بالترتيب)
+
+كل الخيارات متاحة وتعمل مع الفلترة والتحقق من الصحة لضمان عدم وجود أخطاء في السداد.

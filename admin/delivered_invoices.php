@@ -1362,7 +1362,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_pending'])) {
             <!-- CONTENT -->
             <main class="content col-12 col-md-12 col-lg-8" id="contentArea">
                 <!-- كارد الإجماليات -->
-             
+              <div class="top-actions" style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="selectAllInvoices">
+                            تحديد الكل
+                        </label>
+                        <button id="printSelectedInvoices" class="btn" style="background: var(--primary); color: white; padding: 8px 16px;">
+                            🖨️ طباعة الفواتير المحددة
+                        </button>
+                    </div>
+
 
                 <div class="list-wrapper">
                     <section id="list" class="list" aria-label="قائمة الفواتير">
@@ -1401,6 +1410,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_pending'])) {
                         ?>
                             <article class="invoice">
                                 <div class="invoice-left">
+                                            <input type="checkbox" class="invoice-checkbox" data-invoice-id=<?php echo e($row["id"]); ?>>
+                                                                                                                    
                                     <div class="badge">#<?php echo e($row["id"]); ?></div>
                                     <div class="meta">
                                         <div class="name"><?php echo e($row["customer_name"]); ?></div>
@@ -2877,6 +2888,298 @@ ${items.map((item, index) => {
         });
     }
     </script>
+
+        <script>
+            // دالة لتحديد الكل
+            document.addEventListener('DOMContentLoaded', function() {
+                const selectAllCheckbox = document.getElementById('selectAllInvoices');
+                const printSelectedBtn = document.getElementById('printSelectedInvoices');
+
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', function() {
+                        const checkboxes = document.querySelectorAll('.invoice-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = this.checked;
+                        });
+                        updatePrintButtonState();
+                    });
+                }
+
+                // تحديث حالة زر الطباعة
+                function updatePrintButtonState() {
+                    const selectedCheckboxes = document.querySelectorAll('.invoice-checkbox:checked');
+                    printSelectedBtn.disabled = selectedCheckboxes.length === 0;
+                }
+
+                // تحديث عند تغيير أي checkbox
+                document.addEventListener('change', function(e) {
+                    if (e.target.classList.contains('invoice-checkbox')) {
+                        updatePrintButtonState();
+
+                        // تحديث selectAll إذا تم تحديد جميع الفواتير
+                        const allCheckboxes = document.querySelectorAll('.invoice-checkbox');
+                        const checkedCheckboxes = document.querySelectorAll('.invoice-checkbox:checked');
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                        }
+                    }
+                });
+
+                // طباعة الفواتير المحددة
+                if (printSelectedBtn) {
+                    printSelectedBtn.addEventListener('click', printSelectedInvoices);
+                }
+            });
+
+            // دالة طباعة الفواتير المحددة
+            async function printSelectedInvoices() {
+                const selectedCheckboxes = document.querySelectorAll('.invoice-checkbox:checked');
+
+                if (selectedCheckboxes.length === 0) {
+                    Swal.fire('تنبيه', 'يرجى تحديد فواتير للطباعة', 'warning');
+                    return;
+                }
+
+                try {
+                    // إظهار تحميل
+                    Swal.fire({
+                        title: 'جاري التحميل',
+                        text: 'جارٍ تجميع بيانات الفواتير المحددة...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const invoiceIds = Array.from(selectedCheckboxes).map(checkbox =>
+                        parseInt(checkbox.getAttribute('data-invoice-id'))
+                    );
+
+                    // جلب بيانات جميع الفواتير المحددة
+                    const invoicesData = await Promise.all(
+                        invoiceIds.map(id => fetchInvoiceData(id))
+                    );
+
+                    // إنشاء التقرير المجمع
+                    const aggregatedReport = createAggregatedReport(invoicesData);
+
+                    // طباعة التقرير
+                    printAggregatedReport(aggregatedReport);
+
+                    Swal.close();
+
+                } catch (error) {
+                    console.error('Error printing selected invoices:', error);
+                    Swal.fire('خطأ', 'حدث خطأ أثناء تجميع البيانات', 'error');
+                }
+            }
+
+            // دالة لجلب بيانات الفاتورة
+            async function fetchInvoiceData(invoiceId) {
+                const response = await fetch(location.pathname + '?action=fetch_invoice_details&id=' + encodeURIComponent(invoiceId), {
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error('Failed to fetch invoice data');
+                }
+
+                return data;
+            }
+
+            // دالة لإنشاء التقرير المجمع
+            function createAggregatedReport(invoicesData) {
+                const aggregatedItems = {};
+                let totalBeforeDiscount = 0;
+                let totalAfterDiscount = 0;
+                let totalDiscount = 0;
+
+                // تجميع البنود
+                invoicesData.forEach(({
+                    invoice,
+                    items
+                }) => {
+                    // جمع الإجماليات
+                    const invoiceTotalBefore = parseFloat(invoice.total_before_discount || 0);
+                    const invoiceTotalAfter = parseFloat(invoice.total_after_discount || 0);
+
+                    totalBeforeDiscount += invoiceTotalBefore > 0 ? invoiceTotalBefore :
+                        items.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0);
+                    totalAfterDiscount += invoiceTotalAfter > 0 ? invoiceTotalAfter : invoiceTotalBefore;
+
+                    // تجميع البنود
+                    items.forEach(item => {
+                        const productId = item.product_id;
+                        const productName = item.product_name || `منتج #${productId}`;
+                        const quantity = parseFloat(item.quantity || 0);
+                        const price = parseFloat(item.selling_price || item.cost_price_per_unit || 0);
+                        const total = parseFloat(item.total_price || 0);
+
+                        if (!aggregatedItems[productId]) {
+                            aggregatedItems[productId] = {
+                                name: productName,
+                                quantity: 0,
+                                price: price,
+                                total: 0
+                            };
+                        }
+
+                        aggregatedItems[productId].quantity += quantity;
+                        aggregatedItems[productId].total += total;
+                    });
+                });
+
+                totalDiscount = totalBeforeDiscount - totalAfterDiscount;
+
+                return {
+                    invoicesCount: invoicesData.length,
+                    items: Object.values(aggregatedItems),
+                    totals: {
+                        beforeDiscount: totalBeforeDiscount,
+                        afterDiscount: totalAfterDiscount,
+                        discount: totalDiscount
+                    },
+                    invoices: invoicesData.map(({
+                        invoice
+                    }) => ({
+                        id: invoice.id,
+                        customer: invoice.customer_name,
+                        total: parseFloat(invoice.total_after_discount || invoice.total_before_discount || 0)
+                    }))
+                };
+            }
+
+            // دالة طباعة التقرير المجمع
+            function printAggregatedReport(report) {
+                const printWindow = window.open('', '_blank', 'width=300,height=600');
+
+                const itemsHTML = report.items.map(item => `
+        <div class="item-row">
+            <div class="item-name">${escapeHtml(item.name)}</div>
+            <div class="item-qty">${item.quantity.toFixed(2)}</div>
+            <div class="item-price">${item.price.toFixed(2)}</div>
+            <div class="item-total">${item.total.toFixed(2)}</div>
+        </div>
+    `).join('');
+
+                const invoicesHTML = report.invoices.map(inv => `
+        <div style="display: flex; justify-content: space-between; margin: 5px 0; font-size: 12px;">
+            <span>#${inv.id} - ${escapeHtml(inv.customer)}</span>
+            <span>${inv.total.toFixed(2)} ج.م</span>
+        </div>
+    `).join('');
+
+                const receiptContent = `
+        <div class="header">
+            <div class="company-name">تقرير الفواتير المجمع</div>
+        </div>
+        
+        <div class="invoice-info">
+            <span>عدد الفواتير: ${report.invoicesCount}</span>
+        </div>
+        
+        
+        
+       
+        
+        
+        <div class="items-section">
+            <div class="items-header">
+                <div class="item-name">المنتج</div>
+                <div class="item-qty">الكمية</div>
+                <div class="item-price">السعر</div>
+                <div class="item-total">المجموع</div>
+            </div>
+            ${itemsHTML}
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div class="totals-section">
+            <div class="total-row subtotal">
+                <span>المجموع قبل الخصم:</span>
+                <span>${report.totals.beforeDiscount.toFixed(2)} ج.م</span>
+            </div>
+            
+            ${report.totals.discount > 0 ? `
+                <div class="total-row discount-row">
+                    <span>إجمالي الخصم:</span>
+                    <span>-${report.totals.discount.toFixed(2)} ج.م</span>
+                </div>
+            ` : ''}
+            
+            <div class="final-total">
+                <span>الإجمالي النهائي: ${report.totals.afterDiscount.toFixed(2)} ج.م</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="print-date">${new Date().toLocaleString('ar-EG')}</div>
+            <div style="margin-top: 8px; font-weight: bold;">تم الطباعة من النظام</div>
+        </div>
+    `;
+
+                printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير الفواتير المجمع</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Courier New', Courier, monospace;
+                    font-size: 14px;
+                    font-weight: bold;
+                    width: 72mm;
+                    margin: 0 auto;
+                    padding: 1px 3px;
+                    line-height: 1.2;
+                    background: white;
+                    color: #000;
+                }
+                .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; }
+                .company-name { font-weight: 900; font-size: 18px; margin-bottom: 4px; }
+                .invoice-info { margin: 6px 0; display: flex; justify-content: space-between; }
+                .separator { border-bottom: 1px dashed #000; margin: 8px 0; }
+                .items-header, .item-row { 
+                    display: grid; 
+                    grid-template-columns: 1fr 50px 60px 60px;
+                    gap: 4px;
+                    align-items: center;
+                    padding: 6px 0;
+                }
+                .items-header { border-bottom: 2px solid #000; border-top: 2px solid #000; font-weight: 900; }
+                .item-name { text-align: right; padding-right: 6px; }
+                .total-row { display: flex; justify-content: space-between; margin: 4px 0; }
+                .final-total { font-weight: 900; font-size: 16px; padding: 8px; margin-top: 8px; text-align: center; }
+                .footer { text-align: center; margin-top: 15px; padding-top: 10px; border-top: 2px solid #000; }
+                .print-date { font-weight: bold; margin: 4px 0; }
+                .discount-row { color: #d00; }
+                .invoices-list { margin: 8px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="receipt-container">
+                ${receiptContent}
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 1000);
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+
+                printWindow.document.close();
+            }
+        </script>
     <?php
     // تحرير الموارد
     if ($result && is_object($result)) $result->free();

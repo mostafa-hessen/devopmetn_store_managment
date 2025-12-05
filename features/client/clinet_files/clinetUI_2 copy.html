@@ -1,0 +1,3803 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>نظام إدارة العملاء والمخزون المتطور</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/index.css" />
+  </head>
+  <body>
+    <div class="container-fluid py-4">
+      <!-- رأس العميل -->
+      <div class="customer-header">
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <div class="d-flex align-items-center">
+              <div class="customer-avatar me-4" id="customerAvatar">م</div>
+              <div>
+                <h1 class="h2 mb-2" id="customerName">محمد أحمد</h1>
+                <div class="d-flex flex-wrap gap-4 fs-5">
+                  <span
+                    ><i class="fas fa-phone me-2"></i>
+                    <span id="customerPhone">01234567890</span></span
+                  >
+                  <span
+                    ><i class="fas fa-city me-2"></i>
+                    <span id="customerAddress">القاهرة - المعادي</span></span
+                  >
+                  <span
+                    ><i class="fas fa-calendar me-2"></i> عضو منذ
+                    <span id="customerJoinDate">2024-01-20</span></span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="stat-card negative">
+                  <div class="stat-value" id="currentBalance">1,200.00</div>
+                  <div class="stat-label">الرصيد الحالي</div>
+                  <small class="text-danger">مدين</small>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="stat-card positive">
+                  <div class="stat-value" id="walletBalance">500.00</div>
+                  <div class="stat-label">رصيد المحفظة</div>
+                  <small class="text-success">دائن</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- كروت إحصائيات الفواتير -->
+      <div class="invoice-stats-grid">
+        <div class="invoice-stat-card active" data-filter="all">
+          <div class="stat-value" id="totalInvoicesCount">16</div>
+          <div class="stat-label">جميع الفواتير</div>
+          <div class="stat-amount text-primary">15,000.00 ج.م</div>
+        </div>
+        <div class="invoice-stat-card pending" data-filter="pending">
+          <div class="stat-value" id="pendingInvoicesCount">3</div>
+          <div class="stat-label">مؤجل</div>
+          <div class="stat-amount text-warning">2,500.00 ج.م</div>
+        </div>
+        <div class="invoice-stat-card partial" data-filter="partial">
+          <div class="stat-value" id="partialInvoicesCount">2</div>
+          <div class="stat-label">جزئي</div>
+          <div class="stat-amount text-info">1,200.00 ج.م</div>
+        </div>
+        <div class="invoice-stat-card paid" data-filter="paid">
+          <div class="stat-value" id="paidInvoicesCount">10</div>
+          <div class="stat-label">مسلم</div>
+          <div class="stat-amount text-success">11,300.00 ج.م</div>
+        </div>
+        <div class="invoice-stat-card returned" data-filter="returned">
+          <div class="stat-value" id="returnedInvoicesCount">1</div>
+          <div class="stat-label">مرتجع</div>
+          <div class="stat-amount text-danger">800.00 ج.م</div>
+        </div>
+      </div>
+
+      <!-- أزرار الإجراءات السريعة -->
+      <div class="quick-actions mb-4">
+        <div class="d-flex gap-3 flex-wrap">
+          <button
+            class="btn btn-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#newWorkOrderModal"
+          >
+            <i class="fas fa-tools me-2"></i> شغلانة جديدة
+          </button>
+          <button
+            class="btn btn-success"
+            data-bs-toggle="modal"
+            data-bs-target="#paymentModal"
+          >
+            <i class="fas fa-money-bill-wave me-2"></i> سداد
+          </button>
+          <button
+            class="btn btn-warning"
+            data-bs-toggle="modal"
+            data-bs-target="#walletDepositModal"
+          >
+            <i class="fas fa-wallet me-2"></i> إيداع محفظة
+          </button>
+          <button
+            class="btn btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#statementReportModal"
+          >
+            <i class="fas fa-file-invoice me-2"></i> كشف حساب
+          </button>
+          <button class="btn btn-outline-secondary" id="printMultipleBtn">
+            <i class="fas fa-print me-2"></i> طباعة متعددة
+          </button>
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- قسم الفلاتر -->
+        <div class="col-12 col-md-4 mb-4 mb-md-0">
+          <div class="filters-section">
+            <h5 class="mb-3">فلاتر البحث</h5>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label for="dateFrom" class="form-label">من تاريخ</label>
+                <input type="date" class="form-control" id="dateFrom" />
+              </div>
+              <div class="col-md-3">
+                <label for="dateTo" class="form-label">إلى تاريخ</label>
+                <input type="date" class="form-control" id="dateTo" />
+              </div>
+              <div class="col-md-3">
+                <label for="productSearch" class="form-label">بحث بالصنف</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="productSearch"
+                  placeholder="اكتب اسم الصنف..."
+                />
+              </div>
+
+              <div class="col-12 mb-3">
+                <label for="advancedProductSearch" class="form-label"
+                  >بحث متقدم عن صنف</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="advancedProductSearch"
+                  placeholder="اكتب اسم الصنف للبحث في جميع الفواتير..."
+                />
+                <small class="text-muted"
+                  >سيتم تمييز النص المطابق باللون الأصفر وعرض الفاتورة في الجانب
+                  الأيمن</small
+                >
+              </div>
+
+              <div
+                id="advancedSearchResults"
+                class="product-search-results"
+                style="display: none"
+              ></div>
+              <div class="col-md-3">
+                <label for="invoiceTypeFilter" class="form-label"
+                  >نوع الفاتورة</label
+                >
+                <select class="form-select" id="invoiceTypeFilter">
+                  <option value="">جميع الأنواع</option>
+                  <option value="pending">مؤجل</option>
+                  <option value="partial">جزئي</option>
+                  <option value="paid">مسلم</option>
+                  <option value="returned">مرتجع</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-tags" id="filterTags"></div>
+          </div>
+        </div>
+        <div class="col-12 col-md-8">
+          <!-- تبويبات المحتوى -->
+          <ul class="nav nav-tabs" id="customerTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link active"
+                id="invoices-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#invoices"
+                type="button"
+                role="tab"
+              >
+                <i class="fas fa-receipt me-2"></i> الفواتير
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="work-orders-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#work-orders"
+                type="button"
+                role="tab"
+              >
+                <i class="fas fa-tools me-2"></i> الشغلانات
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="wallet-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#wallet"
+                type="button"
+                role="tab"
+              >
+                <i class="fas fa-wallet me-2"></i> حركات المحفظة
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="returns-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#returns"
+                type="button"
+                role="tab"
+              >
+                <i class="fas fa-undo me-2"></i> المرتجعات
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content p-4" id="customerTabsContent">
+            <!-- تبويب الفواتير -->
+            <div
+              class="tab-pane fade show active"
+              id="invoices"
+              role="tabpanel"
+            >
+              <div class="table-responsive-fixed">
+                <div
+                  class="mb-3 d-flex justify-content-between align-items-center"
+                >
+                  <div>
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      id="selectAllInvoices"
+                    />
+                    <label class="form-check-label ms-2" for="selectAllInvoices"
+                      >تحديد الكل</label
+                    >
+                  </div>
+                  <button
+                    class="btn btn-primary btn-sm"
+                    id="printSelectedInvoices"
+                    disabled
+                  >
+                    <i class="fas fa-print me-2"></i>طباعة المحدد
+                  </button>
+                </div>
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          id="selectAllInvoicesHeader"
+                        />
+                      </th>
+                      <th>#</th>
+                      <th>التاريخ</th>
+                      <th>البنود</th>
+                      <th>الإجمالي</th>
+                      <th>المدفوع</th>
+                      <th>المتبقي</th>
+                      <th>الحالة</th>
+                      <th>الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invoicesTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- تبويب الشغلانات -->
+            <div class="tab-pane fade" id="work-orders" role="tabpanel">
+              <div class="row" id="workOrdersContainer"></div>
+            </div>
+
+            <!-- تبويب حركات المحفظة -->
+            <div class="tab-pane fade" id="wallet" role="tabpanel">
+              <div class="table-responsive-fixed">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>التاريخ</th>
+                      <th>نوع الحركة</th>
+                      <th>الوصف</th>
+                      <th>المبلغ</th>
+                      <th>الرصيد قبل</th>
+                      <th>الرصيد بعد</th>
+                      <th>المستخدم</th>
+                    </tr>
+                  </thead>
+                  <tbody id="walletTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- تبويب المرتجعات -->
+            <div class="tab-pane fade" id="returns" role="tabpanel">
+              <div class="table-responsive-fixed">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>رقم المرتجع</th>
+                      <th>الفاتورة الأصلية</th>
+                      <th>المنتج</th>
+                      <th>الكمية</th>
+                      <th>المبلغ</th>
+                      <th>طريقة الاسترجاع</th>
+                      <th>الحالة</th>
+                      <th>التاريخ</th>
+                      <th>المستخدم</th>
+                    </tr>
+                  </thead>
+                  <tbody id="returnsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- المودالات -->
+
+    <!-- مودال الشغلانة الجديدة -->
+    <div
+      class="modal fade"
+      id="newWorkOrderModal"
+      tabindex="-1"
+      aria-labelledby="newWorkOrderModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="newWorkOrderModalLabel">
+              شغلانة جديدة
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="newWorkOrderForm">
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="workOrderName" class="form-label"
+                    >اسم الشغلانة</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="workOrderName"
+                    required
+                  />
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="workOrderStartDate" class="form-label"
+                    >تاريخ البدء</label
+                  >
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="workOrderStartDate"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-12 mb-3">
+                  <label for="workOrderDescription" class="form-label"
+                    >وصف الشغلانة</label
+                  >
+                  <textarea
+                    class="form-control"
+                    id="workOrderDescription"
+                    rows="3"
+                    required
+                  ></textarea>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-12 mb-3">
+                  <label for="workOrderNotes" class="form-label"
+                    >ملاحظات إضافية</label
+                  >
+                  <textarea
+                    class="form-control"
+                    id="workOrderNotes"
+                    rows="2"
+                  ></textarea>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إلغاء
+            </button>
+            <button type="button" class="btn btn-primary" id="saveWorkOrderBtn">
+              حفظ الشغلانة
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal fade"
+      id="paymentModal"
+      tabindex="-1"
+      aria-labelledby="paymentModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="paymentModalLabel">سداد مديونية</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <!-- اختيار نوع السداد -->
+            <div class="mb-3">
+              <div class="form-check form-check-inline">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="paymentType"
+                  id="payInvoicesRadio"
+                  value="invoices"
+                  checked
+                />
+                <label class="form-check-label" for="payInvoicesRadio">
+                  سداد من فواتير
+                </label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="paymentType"
+                  id="payWorkOrderRadio"
+                  value="workOrder"
+                />
+                <label class="form-check-label" for="payWorkOrderRadio">
+                  سداد لشغلانة محددة
+                </label>
+              </div>
+            </div>
+
+            <!-- قسم سداد الفواتير -->
+            <div id="invoicesPaymentSection">
+              <div class="mb-3">
+                <label for="invoiceSearch" class="form-label"
+                  >بحث في الفواتير (اختياري)</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="invoiceSearch"
+                  placeholder="ابحث برقم الفاتورة..."
+                />
+              </div>
+              <div class="table-responsive-fixed">
+                <!-- في تبويب الفواتير، قبل الجدول مباشرة -->
+                <div
+                  class="mb-3 d-flex justify-content-between align-items-center"
+                >
+                  <div class="d-flex gap-2">
+                    <button
+                      class="btn btn-sm btn-outline-primary"
+                      id="selectAllInvoicesBtn"
+                    >
+                      <i class="fas fa-check-double me-1"></i> تحديد الكل
+                    </button>
+                    <button
+                      class="btn btn-sm btn-outline-secondary"
+                      id="selectNonWorkOrderBtn"
+                    >
+                      <i class="fas fa-file-invoice me-1"></i> تحديد غير
+                      المرتبطة
+                    </button>
+                  </div>
+                  
+                </div>
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th width="40">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          id="selectAllInvoicesForPayment"
+                        />
+                      </th>
+                      <th>#</th>
+                      <th>التاريخ</th>
+                      <th>الإجمالي</th>
+                      <th>المتبقي</th>
+                      <th>المبلغ المسدد</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invoicesPaymentTableBody"></tbody>
+                </table>
+              </div>
+
+              <div class="row mt-3">
+                <div class="col-md-6">
+                  <label for="invoicesTotalAmount" class="form-label"
+                    >المبلغ الكلي المراد سداده</label
+                  >
+                  <div class="input-group">
+                    <input
+                      readonly
+                      disabled
+                      type="number"
+                      class="form-control"
+                      id="invoicesTotalAmount"
+                     
+                      min="0"
+                      placeholder="المبلغ الكلي"
+                    />
+                    <span class="input-group-text">ج.م</span>
+                  </div>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary w-100"
+                    id="fillInvoicesRemainingBtn"
+                  >
+                    <i class="fas fa-fill me-1"></i> سدّد المتبقي بالكامل
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- قسم سداد الشغلانة -->
+            <div id="workOrderPaymentSection" style="display: none">
+              <div class="mb-3">
+                <label for="workOrderSearch" class="form-label"
+                  >بحث في الشغلانات</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="workOrderSearch"
+                  placeholder="اكتب اسم الشغلانة للبحث..."
+                />
+                <div
+                  id="workOrderSearchResults"
+                  class="product-search-results"
+                  style="display: none"
+                ></div>
+              </div>
+
+              <div id="selectedWorkOrderDetails" style="display: none">
+                <h6>تفاصيل الشغلانة المحددة</h6>
+                <div class="card mb-3">
+                  <div class="card-body">
+                    <h5 id="selectedWorkOrderName"></h5>
+                    <p id="selectedWorkOrderDescription" class="text-muted"></p>
+                    <div class="row">
+                      <div class="col-4">
+                        <small class="text-muted">تاريخ البدء</small>
+                        <div id="selectedWorkOrderStartDate"></div>
+                      </div>
+                      <div class="col-4">
+                        <small class="text-muted">حالة الشغلانة</small>
+                        <div id="selectedWorkOrderStatus"></div>
+                      </div>
+                      <div class="col-4">
+                        <small class="text-muted">عدد الفواتير</small>
+                        <div id="selectedWorkOrderInvoicesCount"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <h6>فواتير الشغلانة</h6>
+                <div class="table-responsive-fixed">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>التاريخ</th>
+                        <th>الإجمالي</th>
+                        <th>المتبقي</th>
+                        <th>المبلغ المسدد</th>
+                      </tr>
+                    </thead>
+                    <tbody id="workOrderInvoicesTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="row mt-3">
+                <div class="col-md-6">
+                  <label for="invoicesTotalAmountWorkOrder" class="form-label"
+                    >المبلغ الكلي المراد سداده</label
+                  >
+                  <div class="input-group">
+                    <input
+                    disapbled
+                        readonly
+                      type="number"
+                      class="form-control"
+                      id="invoicesTotalAmountWorkOrder"
+                      min="0"
+                      placeholder="المبلغ الكلي"
+                    />
+                    <span class="input-group-text">ج.م</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- طرق الدفع المشتركة -->
+            <div class="mt-4">
+              <h6>طرق الدفع</h6>
+              <div id="paymentMethodsContainer"></div>
+              <!-- بعد paymentMethodsContainer -->
+              <div class="mt-4 border p-3 rounded bg-light">
+                <div
+                  class="d-flex justify-content-between align-items-center mb-2"
+                >
+                  <h6 class="mb-0">تحقق المدفوعات</h6>
+                  <button
+                    type="button"
+                    class="btn btn-success btn-sm"
+                    id="autoDistributeBtn"
+                  >
+                    <i class="fas fa-calculator me-1"></i> توزيع تلقائي
+                  </button>
+                </div>
+
+                <div class="row mb-2">
+                  <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text">مجموع طرق الدفع</span>
+                      <input
+                        type="text"
+                        class="form-control text-center fw-bold"
+                        id="totalPaymentMethodsAmount"
+                        readonly
+                        style="background-color: #e9ecef"
+                      />
+                      <span class="input-group-text">ج.م</span>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text">المبلغ المطلوب</span>
+                      <input
+                        type="text"
+                        class="form-control text-center fw-bold"
+                        id="paymentRequiredAmount"
+                        readonly
+                        style="background-color: #e9ecef"
+                      />
+                      <span class="input-group-text">ج.م</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="paymentValidation" class="text-center mt-2">
+                  <div
+                    id="paymentValid"
+                    class="alert alert-success py-2 mb-0"
+                    style="display: none"
+                  >
+                    <i class="fas fa-check-circle me-1"></i> المبلغ المدخل يساوي
+                    المطلوب
+                  </div>
+                  <div
+                    id="paymentInvalid"
+                    class="alert alert-danger py-2 mb-0"
+                    style="display: none"
+                  >
+                    <i class="fas fa-times-circle me-1"></i> المبلغ المدخل لا
+                    يساوي المطلوب
+                  </div>
+                  <div
+                    id="paymentExceeds"
+                    class="alert alert-warning py-2 mb-0"
+                    style="display: none"
+                  >
+                    <i class="fas fa-exclamation-triangle me-1"></i> المبلغ
+                    المدخل يتجاوز المطلوب
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm mt-2"
+                id="addPaymentMethodBtn"
+              >
+                <i class="fas fa-plus me-1"></i> إضافة طريقة دفع
+              </button>
+
+              <!-- ملخص الدفع -->
+              <div class="payment-summary mt-3 p-3 border rounded">
+                <div class="d-flex justify-content-between">
+                  <span>المبلغ الإجمالي المطلوب:</span>
+                  <span id="totalRequiredAmount">0.00 ج.م</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>المبلغ المدخل:</span>
+                  <span id="totalEnteredAmount">0.00 ج.م</span>
+                </div>
+                <div id="walletPaymentDetails" style="display: none">
+                  <div class="d-flex justify-content-between">
+                    <span>الرصيد المتاح في المحفظة:</span>
+                    <span id="availableWalletBalance">0.00 ج.م</span>
+                  </div>
+                  <div class="d-flex justify-content-between">
+                    <span>المبلغ المطلوب من المحفظة:</span>
+                    <span id="walletPaymentAmount">0.00 ج.م</span>
+                  </div>
+                  <div class="d-flex justify-content-between fw-bold">
+                    <span>المتبقي في المحفظة بعد السداد:</span>
+                    <span id="remainingWalletBalance">0.00 ج.م</span>
+                  </div>
+                </div>
+                <div
+                  class="d-flex justify-content-between fw-bold mt-2 pt-2 border-top"
+                >
+                  <span>المتبقي بعد السداد:</span>
+                  <span id="totalRemainingAfterPayment">0.00 ج.م</span>
+                </div>
+                <div
+                  id="paymentError"
+                  class="text-danger mt-2"
+                  style="display: none"
+                ></div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="processPaymentBtn"
+              disabled
+            >
+              معالجة السداد
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال إيداع المحفظة -->
+    <div
+      class="modal fade"
+      id="walletDepositModal"
+      tabindex="-1"
+      aria-labelledby="walletDepositModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="walletDepositModalLabel">
+              إيداع مبلغ في المحفظة
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="walletDepositForm">
+              <div class="mb-3">
+                <label for="depositAmount" class="form-label"
+                  >المبلغ المودع</label
+                >
+                <input
+                  type="number"
+                  class="form-control"
+                  id="depositAmount"
+                  required
+                  
+                />
+              </div>
+              <div class="mb-3">
+                <label for="depositDescription" class="form-label"
+                  >وصف الإيداع</label
+                >
+                <textarea
+                  class="form-control"
+                  id="depositDescription"
+                  rows="3"
+                ></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="processDepositBtn"
+            >
+              معالجة الإيداع
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال المرتجع المخصص -->
+    <div
+      class="modal fade"
+      id="customReturnModal"
+      tabindex="-1"
+      aria-labelledby="customReturnModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="customReturnModalLabel">
+              إرجاع فاتورة
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-4">
+              <h6>معلومات الفاتورة</h6>
+              <div class="row">
+                <div class="col-md-4">
+                  <strong>رقم الفاتورة:</strong>
+                  <span id="returnInvoiceNumber">-</span>
+                </div>
+                <div class="col-md-4">
+                  <strong>التاريخ:</strong>
+                  <span id="returnInvoiceDate">-</span>
+                </div>
+                <div class="col-md-4">
+                  <strong>الإجمالي:</strong>
+                  <span id="returnInvoiceTotal">-</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h6>بنود الفاتورة</h6>
+                <div>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-warning"
+                    id="returnAllBtn"
+                  >
+                    <i class="fas fa-undo me-1"></i> إرجاع كلي
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-info"
+                    id="returnPartialBtn"
+                  >
+                    <i class="fas fa-undo-alt me-1"></i> إرجاع جزئي
+                  </button>
+                </div>
+              </div>
+
+              <div id="customReturnItemsContainer"></div>
+
+              <div class="row mt-3">
+                <div class="col-md-6 mb-3">
+                  <label for="customReturnMethod" class="form-label"
+                    >طريقة الاسترجاع</label
+                  >
+                  <select class="form-select" id="customReturnMethod" required>
+                    <option value="wallet">إضافة للمحفظة</option>
+                    <option value="cash">استرجاع نقدي</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="customReturnReason" class="form-label"
+                    >سبب الإرجاع</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="customReturnReason"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="row mt-3">
+                <div class="col-md-6">
+                  <div class="alert alert-info">
+                    <strong>المبلغ الإجمالي للإرجاع:</strong>
+                    <h4 id="customReturnTotalAmount">0.00 ج.م</h4>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="alert alert-warning">
+                    <strong>ملاحظة:</strong> العناصر التي تم إرجاعها بالكامل
+                    سيتم تعطيلها ولن تظهر في الطباعة المستقبلية.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="processCustomReturnBtn"
+            >
+              معالجة الإرجاع
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال كشف الحساب -->
+    <div
+      class="modal fade"
+      id="statementReportModal"
+      tabindex="-1"
+      aria-labelledby="statementReportModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="statementReportModalLabel">
+              كشف حساب العميل
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="statementDateFrom" class="form-label"
+                  >من تاريخ</label
+                >
+                <input
+                  type="date"
+                  class="form-control"
+                  id="statementDateFrom"
+                />
+              </div>
+              <div class="col-md-6">
+                <label for="statementDateTo" class="form-label"
+                  >إلى تاريخ</label
+                >
+                <input type="date" class="form-control" id="statementDateTo" />
+              </div>
+            </div>
+
+            <div class="table-responsive-fixed">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>التاريخ</th>
+                    <th>نوع الحركة</th>
+                    <th>الوصف</th>
+                    <th>المبلغ</th>
+                    <th>الرصيد</th>
+                    <th>المستخدم</th>
+                  </tr>
+                </thead>
+                <tbody id="statementTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إغلاق
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="printStatementBtn"
+            >
+              طباعة الكشف
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال عرض بنود الفاتورة -->
+    <div
+      class="modal fade items-preview-modal"
+      id="invoiceItemsModal"
+      tabindex="-1"
+      aria-labelledby="invoiceItemsModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="invoiceItemsModalLabel">
+              بنود الفاتورة <span id="invoiceItemsNumber"></span>
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <strong>التاريخ:</strong> <span id="invoiceItemsDate"></span>
+              </div>
+              <div class="col-md-4">
+                <strong>الحالة:</strong> <span id="invoiceItemsStatus"></span>
+              </div>
+              <div class="col-md-4">
+                <strong>الشغلانة:</strong>
+                <span id="invoiceItemsWorkOrder">-</span>
+              </div>
+            </div>
+
+            <!-- رابط لعرض المرتجعات -->
+            <div id="invoiceReturnsSection" style="display: none" class="mb-3">
+              <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                هذه الفاتورة تحتوي على مرتجعات.
+                <a href="#" class="alert-link" id="viewInvoiceReturns"
+                  >عرض المرتجعات</a
+                >
+              </div>
+            </div>
+
+            <div class="table-responsive-fixed">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>الصنف</th>
+                    <th>الكمية</th>
+                    <th>السعر</th>
+                    <th>الإجمالي</th>
+                    <th>مرتجع</th>
+                    <th>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody id="invoiceItemsDetails"></tbody>
+              </table>
+            </div>
+
+            <div class="row mt-3">
+              <div class="col-md-4">
+                <strong>الإجمالي:</strong> <span id="invoiceItemsTotal"></span>
+              </div>
+              <div class="col-md-4">
+                <strong>المدفوع:</strong> <span id="invoiceItemsPaid"></span>
+              </div>
+              <div class="col-md-4">
+                <strong>المتبقي:</strong>
+                <span id="invoiceItemsRemaining"></span>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-12">
+                <strong>الملاحظات:</strong> <span id="invoiceItemsNotes"></span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إغلاق
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="printInvoiceItemsBtn"
+            >
+              طباعة
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال عرض فواتير الشغلانة -->
+    <div
+      class="modal fade"
+      id="workOrderInvoicesModal"
+      tabindex="-1"
+      aria-labelledby="workOrderInvoicesModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="workOrderInvoicesModalLabel">
+              فواتير الشغلانة: <span id="workOrderInvoicesName"></span>
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="row mb-4">
+              <div class="col-md-4">
+                <div class="card bg-light">
+                  <div class="card-body text-center">
+                    <h6>إجمالي الفواتير</h6>
+                    <h4 id="workOrderTotalInvoices">0.00 ج.م</h4>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card bg-light">
+                  <div class="card-body text-center">
+                    <h6>المدفوع</h6>
+                    <h4 id="workOrderTotalPaid">0.00 ج.م</h4>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card bg-light">
+                  <div class="card-body text-center">
+                    <h6>المتبقي</h6>
+                    <h4 id="workOrderTotalRemaining">0.00 ج.م</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-responsive-fixed">
+             
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>التاريخ</th>
+                    <th>الإجمالي</th>
+                    <th>المدفوع</th>
+                    <th>المتبقي</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="workOrderInvoicesList"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إغلاق
+            </button>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال الطباعة المتعددة -->
+    <div
+      class="modal fade"
+      id="printMultipleModal"
+      tabindex="-1"
+      aria-labelledby="printMultipleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="printMultipleModalLabel">
+              طباعة متعددة
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">اختر الفواتير للطباعة:</label>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="selectAllInvoicesPrint"
+                />
+                <label class="form-check-label" for="selectAllInvoicesPrint">
+                  تحديد الكل
+                </label>
+              </div>
+              <div
+                id="printInvoicesList"
+                class="mt-2"
+                style="max-height: 300px; overflow-y: auto"
+              ></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="confirmPrintMultipleBtn"
+            >
+              طباعة المحدد
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- مودال عرض المرتجعات الخاصة بفاتورة -->
+    <div
+      class="modal fade invoice-returns-modal"
+      id="invoiceReturnsModal"
+      tabindex="-1"
+      aria-labelledby="invoiceReturnsModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="invoiceReturnsModalLabel">
+              المرتجعات - الفاتورة <span id="returnsInvoiceNumber"></span>
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <strong>إجمالي المرتجعات:</strong>
+              <span id="totalReturnsAmountForInvoice">0.00 ج.م</span>
+            </div>
+
+            <div id="invoiceReturnsList"></div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              إغلاق
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="printInvoiceReturnsBtn"
+            >
+              طباعة المرتجعات
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- قسم الطباعة -->
+    <div id="printSection" class="print-section" style="display: none"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
+    <script type="module">
+      import PaymentManager from "./js/payment.js";
+      import AppData from "./js/app_data.js";
+      import WalletManager from "./js/wallet.js";
+      import CustomerManager from "./js/customer.js";
+    import PrintManager from "./js/print.js";
+    import { setupNumberInputPrevention } from "./js/helper.js";
+      // ============================================
+      // بيانات التطبيق
+      // ============================================
+
+      // طرق الدفع المتاحة
+
+      // ============================================
+      // إدارة التطبيق الرئيسية
+      // ============================================
+      document.addEventListener("DOMContentLoaded", function () {
+          setupNumberInputPrevention();
+        initializeApp();
+        setupEventListeners();
+ 
+      });
+
+      function initializeApp() {
+        // تهيئة البيانات
+        CustomerManager.init();
+        InvoiceManager.init();
+        WorkOrderManager.init();
+        WalletManager.init();
+        ReturnManager.init();
+        PaymentManager.init();
+        UIManager.init();
+
+        // تحديث الإحصائيات
+        updateInvoiceStats();
+      }
+
+    
+      function updateInvoiceStats() {
+        const invoices = AppData.invoices;
+
+        const pending = invoices.filter((i) => i.status === "pending");
+        const partial = invoices.filter((i) => i.status === "partial");
+        const paid = invoices.filter((i) => i.status === "paid");
+        const returned = invoices.filter((i) => i.status === "returned");
+
+        document.getElementById("totalInvoicesCount").textContent =
+          invoices.length;
+        document.getElementById("pendingInvoicesCount").textContent =
+          pending.length;
+        document.getElementById("partialInvoicesCount").textContent =
+          partial.length;
+        document.getElementById("paidInvoicesCount").textContent = paid.length;
+        document.getElementById("returnedInvoicesCount").textContent =
+          returned.length;
+
+        // تحديث المبالغ
+        document.querySelector(
+          '[data-filter="all"] .stat-amount'
+        ).textContent = `${invoices
+          .reduce((sum, i) => sum + i.total, 0)
+          .toFixed(2)} ج.م`;
+        document.querySelector(
+          '[data-filter="pending"] .stat-amount'
+        ).textContent = `${pending
+          .reduce((sum, i) => sum + i.total, 0)
+          .toFixed(2)} ج.م`;
+        document.querySelector(
+          '[data-filter="partial"] .stat-amount'
+        ).textContent = `${partial
+          .reduce((sum, i) => sum + i.total, 0)
+          .toFixed(2)} ج.م`;
+        document.querySelector(
+          '[data-filter="paid"] .stat-amount'
+        ).textContent = `${paid
+          .reduce((sum, i) => sum + i.total, 0)
+          .toFixed(2)} ج.م`;
+        document.querySelector(
+          '[data-filter="returned"] .stat-amount'
+        ).textContent = `${returned
+          .reduce((sum, i) => sum + i.total, 0)
+          .toFixed(2)} ج.م`;
+      }
+
+     
+   
+
+  function setupEventListeners() {
+        // إحصائيات الفواتير
+        document.querySelectorAll(".invoice-stat-card").forEach((card) => {
+          card.addEventListener("click", function () {
+            // إزالة النشط من جميع الكروت
+            document.querySelectorAll(".invoice-stat-card").forEach((c) => {
+              c.classList.remove("active");
+            });
+
+            // إضافة النشط للكارت المختار
+            this.classList.add("active");
+
+            const filter = this.getAttribute("data-filter");
+            AppData.activeFilters.invoiceType =
+              filter === "all" ? null : filter;
+            UIManager.applyFilters();
+          });
+        });
+
+        // زر الطباعة المتعددة
+        document
+          .getElementById("printMultipleBtn")
+          .addEventListener("click", function () {
+            PrintManager.openPrintMultipleModal();
+          });
+
+        // زر تأكيد الطباعة المتعددة
+        document
+          .getElementById("confirmPrintMultipleBtn")
+          .addEventListener("click", function () {
+            PrintManager.printMultipleInvoices();
+          });
+
+        // تحديد/إلغاء تحديد جميع الفواتير للطباعة
+        document
+          .getElementById("selectAllInvoicesPrint")
+          .addEventListener("change", function () {
+            const checkboxes = document.querySelectorAll(
+              ".print-invoice-checkbox"
+            );
+            checkboxes.forEach((checkbox) => {
+              checkbox.checked = this.checked;
+            });
+          });
+        // البحث في المرتجع المتقدم
+        document
+          .getElementById("advancedProductSearch")
+          .addEventListener("input", (e) => {
+            console.log("Dewsa");
+
+            const searchTerm = e.target.value;
+            const results = ReturnManager.searchProductsInInvoices(searchTerm);
+            this.displayAdvancedSearchResults(results);
+          });
+      }
+// استدعاء الدالة عند تحميل الصفحة
+
+      // ============================================
+      // مدير الفواتير
+      // ============================================
+      const InvoiceManager = {
+        init() {
+          // بيانات الفواتير الابتدائية
+          AppData.invoices = [
+            {
+              id: 123,
+              number: "#123",
+              date: "2024-01-15",
+              time: "02:30 م",
+              total: 800,
+              paid: 500,
+              remaining: 300,
+              status: "pending",
+              description: "فاتورة مرتبطة بشغلانة #WO-001",
+              workOrderId: 1,
+              items: [
+                {
+                  productId: 1,
+                  productName: "شباك ألوميتال 2×1.5",
+                  quantity: 1,
+                  price: 800,
+                  total: 800,
+                  returnedQuantity: 0,
+                  fullyReturned: false,
+                },
+              ],
+              createdBy: "مدير النظام",
+            },
+                {
+              id: 125,
+              number: "#125",
+              date: "2024-01-15",
+              time: "02:30 م",
+              total: 800,
+              paid: 500,
+              remaining: 300,
+              status: "pending",
+              description: "فاتورة مرتبطة بشغلانة #WO-001",
+              workOrderId: 1,
+              items: [
+                {
+                  productId: 1,
+                  productName: "شباك ألوميتال 2×1.5",
+                  quantity: 1,
+                  price: 800,
+                  total: 800,
+                  returnedQuantity: 0,
+                  fullyReturned: false,
+                },
+              ],
+              createdBy: "مدير النظام",
+            },
+                {
+              id: 124,
+              number: "#124",
+              date: "2024-01-15",
+              time: "02:30 م",
+              total: 800,
+              paid: 500,
+              remaining: 300,
+              status: "pending",
+              description: "فاتورة مرتبطة بشغلانة #WO-001",
+              workOrderId: 1,
+              items: [
+                {
+                  productId: 1,
+                  productName: "شباك ألوميتال 2×1.5",
+                  quantity: 1,
+                  price: 800,
+                  total: 800,
+                  returnedQuantity: 0,
+                  fullyReturned: false,
+                },
+              ],
+              createdBy: "مدير النظام",
+            },
+            {
+              id: 122,
+              number: "#122",
+              date: "2024-01-10",
+              time: "11:15 ص",
+              total: 1200,
+              paid: 1200,
+              remaining: 0,
+              status: "paid",
+              description: "فاتورة عادية",
+              items: [
+                {
+                  productId: 2,
+                  productName: "باب خشب",
+                  quantity: 1,
+                  price: 1200,
+                  total: 1200,
+                  returnedQuantity: 0,
+                  fullyReturned: false,
+                },
+              ],
+              createdBy: "مدير النظام",
+            },
+            {
+              id: 121,
+              number: "#121",
+              date: "2024-01-05",
+              time: "03:45 م",
+              total: 500,
+              paid: 200,
+              remaining: 300,
+              status: "partial",
+              description: "فاتورة جزئية",
+              items: [
+                {
+                  productId: 3,
+                  productName: "مفصلات ستانلس",
+                  quantity: 2,
+                  price: 150,
+                  total: 300,
+                  returnedQuantity: 0,
+                  fullyReturned: false,
+                },
+                {
+                  productId: 5,
+                  productName: "زجاج عاكس",
+                  quantity: 0.5,
+                  price: 400,
+                  total: 200,
+                  returnedQuantity: 0,
+                  fullyReturned: false,
+                },
+              ],
+              createdBy: "مدير النظام",
+            },
+          ];
+
+          this.updateInvoicesTable();
+        },
+
+        updateInvoicesTable() {
+          const tbody = document.getElementById("invoicesTableBody");
+          tbody.innerHTML = "";
+
+          // تطبيق الفلاتر
+          let filteredInvoices = this.filterInvoices(AppData.invoices);
+
+          filteredInvoices.forEach((invoice) => {
+            const row = document.createElement("tr");
+            row.className = `invoice-row ${invoice.status}`;
+
+            // تحديد حالة الفاتورة
+            let statusBadge = "";
+            if (invoice.status === "pending") {
+              statusBadge =
+                '<span class="status-badge badge-pending">مؤجل</span>';
+            } else if (invoice.status === "partial") {
+              statusBadge =
+                '<span class="status-badge badge-partial">جزئي</span>';
+            } else if (invoice.status === "paid") {
+              statusBadge = '<span class="status-badge badge-paid">مسلم</span>';
+            } else if (invoice.status === "returned") {
+              statusBadge =
+                '<span class="status-badge badge-returned">مرتجع</span>';
+            }
+
+            // تحديد لون المبلغ المتبقي
+            let remainingColor = "text-danger";
+            if (invoice.remaining === 0) {
+              remainingColor = "text-success";
+            } else if (invoice.status === "partial") {
+              remainingColor = "text-warning";
+            }
+
+            // عرض البنود كـ hover tooltip محسّن
+            let itemsTooltip = "";
+            if (invoice.items && invoice.items.length > 0) {
+              const itemsList = invoice.items
+                .map((item) => {
+                  const returnedText =
+                    item.returnedQuantity > 0
+                      ? ` (مرتجع: ${item.returnedQuantity})`
+                      : "";
+                  const itemTotal = (item.quantity || 0) * (item.price || 0);
+                  return `
+                                <div class="tooltip-item">
+                                    <div>
+                                        <div class="tooltip-item-name">${
+                                          item.productName || "منتج"
+                                        }</div>
+                                        <div class="tooltip-item-details">الكمية: ${
+                                          item.quantity || 0
+                                        } | السعر: ${(item.price || 0).toFixed(
+                    2
+                  )} ج.م${returnedText}</div>
+                                    </div>
+                                    <div class="fw-bold">${itemTotal.toFixed(
+                                      2
+                                    )} ج.م</div>
+                                </div>
+                            `;
+                })
+                .join("");
+
+              itemsTooltip = `
+                            <div class="invoice-items-tooltip">
+                                <div class="tooltip-header">بنود الفاتورة ${
+                                  invoice.number
+                                }</div>
+                                ${itemsList}
+                                <div class="tooltip-total">
+                                    <span>الإجمالي:</span>
+                                    <span>${invoice.total.toFixed(2)} ج.م</span>
+                                </div>
+                            </div>
+                        `;
+            }
+
+            // الحصول على اسم الشغلانة إذا كانت الفاتورة مرتبطة بشغلانة
+            let workOrderName = "";
+            if (invoice.workOrderId) {
+              const workOrder = AppData.workOrders.find(
+                (wo) => wo.id === invoice.workOrderId
+              );
+              if (workOrder) {
+                workOrderName = workOrder.name;
+              }
+
+              // في نهاية InvoiceManager.updateInvoicesTable()، أضف ده:
+              const selectAllCheckbox =
+                document.getElementById("selectAllInvoices");
+              const selectAllHeader = document.getElementById(
+                "selectAllInvoicesHeader"
+              );
+              const invoiceCheckboxes =
+                document.querySelectorAll(".invoice-checkbox"); // افترض إن checkboxes في الrows ليها class 'invoice-checkbox'
+
+              function updateSelectAll() {
+                selectAllCheckbox.addEventListener("change", function () {
+                  invoiceCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = this.checked;
+                  });
+                  togglePrintButton(); // دالة عشان تشغل/تعطل زر الطباعة بناءً على التحديد
+                });
+
+                selectAllHeader.addEventListener("change", function () {
+                  selectAllCheckbox.checked = this.checked; // ربط الهيدر بالرئيسي
+                  invoiceCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = this.checked;
+                  });
+                  togglePrintButton();
+                });
+
+                // أضف listener لكل checkbox فردي عشان لو غيرت واحد، يحدث الـ select-all
+                invoiceCheckboxes.forEach((checkbox) => {
+                  checkbox.addEventListener("change", function () {
+                    const allChecked = Array.from(invoiceCheckboxes).every(
+                      (cb) => cb.checked
+                    );
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllHeader.checked = allChecked;
+                    togglePrintButton();
+                  });
+                });
+              }
+
+              // دالة عشان زر الطباعة
+              function togglePrintButton() {
+                const printBtn = document.getElementById(
+                  "printSelectedInvoices"
+                );
+                const checkedCount = document.querySelectorAll(
+                  ".invoice-checkbox:checked"
+                ).length;
+                printBtn.disabled = checkedCount === 0;
+              }
+
+              // نداء الدالة بعد بناء الجدول
+              updateSelectAll();
+            }
+
+            // إنشاء صف الفاتورة
+            row.setAttribute("data-invoice-id", invoice.id);
+            row.innerHTML = `
+                        <td>
+                            <input type="checkbox" class="form-check-input invoice-checkbox" data-invoice-id="${
+                              invoice.id
+                            }">
+                        </td>
+                        <td>
+                            <strong>${invoice.number}</strong>
+                            ${
+                              workOrderName
+                                ? `<br><small class="text-muted"><i class="fas fa-tools me-1"></i>${workOrderName}</small>`
+                                : ""
+                            }
+                        </td>
+                        <td>${invoice.date}<br><small>${
+              invoice.time
+            }</small></td>
+                        <td class="invoice-item-hover position-relative">
+                            ${invoice.items.length} بند
+                            <br><small class="text-muted">(مرر للعرض)</small>
+                            ${itemsTooltip}
+                        </td>
+                        <td>${invoice.total.toFixed(2)} ج.م</td>
+                        <td>${invoice.paid.toFixed(2)} ج.م</td>
+                        <td>
+                            <span class="${remainingColor} fw-bold">${invoice.remaining.toFixed(
+              2
+            )} ج.م</span>
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-outline-info view-invoice" data-invoice-id="${
+                                  invoice.id
+                                }">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                ${
+                                  invoice.status !== "paid" &&
+                                  invoice.status !== "returned"
+                                    ? `
+                                <button class="btn btn-sm btn-outline-success pay-invoice" data-invoice-id="${invoice.id}">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </button>
+                                `
+                                    : ""
+                                }
+                                ${
+                                  invoice.status !== "returned"
+                                    ? `
+                                <button class="btn btn-sm btn-outline-warning custom-return-invoice" data-invoice-id="${invoice.id}">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                `
+                                    : ""
+                                }
+                                <button class="btn btn-sm btn-outline-secondary print-invoice" data-invoice-id="${
+                                  invoice.id
+                                }">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+
+            tbody.appendChild(row);
+          });
+
+          // إضافة مستمعي الأحداث للأزرار
+          this.attachInvoiceEventListeners();
+        },
+
+        filterInvoices(invoices) {
+          let filtered = [...invoices];
+
+          if (AppData.activeFilters.dateFrom) {
+            filtered = filtered.filter(
+              (inv) => inv.date >= AppData.activeFilters.dateFrom
+            );
+          }
+
+          if (AppData.activeFilters.dateTo) {
+            filtered = filtered.filter(
+              (inv) => inv.date <= AppData.activeFilters.dateTo
+            );
+          }
+
+          if (AppData.activeFilters.invoiceType) {
+            filtered = filtered.filter(
+              (inv) => inv.status === AppData.activeFilters.invoiceType
+            );
+          }
+
+          // فلتر حسب رقم الفاتورة (للعرض من نتائج البحث)
+          if (AppData.activeFilters.invoiceId) {
+            filtered = filtered.filter(
+              (inv) => inv.id === AppData.activeFilters.invoiceId
+            );
+          }
+
+          if (AppData.activeFilters.productSearch) {
+            const searchTerm =
+              AppData.activeFilters.productSearch.toLowerCase();
+            filtered = filtered.filter((invoice) =>
+              invoice.items.some((item) =>
+                item.productName.toLowerCase().includes(searchTerm)
+              )
+            );
+          }
+
+          return filtered;
+        },
+
+        attachInvoiceEventListeners() {
+          // زر عرض الفاتورة
+          document.querySelectorAll(".view-invoice").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const invoiceId = parseInt(this.getAttribute("data-invoice-id"));
+              InvoiceManager.showInvoiceDetails(invoiceId);
+            });
+          });
+
+          // زر سداد الفاتورة
+          // زر سداد الفاتورة
+          document.querySelectorAll(".pay-invoice").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const invoiceId = parseInt(this.getAttribute("data-invoice-id"));
+              PaymentManager.openSingleInvoicePayment(invoiceId);
+            });
+          });
+
+          // زر إرجاع الفاتورة المخصص
+          document.querySelectorAll(".custom-return-invoice").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const invoiceId = parseInt(this.getAttribute("data-invoice-id"));
+              CustomReturnManager.openReturnModal(invoiceId);
+            });
+          });
+
+          // زر طباعة الفاتورة
+          document.querySelectorAll(".print-invoice").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const invoiceId = parseInt(this.getAttribute("data-invoice-id"));
+              PrintManager.printSingleInvoice(invoiceId);
+            });
+          });
+        },
+
+        showInvoiceDetails(invoiceId) {
+          const invoice = AppData.invoices.find((i) => i.id === invoiceId);
+          if (invoice) {
+            document.getElementById("invoiceItemsNumber").textContent =
+              invoice.number;
+            document.getElementById("invoiceItemsDate").textContent =
+              invoice.date + " - " + invoice.time;
+            document.getElementById("invoiceItemsStatus").textContent =
+              this.getInvoiceStatusText(invoice.status);
+            document.getElementById("invoiceItemsTotal").textContent =
+              invoice.total.toFixed(2) + " ج.م";
+            document.getElementById("invoiceItemsPaid").textContent =
+              invoice.paid.toFixed(2) + " ج.م";
+            document.getElementById("invoiceItemsRemaining").textContent =
+              invoice.remaining.toFixed(2) + " ج.م";
+            document.getElementById("invoiceItemsNotes").textContent =
+              invoice.description || "لا يوجد";
+
+            // عرض اسم الشغلانة إذا كانت مرتبطة
+            let workOrderName = "لا يوجد";
+            if (invoice.workOrderId) {
+              const workOrder = AppData.workOrders.find(
+                (wo) => wo.id === invoice.workOrderId
+              );
+              if (workOrder) {
+                workOrderName = workOrder.name;
+              }
+            }
+            document.getElementById("invoiceItemsWorkOrder").textContent =
+              workOrderName;
+
+            // التحقق من وجود مرتجعات
+            const hasReturns = AppData.returns.some(
+              (r) => r.invoiceId === invoiceId
+            );
+            if (hasReturns) {
+              document.getElementById("invoiceReturnsSection").style.display =
+                "block";
+              document
+                .getElementById("viewInvoiceReturns")
+                .addEventListener("click", function (e) {
+                  e.preventDefault();
+                  CustomReturnManager.showInvoiceReturns(invoiceId);
+                });
+            } else {
+              document.getElementById("invoiceReturnsSection").style.display =
+                "none";
+            }
+
+            const tbody = document.getElementById("invoiceItemsDetails");
+            tbody.innerHTML = "";
+
+            invoice.items.forEach((item) => {
+              const row = document.createElement("tr");
+              const returnedBadge =
+                item.returnedQuantity > 0
+                  ? `<span class="badge bg-warning return-history-badge">مرتجع: ${item.returnedQuantity}</span>`
+                  : "";
+
+              let itemStatus = "سليم";
+              let rowClass = "";
+              if (item.fullyReturned) {
+                itemStatus = '<span class="badge bg-danger">مرتجع كلي</span>';
+                rowClass = "fully-returned";
+              } else if (item.returnedQuantity > 0) {
+                itemStatus = '<span class="badge bg-warning">مرتجع جزئي</span>';
+                rowClass = "partially-returned";
+              }
+
+              row.className = rowClass;
+              row.innerHTML = `
+                            <td>${item.productName} ${returnedBadge}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.price.toFixed(2)} ج.م</td>
+                            <td>${item.total.toFixed(2)} ج.م</td>
+                            <td>${item.returnedQuantity || 0}</td>
+                            <td>${itemStatus}</td>
+                        `;
+              tbody.appendChild(row);
+            });
+
+            const modal = new bootstrap.Modal(
+              document.getElementById("invoiceItemsModal")
+            );
+            modal.show();
+          }
+        },
+
+        getInvoiceStatusText(status) {
+          const statusMap = {
+            pending: "مؤجل",
+            partial: "جزئي",
+            paid: "مسلم",
+            returned: "مرتجع",
+          };
+          return statusMap[status] || status;
+        },
+
+        getInvoiceById(invoiceId) {
+          return AppData.invoices.find((inv) => inv.id === invoiceId);
+        },
+
+        updateInvoiceAfterReturn(invoiceId, returnData) {
+          const invoice = this.getInvoiceById(invoiceId);
+          if (!invoice) return false;
+
+          // تحديث بنود الفاتورة
+          returnData.items.forEach((returnItem) => {
+            const invoiceItem = invoice.items.find(
+              (item) => item.productId === returnItem.productId
+            );
+            if (invoiceItem) {
+              invoiceItem.returnedQuantity =
+                (invoiceItem.returnedQuantity || 0) + returnItem.quantity;
+
+              // إذا تم إرجاع الكمية بالكامل
+              if (invoiceItem.returnedQuantity >= invoiceItem.quantity) {
+                invoiceItem.fullyReturned = true;
+              }
+            }
+          });
+
+          // التحقق إذا كانت الفاتورة كلها مرتجعة
+          const allItemsFullyReturned = invoice.items.every(
+            (item) => item.fullyReturned
+          );
+          if (allItemsFullyReturned) {
+            invoice.status = "returned";
+          }
+
+          this.updateInvoicesTable();
+          updateInvoiceStats();
+          CustomerManager.updateCustomerBalance();
+
+          return true;
+        },
+        // في InvoiceManager
+        selectAllInvoices() {
+          document.querySelectorAll(".invoice-checkbox").forEach((checkbox) => {
+            checkbox.checked = true;
+          });
+          this.updateSelectedCount();
+        },
+
+        selectNonWorkOrderInvoices() {
+          document.querySelectorAll(".invoice-checkbox").forEach((checkbox) => {
+            const invoiceId = parseInt(
+              checkbox.getAttribute("data-invoice-id")
+            );
+            const invoice = this.getInvoiceById(invoiceId);
+            checkbox.checked = !invoice.workOrderId;
+          });
+          this.updateSelectedCount();
+        },
+
+        updateSelectedCount() {
+          const selectedCount = document.querySelectorAll(
+            ".invoice-checkbox:checked"
+          ).length;
+          const printBtn = document.getElementById("printSelectedInvoices");
+          printBtn.disabled = selectedCount === 0;
+          printBtn.innerHTML = `<i class="fas fa-print me-2"></i>طباعة (${selectedCount})`;
+        },
+      };
+
+      // ============================================
+      // مدير الشغلانات
+      // ============================================
+      const WorkOrderManager = {
+        init() {
+          // بيانات الشغلانات الابتدائية
+          AppData.workOrders = [
+            {
+              id: 1,
+              name: "تركيب شباك المعادي",
+              description: "تركيب شباك ألوميتال مقاس 2×1.5 في فيلا المعادي",
+              status: "pending",
+              startDate: "2024-01-20",
+              notes: "يجب الانتهاء قبل نهاية الشهر",
+              invoices: [123, 124, 125],
+              createdBy: "مدير النظام",
+            },
+
+            {
+              id: 2,
+              name: "تصليح باب خشب",
+              description: "تصليح باب خشب وتغيير مفصلات في شقة الزمالك",
+              status: "completed",
+              startDate: "2024-01-15",
+              notes: "تم التسليم والعميل راضي",
+              invoices: [122],
+              createdBy: "مدير النظام",
+            },
+          ];
+
+          this.updateWorkOrdersTable();
+        },
+
+        updateWorkOrdersTable() {
+          const container = document.getElementById("workOrdersContainer");
+          container.innerHTML = "";
+
+          AppData.workOrders.forEach((workOrder) => {
+            const workOrderCard = document.createElement("div");
+            workOrderCard.className = "col-md-6 mb-3";
+
+            // الحصول على الفواتير المرتبطة
+            const relatedInvoices = AppData.invoices.filter((inv) =>
+              workOrder.invoices.includes(inv.id)
+            );
+
+            const totalInvoices = relatedInvoices.reduce(
+              (sum, inv) => sum + inv.total,
+              0
+            );
+            const totalPaid = relatedInvoices.reduce(
+              (sum, inv) => sum + inv.paid,
+              0
+            );
+            const totalRemaining = totalInvoices - totalPaid;
+            const progressPercent =
+              totalInvoices > 0 ? (totalPaid / totalInvoices) * 100 : 0;
+
+            // تحديد حالة الشغلانة
+            let statusBadge = "";
+            if (workOrder.status === "pending") {
+              statusBadge =
+                '<span class="status-badge badge-pending">  قيد التنفيذ</span>';
+            } else if (workOrder.status === "in_progress") {
+              statusBadge =
+                '<span class="status-badge badge-partial">جاري العمل</span>';
+            } else if (workOrder.status === "completed") {
+              statusBadge =
+                '<span class="status-badge badge-paid">مكتمل</span>';
+            }
+
+         // في WorkOrderManager.updateWorkOrdersTable():
+workOrderCard.innerHTML = `
+    <div class="work-order-card">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5>${workOrder.name}</h5>
+            ${statusBadge}
+        </div>
+        <p class="text-muted">${workOrder.description}</p>
+        <div class="row mb-2">
+            <div class="col-6">
+                <small class="text-muted">تاريخ البدء:</small>
+                <div>${workOrder.startDate}</div>
+            </div>
+            <div class="col-6">
+                <small class="text-muted">الفواتير:</small>
+                <div>${relatedInvoices.length} فاتورة</div>
+            </div>
+        </div>
+        
+        <!-- شريط التقدم -->
+        <div class="work-order-progress bg-light">
+            <div class="progress-bar bg-success" style="width: ${progressPercent}%"></div>
+        </div>
+        
+        <div class="row text-center">
+            <div class="col-4">
+                <small class="text-muted">المطلوب</small>
+                <div class="fw-bold">${totalInvoices.toFixed(2)} ج.م</div>
+            </div>
+            <div class="col-4">
+                <small class="text-muted">المدفوع</small>
+                <div class="fw-bold text-success">${totalPaid.toFixed(2)} ج.م</div>
+            </div>
+            <div class="col-4">
+                <small class="text-muted">المتبقي</small>
+                <div class="fw-bold text-danger">${totalRemaining.toFixed(2)} ج.م</div>
+            </div>
+        </div>
+        
+        <div class="action-buttons mt-3">
+            <button class="btn btn-sm btn-outline-info view-work-order" data-work-order-id="${workOrder.id}">
+                <i class="fas fa-eye"></i> عرض
+            </button>
+            ${totalRemaining > 0 ? `
+            <button class="btn btn-sm btn-outline-success pay-work-order" data-work-order-id="${workOrder.id}">
+                <i class="fas fa-money-bill-wave"></i> سداد
+            </button>
+            ` : ''}
+            <button class="btn btn-sm btn-outline-primary print-work-order" data-work-order-id="${workOrder.id}">
+                <i class="fas fa-print"></i> طباعة
+            </button>
+        </div>
+    </div>
+`;
+            container.appendChild(workOrderCard);
+          });
+
+          // إضافة مستمعي الأحداث
+          this.attachWorkOrderEventListeners();
+        },
+
+  // في WorkOrderManager.attachWorkOrderEventListeners():
+attachWorkOrderEventListeners() {
+    // زر عرض الشغلانة
+    document.querySelectorAll('.view-work-order').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const workOrderId = parseInt(this.getAttribute('data-work-order-id'));
+            WorkOrderManager.showWorkOrderDetails(workOrderId);
+        });
+    });
+    
+    // زر سداد الشغلانة
+    document.querySelectorAll('.pay-work-order').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const workOrderId = parseInt(this.getAttribute('data-work-order-id'));
+            
+            // تعيين نوع السداد إلى شغلانة
+            document.getElementById('payWorkOrderRadio').checked = true;
+            document.getElementById('invoicesPaymentSection').style.display = 'none';
+            document.getElementById('workOrderPaymentSection').style.display = 'block';
+            
+            // تحديد الشغلانة
+            PaymentManager.selectWorkOrderForPayment(workOrderId);
+            document.getElementById('workOrderSearch').value = '';
+            
+            // فتح المودال
+            const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            paymentModal.show();
+        });
+    });
+    
+    // زر طباعة الشغلانة
+   // في WorkOrderManager.attachWorkOrderEventListeners():
+document.querySelectorAll('.print-work-order').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const workOrderId = parseInt(this.getAttribute('data-work-order-id'));
+        PrintManager.printWorkOrderInvoices(workOrderId);
+    });
+});
+    // زر تعديل الشغلانة
+    document.querySelectorAll('.edit-work-order').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const workOrderId = parseInt(this.getAttribute('data-work-order-id'));
+            // يمكنك إضافة وظيفة التعديل هنا
+            Swal.fire('معلومة', 'وظيفة التعديل قيد التطوير', 'info');
+        });
+    });
+},
+
+        showWorkOrderInvoices(workOrderId) {
+          const workOrder = AppData.workOrders.find(
+            (wo) => wo.id === workOrderId
+          );
+          if (!workOrder) return;
+
+          const relatedInvoices = AppData.invoices.filter((inv) =>
+            workOrder.invoices.includes(inv.id)
+          );
+
+          const totalInvoices = relatedInvoices.reduce(
+            (sum, inv) => sum + inv.total,
+            0
+          );
+          const totalPaid = relatedInvoices.reduce(
+            (sum, inv) => sum + inv.paid,
+            0
+          );
+          const totalRemaining = totalInvoices - totalPaid;
+
+          document.getElementById("workOrderInvoicesName").textContent =
+            workOrder.name;
+          document.getElementById("workOrderTotalInvoices").textContent =
+            totalInvoices.toFixed(2) + " ج.م";
+          document.getElementById("workOrderTotalPaid").textContent =
+            totalPaid.toFixed(2) + " ج.م";
+          document.getElementById("workOrderTotalRemaining").textContent =
+            totalRemaining.toFixed(2) + " ج.م";
+
+          const tbody = document.getElementById("workOrderInvoicesList");
+          tbody.innerHTML = "";
+
+          relatedInvoices.forEach((invoice) => {
+            const row = document.createElement("tr");
+            let statusBadge = "";
+            if (invoice.status === "pending") {
+              statusBadge =
+                '<span class="status-badge badge-pending">مؤجل</span>';
+            } else if (invoice.status === "partial") {
+              statusBadge =
+                '<span class="status-badge badge-partial">جزئي</span>';
+            } else if (invoice.status === "paid") {
+              statusBadge = '<span class="status-badge badge-paid">مسلم</span>';
+            }
+
+            // إنشاء tooltip للبنود
+            let itemsTooltip = "";
+            if (invoice.items && invoice.items.length > 0) {
+              const itemsList = invoice.items
+                .map((item) => {
+                  const itemTotal = (item.quantity || 0) * (item.price || 0);
+                  return `
+                                <div class="tooltip-item">
+                                    <div>
+                                        <div class="tooltip-item-name">${
+                                          item.productName || "منتج"
+                                        }</div>
+                                        <div class="tooltip-item-details">الكمية: ${
+                                          item.quantity || 0
+                                        } | السعر: ${(item.price || 0).toFixed(
+                    2
+                  )} ج.م</div>
+                                    </div>
+                                    <div class="fw-bold">${itemTotal.toFixed(
+                                      2
+                                    )} ج.م</div>
+                                </div>
+                            `;
+                })
+                .join("");
+
+              itemsTooltip = `
+                            <div class="invoice-items-tooltip">
+                                <div class="tooltip-header">بنود الفاتورة ${
+                                  invoice.number
+                                }</div>
+                                ${itemsList}
+                                <div class="tooltip-total">
+                                    <span>الإجمالي:</span>
+                                    <span>${invoice.total.toFixed(2)} ج.م</span>
+                                </div>
+                            </div>
+                        `;
+            }
+
+            row.innerHTML = `
+  
+                        <td class="position-relative">
+                            ${invoice.number}
+                            ${itemsTooltip}
+                            
+                        </td>
+                        <td>${invoice.date}</td>
+                        <td>${invoice.total.toFixed(2)} ج.م</td>
+                        <td>${invoice.paid.toFixed(2)} ج.م</td>
+                        <td>${invoice.remaining.toFixed(2)} ج.م</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info view-work-order-invoice" data-invoice-id="${
+                              invoice.id
+                            }">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    `;
+            tbody.appendChild(row);
+          });
+
+          // إضافة مستمع للأزرار
+          document
+            .querySelectorAll(".view-work-order-invoice")
+            .forEach((btn) => {
+              btn.addEventListener("click", function () {
+                const invoiceId = parseInt(
+                  this.getAttribute("data-invoice-id")
+                );
+                InvoiceManager.showInvoiceDetails(invoiceId);
+              });
+            });
+
+          const modal = new bootstrap.Modal(
+            document.getElementById("workOrderInvoicesModal")
+          );
+          modal.show();
+        },
+
+        getWorkOrderInvoices(workOrderId) {
+          const workOrder = AppData.workOrders.find(
+            (wo) => wo.id === workOrderId
+          );
+          if (!workOrder) return [];
+
+          return AppData.invoices.filter((invoice) =>
+            workOrder.invoices.includes(invoice.id)
+          );
+        },
+    
+    // في WorkOrderManager، أضف هذه الدالة:
+showWorkOrderDetails(workOrderId) {
+    const workOrder = AppData.workOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return;
+    
+    const relatedInvoices = AppData.invoices.filter(inv => 
+        workOrder.invoices.includes(inv.id)
+    );
+    
+    const totalInvoices = relatedInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    const totalPaid = relatedInvoices.reduce((sum, inv) => sum + inv.paid, 0);
+    const totalRemaining = totalInvoices - totalPaid;
+    
+    // تحديث البيانات في المودال
+    document.getElementById("workOrderInvoicesName").textContent = workOrder.name;
+    document.getElementById("workOrderTotalInvoices").textContent = totalInvoices.toFixed(2) + " ج.م";
+    document.getElementById("workOrderTotalPaid").textContent = totalPaid.toFixed(2) + " ج.م";
+    document.getElementById("workOrderTotalRemaining").textContent = totalRemaining.toFixed(2) + " ج.م";
+    
+    // ملء جدول الفواتير
+    const tbody = document.getElementById("workOrderInvoicesList");
+    tbody.innerHTML = "";
+    
+    relatedInvoices.forEach(invoice => {
+        const row = document.createElement("tr");
+        
+        // نسخ نفس بنية الصف من جدول الفواتير الرئيسي
+        let statusBadge = "";
+        if (invoice.status === "pending") {
+            statusBadge = '<span class="status-badge badge-pending">مؤجل</span>';
+        } else if (invoice.status === "partial") {
+            statusBadge = '<span class="status-badge badge-partial">جزئي</span>';
+        } else if (invoice.status === "paid") {
+            statusBadge = '<span class="status-badge badge-paid">مسلم</span>';
+        } else if (invoice.status === "returned") {
+            statusBadge = '<span class="status-badge badge-returned">مرتجع</span>';
+        }
+        
+        // إنشاء tooltip للبنود (مهم جداً)
+        let itemsTooltip = "";
+        if (invoice.items && invoice.items.length > 0) {
+            const itemsList = invoice.items.map(item => {
+                const returnedText = item.returnedQuantity > 0 ? 
+                    ` (مرتجع: ${item.returnedQuantity})` : '';
+                const itemTotal = (item.quantity || 0) * (item.price || 0);
+                return `
+                    <div class="tooltip-item">
+                        <div>
+                            <div class="tooltip-item-name">${item.productName || 'منتج'}</div>
+                            <div class="tooltip-item-details">الكمية: ${item.quantity || 0} | السعر: ${(item.price || 0).toFixed(2)} ج.م${returnedText}</div>
+                        </div>
+                        <div class="fw-bold">${itemTotal.toFixed(2)} ج.م</div>
+                    </div>
+                `;
+            }).join('');
+            
+            itemsTooltip = `
+                <div class="invoice-items-tooltip tooltip-item" >
+                    <div class="tooltip-header" style="font-weight: bold; border-bottom: 1px solid #dee2e6; padding-bottom: 5px; margin-bottom: 10px;">بنود الفاتورة ${invoice.number}</div>
+                    ${itemsList}
+                    <div class="tooltip-total" style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #dee2e6; padding-top: 10px; margin-top: 10px;">
+                        <span>الإجمالي:</span>
+                        <span>${invoice.total.toFixed(2)} ج.م</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // تحديد لون المبلغ المتبقي
+        let remainingColor = "text-danger";
+        if (invoice.remaining === 0) {
+            remainingColor = "text-success";
+        } else if (invoice.status === "partial") {
+            remainingColor = "text-warning";
+        }
+        
+        row.innerHTML = `
+            <td class="position-relative" style="position: relative;">
+                <div class="invoice-item-hover" style="position: relative; display: inline-block; cursor: pointer;">
+                    ${invoice.number}
+                    <br><small class="text-muted">(مرر للعرض)</small>
+                    ${itemsTooltip}
+                </div>
+            </td>
+            <td>${invoice.date}</td>
+            <td>${invoice.total.toFixed(2)} ج.م</td>
+            <td>${invoice.paid.toFixed(2)} ج.م</td>
+            <td><span class="${remainingColor} fw-bold">${invoice.remaining.toFixed(2)} ج.م</span></td>
+            <td>${statusBadge}</td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-sm btn-outline-info view-work-order-invoice" data-invoice-id="${invoice.id}">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${invoice.status !== "paid" && invoice.status !== "returned" ? `
+                    <button class="btn btn-sm btn-outline-success pay-work-order-invoice" data-invoice-id="${invoice.id}">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </button>
+                    ` : ''}
+                    ${invoice.status !== "returned" ? `
+                    <button class="btn btn-sm btn-outline-warning custom-return-work-order-invoice" data-invoice-id="${invoice.id}">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-outline-secondary print-work-order-invoice" data-invoice-id="${invoice.id}">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // إضافة مستمعي الأحداث للأزرار داخل المودال
+    this.attachWorkOrderModalEventListeners();
+    
+    // إضافة مستمعي الأحداث للتولتيب
+    setTimeout(() => {
+        this.attachTooltipEvents();
+    }, 100);
+    
+    // فتح المودال
+    const modal = new bootstrap.Modal(document.getElementById('workOrderInvoicesModal'));
+    modal.show();
+},
+
+attachTooltipEvents() {
+    // إضافة أحداث التولتيب للعناصر داخل المودال
+    document.querySelectorAll('#workOrderInvoicesList .invoice-item-hover').forEach(element => {
+        element.addEventListener('mouseenter', function(e) {
+            const tooltip = this.querySelector('.invoice-items-tooltip');
+            if (tooltip) {
+                tooltip.style.display = 'block';
+                tooltip.style.zIndex = '9999';
+            }
+        });
+        
+        element.addEventListener('mouseleave', function(e) {
+            const tooltip = this.querySelector('.invoice-items-tooltip');
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        });
+    });
+},
+attachWorkOrderModalEventListeners() {
+    // هذه الدالة ستضيف event listeners للأزرار داخل المودال
+    setTimeout(() => {
+        // زر عرض الفاتورة
+        document.querySelectorAll('#workOrderInvoicesList .view-work-order-invoice').forEach((btn,index) => {
+            btn.addEventListener('click', function() {
+                const invoiceId = parseInt(this.getAttribute('data-invoice-id'));
+                InvoiceManager.showInvoiceDetails(invoiceId);
+                
+                // إغلاق مودال الشغلانة
+               const m = document.getElementById('invoiceItemsModal');
+m.style.zIndex = 1060;
+
+
+
+                 // إعادة تعيين z-index للمودال بعد فتح المودال الآخر
+            });
+        });
+        
+        // زر سداد الفاتورة
+        document.querySelectorAll('#workOrderInvoicesList .pay-work-order-invoice').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const invoiceId = parseInt(this.getAttribute('data-invoice-id'));
+                
+                // إغلاق مودال الشغلانة أولاً
+                const modal = bootstrap.Modal.getInstance(document.getElementById('workOrderInvoicesModal'));
+                modal.hide();
+                
+                // فتح مودال السداد
+                PaymentManager.openSingleInvoicePayment(invoiceId);
+            });
+        });
+        
+        // زر إرجاع الفاتورة
+        document.querySelectorAll('#workOrderInvoicesList .custom-return-work-order-invoice').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const invoiceId = parseInt(this.getAttribute('data-invoice-id'));
+                
+                // إغلاق مودال الشغلانة أولاً
+                const modal = bootstrap.Modal.getInstance(document.getElementById('workOrderInvoicesModal'));
+                modal.hide();
+                
+                // فتح مودال الإرجاع
+                CustomReturnManager.openReturnModal(invoiceId);
+            });
+        });
+        
+        // زر طباعة الفاتورة
+        document.querySelectorAll('#workOrderInvoicesList .print-work-order-invoice').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const invoiceId = parseInt(this.getAttribute('data-invoice-id'));
+                
+                // إغلاق مودال الشغلانة أولاً
+                const modal = bootstrap.Modal.getInstance(document.getElementById('workOrderInvoicesModal'));
+                modal.hide();
+                
+                // فتح مودال الطباعة
+                PrintManager.printSingleInvoice(invoiceId);
+            });
+        });
+    }, 100);
+}
+    };
+        const ReturnManager = {
+        init() {
+          // بيانات المرتجعات الابتدائية
+          AppData.returns = [
+            {
+              id: 1,
+              number: "#RET-001",
+              invoiceId: 120,
+              invoiceNumber: "#120",
+              type: "full",
+              amount: 300,
+              method: "wallet",
+              status: "completed",
+              date: "2024-01-05",
+              reason: "شباك معيب",
+              items: [
+                {
+                  productId: 1,
+                  productName: "شباك ألوميتال 2×1.5",
+                  quantity: 1,
+                  price: 300,
+                  total: 300,
+                },
+              ],
+              createdBy: "مدير النظام",
+            },
+          ];
+
+          this.updateReturnsTable();
+        },
+
+        updateReturnsTable() {
+          const tbody = document.getElementById("returnsTableBody");
+          tbody.innerHTML = "";
+
+          AppData.returns.forEach((returnItem) => {
+            const row = document.createElement("tr");
+
+            // تحديد نوع المرتجع
+            let typeBadge =
+              returnItem.type === "full"
+                ? '<span class="badge bg-danger">كامل</span>'
+                : '<span class="badge bg-warning">جزئي</span>';
+
+            // تحديد طريقة الاسترجاع
+            let methodBadge =
+              returnItem.method === "wallet"
+                ? '<span class="badge bg-info">محفظة</span>'
+                : '<span class="badge bg-success">نقدي</span>';
+
+            // تحديد حالة المرتجع
+            let statusBadge =
+              returnItem.status === "completed"
+                ? '<span class="status-badge badge-paid">مكتمل</span>'
+                : '<span class="status-badge badge-pending">معلق</span>';
+
+            // عرض بنود المرتجع
+            let itemsList = "";
+            if (returnItem.items && returnItem.items.length > 0) {
+              returnItem.items.forEach((item) => {
+                itemsList += `<div class="d-flex justify-content-between small">
+                                <span>${item.productName}</span>
+                                <span>${item.quantity} × ${item.price.toFixed(
+                  2
+                )} = ${item.total.toFixed(2)} ج.م</span>
+                            </div>`;
+              });
+            }
+
+            row.innerHTML = `
+                        <td>
+                            <strong>${returnItem.number}</strong>
+                            <br>
+                            <button class="btn btn-sm btn-outline-info mt-1 view-original-invoice" data-invoice-id="${
+                              returnItem.invoiceId
+                            }">
+                                <i class="fas fa-external-link-alt"></i> عرض الفاتورة
+                            </button>
+                        </td>
+                        <td>
+                            <a href="#" class="text-decoration-none view-invoice-from-return" data-invoice-id="${
+                              returnItem.invoiceId
+                            }">${returnItem.invoiceNumber}</a>
+                            <br><small class="text-muted">${
+                              returnItem.reason
+                            }</small>
+                        </td>
+                        <td>
+                            <div class="items-preview">
+                                ${itemsList}
+                            </div>
+                        </td>
+                        <td>${
+                          returnItem.items
+                            ? returnItem.items.reduce(
+                                (sum, i) => sum + i.quantity,
+                                0
+                              )
+                            : 1
+                        }</td>
+                        <td>${returnItem.amount.toFixed(2)} ج.م</td>
+                        <td>${methodBadge}</td>
+                        <td>${statusBadge}</td>
+                        <td>${returnItem.date}</td>
+                        <td>${returnItem.createdBy}</td>
+                    `;
+
+            tbody.appendChild(row);
+          });
+
+          // إضافة مستمعي الأحداث لعرض الفاتورة الأصلية
+          document
+            .querySelectorAll(
+              ".view-invoice-from-return, .view-original-invoice"
+            )
+            .forEach((btn) => {
+              btn.addEventListener("click", function (e) {
+                e.preventDefault();
+                const invoiceId = parseInt(
+                  this.getAttribute("data-invoice-id")
+                );
+                InvoiceManager.showInvoiceDetails(invoiceId);
+              });
+            });
+        },
+
+        getReturnsByInvoiceId(invoiceId) {
+          return AppData.returns.filter((r) => r.invoiceId === invoiceId);
+        },
+        searchProductsInInvoices(searchTerm) {
+          if (!searchTerm) return [];
+
+          const results = [];
+          const searchTerms = searchTerm
+            .toLowerCase()
+            .trim()
+            .split(/\s+/)
+            .filter((t) => t.length > 0);
+
+          if (searchTerms.length === 0) return [];
+
+          AppData.invoices.forEach((invoice) => {
+            invoice.items.forEach((item) => {
+              const productNameLower = item.productName.toLowerCase();
+
+              // البحث الجزئي: التحقق من أن جميع مصطلحات البحث موجودة في اسم المنتج
+              const allTermsMatch = searchTerms.every((term) =>
+                productNameLower.includes(term)
+              );
+
+              if (allTermsMatch) {
+                const availableQuantity =
+                  item.quantity - (item.returnedQuantity || 0);
+
+                results.push({
+                  invoiceId: invoice.id,
+                  invoiceNumber: invoice.number,
+                  invoiceDate: invoice.date,
+                  productName: item.productName,
+                  soldQuantity: item.quantity,
+                  returnedQuantity: item.returnedQuantity || 0,
+                  availableQuantity: availableQuantity,
+                  price: item.price,
+                  invoiceStatus: invoice.status,
+                  searchTerms: searchTerms,
+                });
+              }
+            });
+          });
+
+          return results;
+        },
+        addReturn(returnData) {
+          const newReturn = {
+            id: AppData.nextReturnId++,
+            number: `#RET-00${AppData.nextReturnId - 1}`,
+            invoiceId: returnData.invoiceId,
+            invoiceNumber: returnData.invoiceNumber,
+            type: returnData.type,
+            amount: returnData.amount,
+            method: returnData.method,
+            status: "completed",
+            date: new Date().toISOString().split("T")[0],
+            reason: returnData.reason,
+            items: returnData.items,
+            createdBy: AppData.currentUser,
+          };
+
+          AppData.returns.unshift(newReturn);
+
+          // إضافة حركة للمحفظة إذا كانت طريقة الاسترجاع للمحفظة
+          if (returnData.method === "wallet") {
+            WalletManager.addTransaction({
+              type: "return",
+              amount: returnData.amount,
+              description: `مرتجع ${
+                returnData.type === "full" ? "كامل" : "جزئي"
+              } لفاتورة ${returnData.invoiceNumber}`,
+              date: newReturn.date,
+            });
+          }
+
+          this.updateReturnsTable();
+          return newReturn;
+        },
+      };
+
+      // ============================================
+      // مدير المرتجع المخصص
+      // ============================================
+      const CustomReturnManager = {
+        currentInvoiceId: null,
+        returnItems: [],
+
+        openReturnModal(invoiceId) {
+          this.currentInvoiceId = invoiceId;
+          this.returnItems = [];
+
+          const invoice = InvoiceManager.getInvoiceById(invoiceId);
+          if (!invoice) {
+            Swal.fire("خطأ", "الفاتورة غير موجودة", "error");
+            return;
+          }
+
+          // تعبئة معلومات الفاتورة
+          document.getElementById("returnInvoiceNumber").textContent =
+            invoice.number;
+          document.getElementById("returnInvoiceDate").textContent =
+            invoice.date;
+          document.getElementById("returnInvoiceTotal").textContent =
+            invoice.total.toFixed(2) + " ج.م";
+
+          // تعبئة بنود الفاتورة
+          this.populateReturnItems(invoice);
+
+          // إضافة مستمعي الأحداث للأزرار
+          document.getElementById("returnAllBtn").onclick = () =>
+            this.returnAllItems();
+          document.getElementById("returnPartialBtn").onclick = () =>
+            this.returnPartialItems();
+          document.getElementById("processCustomReturnBtn").onclick = () =>
+            this.processReturn();
+
+          // فتح المودال
+          const modal = new bootstrap.Modal(
+            document.getElementById("customReturnModal")
+          );
+          modal.show();
+        },
+
+        populateReturnItems(invoice) {
+          const container = document.getElementById(
+            "customReturnItemsContainer"
+          );
+          container.innerHTML = "";
+
+          invoice.items.forEach((item, index) => {
+            const availableQuantity =
+              item.quantity - (item.returnedQuantity || 0);
+
+            if (availableQuantity > 0 && !item.fullyReturned) {
+              const itemElement = document.createElement("div");
+              itemElement.className = "return-item-card";
+              itemElement.setAttribute("data-item-index", index);
+
+              itemElement.innerHTML = `
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">المنتج</label>
+                                    <input type="text" class="form-control" value="${
+                                      item.productName
+                                    }" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">الكمية المباعة</label>
+                                    <input type="number" class="form-control" value="${
+                                      item.quantity
+                                    }" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">مرتجع سابق</label>
+                                    <input type="number" class="form-control" value="${
+                                      item.returnedQuantity || 0
+                                    }" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">كمية الإرجاع</label>
+                                    <input type="number" class="form-control custom-return-quantity" 
+                                           data-item-index="${index}" min="0" max="${availableQuantity}" 
+                                           value="0" >
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">الإجمالي</label>
+                                    <input type="number" class="form-control custom-return-total" 
+                                           data-item-index="${index}" value="0" readonly>
+                                </div>
+                            </div>
+                        `;
+              container.appendChild(itemElement);
+
+              // إضافة مستمعي الأحداث
+              const quantityInput = itemElement.querySelector(
+                ".custom-return-quantity"
+              );
+              quantityInput.addEventListener("input", () =>
+                this.updateReturnItem(index)
+              );
+            }
+          });
+
+          this.updateReturnTotal();
+        },
+
+        updateReturnItem(itemIndex) {
+          const quantityInput = document.querySelector(
+            `.custom-return-quantity[data-item-index="${itemIndex}"]`
+          );
+          const totalInput = document.querySelector(
+            `.custom-return-total[data-item-index="${itemIndex}"]`
+          );
+
+          const quantity = parseFloat(quantityInput.value) || 0;
+          const invoice = InvoiceManager.getInvoiceById(this.currentInvoiceId);
+          const item = invoice.items[itemIndex];
+
+          const total = quantity * item.price;
+          totalInput.value = total.toFixed(2);
+
+          this.updateReturnTotal();
+        },
+
+        updateReturnTotal() {
+          let totalAmount = 0;
+          document.querySelectorAll(".custom-return-total").forEach((input) => {
+            totalAmount += parseFloat(input.value) || 0;
+          });
+
+          document.getElementById("customReturnTotalAmount").textContent =
+            totalAmount.toFixed(2) + " ج.م";
+        },
+
+        returnAllItems() {
+          const invoice = InvoiceManager.getInvoiceById(this.currentInvoiceId);
+          document
+            .querySelectorAll(".custom-return-quantity")
+            .forEach((input) => {
+              const itemIndex = parseInt(input.getAttribute("data-item-index"));
+              const availableQuantity =
+                invoice.items[itemIndex].quantity -
+                (invoice.items[itemIndex].returnedQuantity || 0);
+              input.value = availableQuantity;
+              this.updateReturnItem(itemIndex);
+            });
+        },
+
+        returnPartialItems() {
+          // تفعيل جميع الحقول للكتابة
+          document
+            .querySelectorAll(".custom-return-quantity")
+            .forEach((input) => {
+              input.disabled = false;
+            });
+        },
+
+        processReturn() {
+          const returnMethod =
+            document.getElementById("customReturnMethod").value;
+          const returnReason = document
+            .getElementById("customReturnReason")
+            .value.trim();
+
+          if (!returnReason) {
+            Swal.fire("تحذير", "يرجى إدخال سبب الإرجاع", "warning");
+            return;
+          }
+
+          const invoice = InvoiceManager.getInvoiceById(this.currentInvoiceId);
+          const returnItems = [];
+          let totalReturnAmount = 0;
+          let isFullReturn = true;
+
+          document
+            .querySelectorAll(".custom-return-quantity")
+            .forEach((input) => {
+              const itemIndex = parseInt(input.getAttribute("data-item-index"));
+              const quantity = parseFloat(input.value) || 0;
+
+              if (quantity > 0) {
+                const item = invoice.items[itemIndex];
+                const total = quantity * item.price;
+
+                returnItems.push({
+                  productId: item.productId,
+                  productName: item.productName,
+                  quantity: quantity,
+                  price: item.price,
+                  total: total,
+                });
+
+                totalReturnAmount += total;
+
+                // التحقق إذا كان الإرجاع جزئي
+                const availableQuantity =
+                  item.quantity - (item.returnedQuantity || 0);
+                if (quantity < availableQuantity) {
+                  isFullReturn = false;
+                }
+              }
+            });
+
+          if (returnItems.length === 0) {
+            Swal.fire("تحذير", "لم يتم تحديد أي كميات للإرجاع", "warning");
+            return;
+          }
+
+          // تأكيد الإرجاع
+          Swal.fire({
+            title: "تأكيد الإرجاع",
+            html: `هل أنت متأكد من إرجاع مبلغ <strong>${totalReturnAmount.toFixed(
+              2
+            )} ج.م</strong>؟`,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "نعم، تأكيد",
+            cancelButtonText: "إلغاء",
+          }).then((result) => {
+            if (result.isConfirmed) {
+              // إنشاء سجل المرتجع
+              const returnData = {
+                invoiceId: this.currentInvoiceId,
+                invoiceNumber: invoice.number,
+                type: isFullReturn ? "full" : "partial",
+                amount: totalReturnAmount,
+                method: returnMethod,
+                reason: returnReason,
+                items: returnItems,
+              };
+
+              // إضافة المرتجع
+              const returnItem = ReturnManager.addReturn(returnData);
+
+              // تحديث الفاتورة
+              InvoiceManager.updateInvoiceAfterReturn(
+                this.currentInvoiceId,
+                returnData
+              );
+
+              Swal.fire(
+                "نجاح",
+                `تم معالجة المرتجع ${returnItem.number} بنجاح`,
+                "success"
+              );
+
+              // إغلاق المودال
+              const modal = bootstrap.Modal.getInstance(
+                document.getElementById("customReturnModal")
+              );
+              modal.hide();
+
+              // إعادة تعيين الحقول
+              document.getElementById("customReturnReason").value = "";
+            }
+          });
+        },
+
+        showInvoiceReturns(invoiceId) {
+          const invoice = InvoiceManager.getInvoiceById(invoiceId);
+          if (!invoice) return;
+
+          const returns = ReturnManager.getReturnsByInvoiceId(invoiceId);
+
+          document.getElementById("returnsInvoiceNumber").textContent =
+            invoice.number;
+
+          // حساب إجمالي المرتجعات
+          const totalReturns = returns.reduce((sum, r) => sum + r.amount, 0);
+          document.getElementById("totalReturnsAmountForInvoice").textContent =
+            totalReturns.toFixed(2) + " ج.م";
+
+          // عرض قائمة المرتجعات
+          const container = document.getElementById("invoiceReturnsList");
+          container.innerHTML = "";
+
+          if (returns.length === 0) {
+            container.innerHTML =
+              '<div class="alert alert-info">لا توجد مرتجعات لهذه الفاتورة</div>';
+          } else {
+            returns.forEach((returnItem) => {
+              const returnElement = document.createElement("div");
+              returnElement.className = "return-item";
+
+              let itemsHTML = "";
+              returnItem.items.forEach((item) => {
+                itemsHTML += `
+                                <div class="d-flex justify-content-between">
+                                    <span>${item.productName}</span>
+                                    <span>${
+                                      item.quantity
+                                    } × ${item.price.toFixed(
+                  2
+                )} = ${item.total.toFixed(2)} ج.م</span>
+                                </div>
+                            `;
+              });
+
+              returnElement.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <strong>${returnItem.number}</strong>
+                                    <br>
+                                    <small class="text-muted">${
+                                      returnItem.date
+                                    } - ${returnItem.reason}</small>
+                                </div>
+                                <div>
+                                    <span class="badge ${
+                                      returnItem.type === "full"
+                                        ? "bg-danger"
+                                        : "bg-warning"
+                                    }">
+                                        ${
+                                          returnItem.type === "full"
+                                            ? "إرجاع كلي"
+                                            : "إرجاع جزئي"
+                                        }
+                                    </span>
+                                    <span class="badge ${
+                                      returnItem.method === "wallet"
+                                        ? "bg-info"
+                                        : "bg-success"
+                                    } ms-1">
+                                        ${
+                                          returnItem.method === "wallet"
+                                            ? "محفظة"
+                                            : "نقدي"
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                ${itemsHTML}
+                            </div>
+                            <div class="d-flex justify-content-between mt-2 fw-bold">
+                                <span>المبلغ الإجمالي:</span>
+                                <span>${returnItem.amount.toFixed(2)} ج.م</span>
+                            </div>
+                        `;
+
+              container.appendChild(returnElement);
+            });
+          }
+
+          // إضافة مستمع حدث لزر الطباعة
+          document.getElementById("printInvoiceReturnsBtn").onclick = () => {
+            this.printInvoiceReturns(invoiceId);
+          };
+
+          const modal = new bootstrap.Modal(
+            document.getElementById("invoiceReturnsModal")
+          );
+          modal.show();
+        },
+
+        printInvoiceReturns(invoiceId) {
+          const invoice = InvoiceManager.getInvoiceById(invoiceId);
+          const returns = ReturnManager.getReturnsByInvoiceId(invoiceId);
+
+          if (returns.length === 0) {
+            Swal.fire("تنبيه", "لا توجد مرتجعات لهذه الفاتورة", "info");
+            return;
+          }
+
+          const report = {
+            invoicesCount: 1,
+            items: [],
+            totals: {
+              beforeDiscount: 0,
+              afterDiscount: 0,
+              discount: 0,
+            },
+            invoices: [
+              {
+                id: invoice.id,
+                customer: AppData.currentCustomer.name,
+                total: returns.reduce((sum, r) => sum + r.amount, 0),
+              },
+            ],
+          };
+
+          // تجميع بنود المرتجعات
+          returns.forEach((returnItem) => {
+            returnItem.items.forEach((item) => {
+              report.items.push({
+                name: item.productName,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.total,
+              });
+            });
+          });
+
+          report.totals.beforeDiscount = report.invoices[0].total;
+          report.totals.afterDiscount = report.invoices[0].total;
+
+          // استخدام دالة الطباعة المجمعة
+          printAggregatedReport(report);
+        },
+      };
+
+
+
+      // ============================================
+      // إدارة الواجهة
+      // ============================================
+      const UIManager = {
+        init() {
+          this.setupEventListeners();
+          this.initializeModals();
+        },
+
+        setupEventListeners() {
+            
+          // الفلاتر
+          document
+            .getElementById("dateFrom")
+            .addEventListener("change", (e) => {
+              AppData.activeFilters.dateFrom = e.target.value;
+              this.applyFilters();
+            });
+
+          document.getElementById("dateTo").addEventListener("change", (e) => {
+            AppData.activeFilters.dateTo = e.target.value;
+            this.applyFilters();
+          });
+
+          document
+            .getElementById("productSearch")
+            .addEventListener("input", (e) => {
+              AppData.activeFilters.productSearch = e.target.value;
+              this.applyFilters();
+            });
+
+          document
+            .getElementById("invoiceTypeFilter")
+            .addEventListener("change", (e) => {
+              AppData.activeFilters.invoiceType = e.target.value;
+              this.applyFilters();
+            });
+
+          // البحث المتقدم
+          document
+            .getElementById("advancedProductSearch")
+            .addEventListener("input", (e) => {
+              console.log("d");
+
+              const searchTerm = e.target.value;
+              const results =
+                ReturnManager.searchProductsInInvoices(searchTerm);
+              this.displayAdvancedSearchResults(results);
+              // يمكن إضافة وظيفة البحث هنا إذا لزم الأمر
+            });
+
+          // زر حفظ الشغلانة
+          document
+            .getElementById("saveWorkOrderBtn")
+            .addEventListener("click", () => {
+              this.addNewWorkOrder();
+            });
+
+          // زر إيداع المحفظة
+          document
+            .getElementById("processDepositBtn")
+            .addEventListener("click", () => {
+              this.processWalletDeposit();
+            });
+
+          // زر طباعة الكشف
+          document
+            .getElementById("printStatementBtn")
+            .addEventListener("click", () => {
+              this.printStatement();
+            });
+
+          // تحديث كشف الحساب عند تغيير التاريخ
+          document
+            .getElementById("statementDateFrom")
+            .addEventListener("change", () => {
+              this.updateStatementTable();
+            });
+
+          document
+            .getElementById("statementDateTo")
+            .addEventListener("change", () => {
+              this.updateStatementTable();
+            });
+
+          // زر طباعة بنود الفاتورة
+       // في UIManager.setupEventListeners():
+// زر طباعة بنود الفاتورة
+document.getElementById('printInvoiceItemsBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const invoiceNumber = document.getElementById('invoiceItemsNumber').textContent;
+    const invoice = AppData.invoices.find(i => i.number === invoiceNumber);
+    if (invoice) {
+        PrintManager.printSingleInvoice(invoice.id);
+    }
+});
+          // زر سداد فواتير الشغلانة
+       
+
+          // إعداد المودالات عند فتحها
+          document
+            .getElementById("paymentModal")
+            .addEventListener("show.bs.modal", () => {
+              PaymentManager.loadInvoicesForPayment();
+              PaymentManager.resetPaymentForm();
+              setupNumberInputPrevention()
+            });
+
+          document
+            .getElementById("statementReportModal")
+            .addEventListener("show.bs.modal", () => {
+              this.setupStatementModal();
+            });
+        },
+
+        applyFilters() {
+          // تحديث الفلاتر النشطة
+          this.updateFilterTags();
+
+          // تطبيق الفلاتر على الجداول
+          InvoiceManager.updateInvoicesTable();
+        },
+
+        updateFilterTags() {
+          const container = document.getElementById("filterTags");
+          container.innerHTML = "";
+
+          Object.entries(AppData.activeFilters).forEach(([key, value]) => {
+            if (value) {
+              const tag = document.createElement("div");
+              tag.className = "filter-tag";
+
+              let label = "";
+              let displayValue = value;
+
+              switch (key) {
+                case "dateFrom":
+                  label = "من تاريخ";
+                  break;
+                case "dateTo":
+                  label = "إلى تاريخ";
+                  break;
+                case "productSearch":
+                  label = "بحث";
+                  break;
+                case "invoiceType":
+                  label = "النوع";
+                  displayValue = this.getInvoiceTypeText(value);
+                  break;
+              }
+
+              tag.innerHTML = `
+                        ${label}: ${displayValue}
+                        <span class="close" data-filter="${key}">&times;</span>
+                    `;
+
+              container.appendChild(tag);
+            }
+          });
+
+          // إضافة مستمعي الأحداث لإزالة الفلاتر
+          document
+            .querySelectorAll(".filter-tag .close")
+            .forEach((closeBtn) => {
+              closeBtn.addEventListener("click", function () {
+                const filterKey = this.getAttribute("data-filter");
+                AppData.activeFilters[filterKey] = null;
+
+                // إعادة تعيين قيمة الإدخال
+                if (filterKey === "dateFrom") {
+                  document.getElementById("dateFrom").value = "";
+                } else if (filterKey === "dateTo") {
+                  document.getElementById("dateTo").value = "";
+                } else if (filterKey === "productSearch") {
+                  document.getElementById("productSearch").value = "";
+                } else if (filterKey === "invoiceType") {
+                  document.getElementById("invoiceTypeFilter").value = "";
+                }
+
+                UIManager.applyFilters();
+              });
+            });
+        },
+
+        getInvoiceTypeText(type) {
+          const typeMap = {
+            pending: "مؤجل",
+            partial: "جزئي",
+            paid: "مسلم",
+            returned: "مرتجع",
+          };
+          return typeMap[type] || type;
+        },
+
+        addNewWorkOrder() {
+          const name = document.getElementById("workOrderName").value.trim();
+          const description = document
+            .getElementById("workOrderDescription")
+            .value.trim();
+          const startDate = document.getElementById("workOrderStartDate").value;
+          const notes = document.getElementById("workOrderNotes").value;
+
+          if (!name || !description || !startDate) {
+            Swal.fire("تحذير", "يرجى ملء جميع الحقول المطلوبة", "warning");
+            return;
+          }
+
+          const newWorkOrder = {
+            id: AppData.nextWorkOrderId++,
+            name: name,
+            description: description,
+            status: "pending",
+            startDate: startDate,
+            notes: notes,
+            invoices: [],
+            createdBy: AppData.currentUser,
+          };
+
+          AppData.workOrders.unshift(newWorkOrder);
+
+          Swal.fire(
+            "نجاح",
+            `تم إنشاء الشغلانة "${newWorkOrder.name}" بنجاح`,
+            "success"
+          );
+
+          // إغلاق المودال وإعادة التعيين
+          const modal = bootstrap.Modal.getInstance(
+            document.getElementById("newWorkOrderModal")
+          );
+          modal.hide();
+
+          document.getElementById("newWorkOrderForm").reset();
+          WorkOrderManager.updateWorkOrdersTable();
+        },
+
+        processWalletDeposit() {
+          const amount = parseFloat(
+            document.getElementById("depositAmount").value
+          );
+          const description = document
+            .getElementById("depositDescription")
+            .value.trim();
+
+          if (!amount || amount <= 0) {
+            Swal.fire("تحذير", "يرجى إدخال مبلغ صحيح للإيداع", "warning");
+            return;
+          }
+
+          if (!description) {
+            Swal.fire("تحذير", "يرجى إدخال وصف للإيداع", "warning");
+            return;
+          }
+
+          WalletManager.addTransaction({
+            type: "deposit",
+            amount: amount,
+            description: description,
+            date: new Date().toISOString().split("T")[0],
+          });
+
+          Swal.fire(
+            "نجاح",
+            `تم إيداع ${amount.toFixed(2)} ج.م في المحفظة بنجاح`,
+            "success"
+          );
+
+          // إغلاق المودال وإعادة التعيين
+          const modal = bootstrap.Modal.getInstance(
+            document.getElementById("walletDepositModal")
+          );
+          modal.hide();
+
+          document.getElementById("walletDepositForm").reset();
+        },
+
+        setupStatementModal() {
+          const today = new Date().toISOString().split("T")[0];
+          const firstDayOfMonth = today.substring(0, 8) + "01";
+
+          document.getElementById("statementDateFrom").value = firstDayOfMonth;
+          document.getElementById("statementDateTo").value = today;
+
+          this.updateStatementTable();
+        },
+
+        updateStatementTable() {
+          const dateFrom = document.getElementById("statementDateFrom").value;
+          const dateTo = document.getElementById("statementDateTo").value;
+
+          const transactions = WalletManager.getStatementTransactions(
+            dateFrom,
+            dateTo
+          );
+          const tbody = document.getElementById("statementTableBody");
+          tbody.innerHTML = "";
+
+          let currentBalance = 0;
+
+          transactions.forEach((transaction) => {
+            const row = document.createElement("tr");
+
+            // تحديد لون المبلغ
+            let amountClass =
+              transaction.amount > 0 ? "text-success" : "text-danger";
+            let amountSign = transaction.amount > 0 ? "+" : "";
+
+            row.innerHTML = `
+                    <td>${transaction.date}</td>
+                    <td>${WalletManager.getTransactionTypeText(
+                      transaction.type
+                    )}</td>
+                    <td>${transaction.description}</td>
+                    <td class="${amountClass}">${amountSign}${transaction.amount.toFixed(
+              2
+            )} ج.م</td>
+                    <td>${transaction.balanceAfter.toFixed(2)} ج.م</td>
+                    <td>${transaction.createdBy}</td>
+                `;
+
+            tbody.appendChild(row);
+            currentBalance = transaction.balanceAfter;
+          });
+
+          // إذا لم توجد حركات، إظهار رسالة
+          if (transactions.length === 0) {
+            const row = document.createElement("tr");
+            row.innerHTML = `<td colspan="6" class="text-center text-muted">لا توجد حركات في الفترة المحددة</td>`;
+            tbody.appendChild(row);
+          }
+        },
+
+        printStatement() {
+          const dateFrom = document.getElementById("statementDateFrom").value;
+          const dateTo = document.getElementById("statementDateTo").value;
+
+          PrintManager.printStatement(dateFrom, dateTo);
+        },
+
+        printInvoiceFromModal() {
+          const invoiceNumber =
+            document.getElementById("invoiceItemsNumber").textContent;
+          const invoice = AppData.invoices.find(
+            (i) => i.number === invoiceNumber
+          );
+
+          if (invoice) {
+            PrintManager.printSingleInvoice(invoice.id);
+          }
+        },
+
+        payWorkOrderInvoices() {
+          const workOrderName = document.getElementById(
+            "workOrderInvoicesName"
+          ).textContent;
+          const workOrder = AppData.workOrders.find(
+            (wo) => wo.name === workOrderName
+          );
+
+          if (workOrder) {
+            PaymentManager.openWorkOrderPayment(workOrder.id);
+          }
+        },
+
+        displayAdvancedSearchResults(results) {
+          const container = document.getElementById("advancedSearchResults");
+          container.innerHTML = "";
+
+          if (results.length === 0) {
+            container.style.display = "none";
+            return;
+          }
+
+          container.style.display = "block";
+
+          // دالة لتمييز النص المطابق
+          const highlightText = (text, searchTerms) => {
+            let highlighted = escapeHtml(text);
+
+            // ترتيب مصطلحات البحث من الأطول للأقصر لتجنب التداخل
+            const sortedTerms = [...searchTerms].sort(
+              (a, b) => b.length - a.length
+            );
+
+            sortedTerms.forEach((term) => {
+              const regex = new RegExp(`(${term})`, "gi");
+              highlighted = highlighted.replace(
+                regex,
+                '<span class="search-highlight">$1</span>'
+              );
+            });
+
+            return highlighted;
+          };
+
+          results.forEach((result) => {
+            const div = document.createElement("div");
+            div.className = "search-result-item";
+            div.style.cursor = "pointer";
+
+            const highlightedProductName = highlightText(
+              result.productName,
+              result.searchTerms || []
+            );
+
+            div.innerHTML = `
+            <div class="fw-bold">${highlightedProductName}</div>
+            <div class="small text-muted">
+                الفاتورة: <strong>${result.invoiceNumber}</strong> (${
+              result.invoiceDate
+            }) | 
+                الكمية: ${result.soldQuantity} | 
+                ${
+                  result.availableQuantity > 0
+                    ? `المتاح للإرجاع: ${result.availableQuantity} | `
+                    : '<span class="text-danger">غير متاح للإرجاع</span> | '
+                }
+                السعر: ${result.price.toFixed(2)} ج.م
+            </div>
+        `;
+
+            div.addEventListener("click", () => {
+              // عرض الفاتورة في الجانب الأيمن
+              this.showInvoiceInRightPanel(result.invoiceId);
+
+              container.style.display = "none";
+              document.getElementById("advancedProductSearch").value = "";
+            });
+
+            container.appendChild(div);
+          });
+        },
+
+        showInvoiceInRightPanel(invoiceId) {
+          // البحث عن الفاتورة
+          const invoice = AppData.invoices.find((i) => i.id === invoiceId);
+          if (!invoice) return;
+
+          // تطبيق فلتر لعرض الفاتورة فقط
+          AppData.activeFilters.invoiceId = invoiceId;
+          InvoiceManager.updateInvoicesTable();
+
+          // إزالة الفلتر بعد عرض الفاتورة
+          setTimeout(() => {
+            delete AppData.activeFilters.invoiceId;
+          }, 100);
+
+          // التمرير إلى جدول الفواتير
+          const invoicesTab = document.getElementById("invoices-tab");
+          if (invoicesTab) {
+            invoicesTab.click();
+            setTimeout(() => {
+              const invoiceRow = document.querySelector(
+                `tr[data-invoice-id="${invoiceId}"]`
+              );
+              if (invoiceRow) {
+                invoiceRow.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+                invoiceRow.style.backgroundColor = "var(--primary)";
+                invoiceRow.style.color = "white";
+                setTimeout(() => {
+                  invoiceRow.style.backgroundColor = "";
+                  invoiceRow.style.color = "";
+                }, 2000);
+              }
+            }, 300);
+          }
+        },
+      };
+
+      // ============================================
+      // دوال مساعدة
+      // ============================================
+      function escapeHtml(text) {
+        const map = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;",
+        };
+        return text.replace(/[&<>"']/g, (m) => map[m]);
+      }
+
+      // إضافة بعض البيانات الاختبارية الإضافية
+      function addTestData() {
+        // إضافة فواتير اختبارية إضافية
+        AppData.invoices.push(
+          {
+            id: 120,
+            number: "#120",
+            date: "2024-01-03",
+            time: "10:00 ص",
+            total: 300,
+            paid: 300,
+            remaining: 0,
+            status: "paid",
+            description: "فاتورة قديمة",
+            items: [
+              {
+                productId: 1,
+                productName: "شباك ألوميتال 2×1.5",
+                quantity: 1,
+                price: 300,
+                total: 300,
+                returnedQuantity: 1,
+                fullyReturned: true,
+              },
+            ],
+            createdBy: "مدير النظام",
+          },
+          {
+            id: 119,
+            number: "#119",
+            date: "2024-01-25",
+            time: "04:20 م",
+            total: 1500,
+            paid: 0,
+            remaining: 1500,
+            status: "pending",
+            description: "طلب جديد",
+            items: [
+              {
+                productId: 2,
+                productName: "باب خشب",
+                quantity: 1,
+                price: 1200,
+                total: 1200,
+                returnedQuantity: 0,
+                fullyReturned: false,
+              },
+              {
+                productId: 4,
+                productName: "أقفال أمنية",
+                quantity: 1,
+                price: 300,
+                total: 300,
+                returnedQuantity: 0,
+                fullyReturned: false,
+              },
+            ],
+            createdBy: "مدير النظام",
+          }
+        );
+
+        // تحديث الواجهة بالبيانات الجديدة
+        InvoiceManager.updateInvoicesTable();
+        updateInvoiceStats();
+        CustomerManager.updateCustomerBalance();
+      }
+
+      // إضافة البيانات الاختبارية بعد تحميل الصفحة
+      setTimeout(addTestData, 1000);
+    </script>
+  </body>
+</html>

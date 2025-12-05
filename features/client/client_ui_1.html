@@ -251,11 +251,6 @@
             background: #f0f8ff;
         }
         
-        .work-order-deposit {
-            background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
-            border-left: 4px solid var(--success);
-        }
-        
         @media print {
             body * {
                 visibility: hidden;
@@ -372,41 +367,6 @@
             cursor: pointer;
             margin-right: 5px;
         }
-        
-        .deposit-source-selector {
-            border: 1px solid #dee2e6;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            background: white;
-        }
-        
-        .deposit-source-option {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .deposit-source-option:hover {
-            background: #f8f9fa;
-        }
-        
-        .deposit-source-option.active {
-            border-color: var(--primary);
-            background: #e3f2fd;
-        }
-        
-        .work-order-deposits-section {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #dee2e6;
-        }
-        .stat-card{
-            background-color: #131f6095;
-        }
     </style>
 </head>
 <body>
@@ -464,12 +424,8 @@
                 <span id="totalReturnsAmount">800.00 ج.م</span>
             </div>
             <div class="balance-item">
-                <span>الودائع العامة</span>
+                <span>الودائع</span>
                 <span id="totalDepositsAmount">200.00 ج.م</span>
-            </div>
-            <div class="balance-item">
-                <span>ودائع الشغلانات</span>
-                <span id="totalWorkOrderDepositsAmount">500.00 ج.م</span>
             </div>
             <div class="balance-item">
                 <span>الرصيد الحالي</span>
@@ -685,7 +641,6 @@
                                 <th>التاريخ</th>
                                 <th>المبلغ</th>
                                 <th>الوصف</th>
-                                <th>المصدر</th>
                                 <th>الرصيد قبل</th>
                                 <th>الرصيد بعد</th>
                                 <th>الإجراءات</th>
@@ -960,32 +915,13 @@
                     </div>
                     
                     <div id="depositPaymentSection" style="display: none;">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            الرصيد المتاح في الودائع: <span id="availableDepositAmount">200.00</span> ج.م
+                        </div>
                         <div class="mb-3">
-                            <label for="depositPaymentAmount" class="form-label">المبلغ المطلوب سداده</label>
-                            <input type="number" class="form-control" id="depositPaymentAmount" step="0.01" required>
-                        </div>
-                        
-                        <div class="deposit-source-selector">
-                            <h6 class="mb-3">مصدر السداد</h6>
-                            
-                            <div class="deposit-source-option" data-source="customer">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="depositSource" id="depositSourceCustomer" value="customer" checked>
-                                    <label class="form-check-label" for="depositSourceCustomer">
-                                        <strong>الودائع العامة</strong>
-                                        <div class="text-muted small">الرصيد المتاح: <span id="availableCustomerDeposit">200.00</span> ج.م</div>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div id="workOrderDepositsOptions">
-                                <!-- سيتم إضافة ودائع الشغلانات هنا -->
-                            </div>
-                        </div>
-                        
-                        <div class="alert alert-warning mt-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            سيتم استخدام الودائع المحددة لسداد المبلغ المطلوب
+                            <label for="depositPaymentAmount" class="form-label">المبلغ المستخدم من الودائع</label>
+                            <input type="number" class="form-control" id="depositPaymentAmount" step="0.01" max="200">
                         </div>
                     </div>
                     
@@ -1103,30 +1039,6 @@
                             <label for="depositDescription" class="form-label">وصف الإيداع</label>
                             <textarea class="form-control" id="depositDescription" rows="3"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">وجهة الإيداع</label>
-                            <div class="deposit-source-selector">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="radio" name="depositDestination" id="depositToCustomer" value="customer" checked>
-                                    <label class="form-check-label" for="depositToCustomer">
-                                        ودائع العميل العامة
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="depositDestination" id="depositToWorkOrder" value="workorder">
-                                    <label class="form-check-label" for="depositToWorkOrder">
-                                        شغلانة محددة
-                                    </label>
-                                </div>
-                                
-                                <div id="workOrderDepositSection" style="display: none; margin-top: 10px;">
-                                    <label for="workOrderDepositSelect" class="form-label">اختر الشغلانة</label>
-                                    <select class="form-select" id="workOrderDepositSelect">
-                                        <option value="">اختر الشغلانة</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -1228,7 +1140,7 @@
             nextInvoiceId: 124,
             nextWorkOrderId: 3,
             nextReturnId: 2,
-            nextDepositId: 4,
+            nextDepositId: 1,
             activeFilters: {
                 dateFrom: null,
                 dateTo: null,
@@ -1258,7 +1170,7 @@
                 initialBalance: 0,
                 currentBalance: 1200,
                 totalPurchases: 15000,
-                depositBalance: 200  // ودائع العميل العامة
+                depositBalance: 200
             };
 
             // بيانات الفواتير الابتدائية
@@ -1321,7 +1233,6 @@
                     notes: "يجب الانتهاء قبل نهاية الشهر",
                     paid: 500,
                     remaining: 1000,
-                    depositBalance: 300,  // ودائع خاصة بهذه الشغلانة
                     invoices: [123]
                 },
                 {
@@ -1334,7 +1245,6 @@
                     notes: "تم التسليم والعميل راضي",
                     paid: 800,
                     remaining: 0,
-                    depositBalance: 200,  // ودائع خاصة بهذه الشغلانة
                     invoices: [122]
                 }
             ];
@@ -1400,28 +1310,6 @@
                     date: "2024-01-18",
                     amount: 200,
                     description: "وديعة العميل",
-                    type: "customer", // نوع الوديعة (عميل أو شغلانة)
-                    workOrderId: null, // null يعني ودائع عامة
-                    balanceBefore: 0,
-                    balanceAfter: 200
-                },
-                {
-                    id: 2,
-                    date: "2024-01-20",
-                    amount: 300,
-                    description: "وديعة لشغلانة تركيب شباك المعادي",
-                    type: "workorder",
-                    workOrderId: 1,
-                    balanceBefore: 0,
-                    balanceAfter: 300
-                },
-                {
-                    id: 3,
-                    date: "2024-01-22",
-                    amount: 200,
-                    description: "وديعة لشغلانة تصليح باب خشب",
-                    type: "workorder",
-                    workOrderId: 2,
                     balanceBefore: 0,
                     balanceAfter: 200
                 }
@@ -1442,7 +1330,6 @@
             updateDepositsTable();
             updatePaymentModal();
             updateReturnModal();
-            updateDepositModal();
             updateFilters();
         }
 
@@ -1471,18 +1358,12 @@
             const totalInvoices = appData.invoices.reduce((sum, i) => sum + i.total, 0);
             const totalPaid = appData.invoices.reduce((sum, i) => sum + i.paid, 0);
             const totalReturns = appData.returns.reduce((sum, r) => sum + r.amount, 0);
-            const totalDeposits = appData.deposits
-                .filter(d => d.type === 'customer')
-                .reduce((sum, d) => sum + d.amount, 0);
-            const totalWorkOrderDeposits = appData.deposits
-                .filter(d => d.type === 'workorder')
-                .reduce((sum, d) => sum + d.amount, 0);
+            const totalDeposits = appData.deposits.reduce((sum, d) => sum + d.amount, 0);
             
             document.getElementById('totalInvoicesAmount').textContent = totalInvoices.toFixed(2) + ' ج.م';
             document.getElementById('totalPaidAmount').textContent = totalPaid.toFixed(2) + ' ج.م';
             document.getElementById('totalReturnsAmount').textContent = totalReturns.toFixed(2) + ' ج.م';
             document.getElementById('totalDepositsAmount').textContent = totalDeposits.toFixed(2) + ' ج.م';
-            document.getElementById('totalWorkOrderDepositsAmount').textContent = totalWorkOrderDeposits.toFixed(2) + ' ج.م';
             document.getElementById('detailedBalance').textContent = customer.currentBalance.toFixed(2) + ' ج.م';
         }
 
@@ -1666,43 +1547,24 @@
                             <span>المدفوع: ${workOrder.paid.toFixed(2)} ج.م</span>
                             <span>المتبقي: ${remaining.toFixed(2)} ج.م</span>
                         </div>
-                        
-                        <!-- قسم ودائع الشغلانة -->
-                        <div class="work-order-deposits-section">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <small class="text-muted">ودائع الشغلانة:</small>
-                                <span class="fw-bold text-success">${workOrder.depositBalance.toFixed(2)} ج.م</span>
-                            </div>
-                            <div class="action-buttons">
-                                <button class="btn btn-sm btn-outline-info view-work-order" data-work-order-id="${workOrder.id}">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-primary create-invoice-from-work-order" data-work-order-id="${workOrder.id}">
-                                    <i class="fas fa-receipt"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success pay-work-order" data-work-order-id="${workOrder.id}">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-warning edit-work-order" data-work-order-id="${workOrder.id}">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-info add-work-order-deposit" data-work-order-id="${workOrder.id}">
-                                    <i class="fas fa-piggy-bank"></i>
-                                </button>
-                            </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline-info view-work-order" data-work-order-id="${workOrder.id}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary create-invoice-from-work-order" data-work-order-id="${workOrder.id}">
+                                <i class="fas fa-receipt"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success pay-work-order" data-work-order-id="${workOrder.id}">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning edit-work-order" data-work-order-id="${workOrder.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
                         </div>
                     </div>
                 `;
                 
                 container.appendChild(workOrderCard);
-            });
-            
-            // إضافة مستمعي الأحداث لأزرار إضافة ودائع الشغلانات
-            document.querySelectorAll('.add-work-order-deposit').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const workOrderId = parseInt(this.getAttribute('data-work-order-id'));
-                    openDepositModalForWorkOrder(workOrderId);
-                });
             });
         }
 
@@ -1827,18 +1689,10 @@
             appData.deposits.forEach(deposit => {
                 const row = document.createElement('tr');
                 
-                // تحديد المصدر
-                let source = 'العميل';
-                if (deposit.type === 'workorder') {
-                    const workOrder = appData.workOrders.find(wo => wo.id === deposit.workOrderId);
-                    source = workOrder ? workOrder.name : 'شغلانة غير معروفة';
-                }
-                
                 row.innerHTML = `
                     <td>${deposit.date}</td>
                     <td class="text-success">+${deposit.amount.toFixed(2)} ج.م</td>
                     <td>${deposit.description}</td>
-                    <td>${source}</td>
                     <td>${deposit.balanceBefore.toFixed(2)} ج.م</td>
                     <td>${deposit.balanceAfter.toFixed(2)} ج.م</td>
                     <td>
@@ -1996,31 +1850,9 @@
             const tbody = document.getElementById('manualPaymentTableBody');
             tbody.innerHTML = '';
             
-            // تحديث الرصيد المتاح في الودائع العامة
-            document.getElementById('availableCustomerDeposit').textContent = 
+            // تحديث الرصيد المتاح في الودائع
+            document.getElementById('availableDepositAmount').textContent = 
                 appData.currentCustomer.depositBalance.toFixed(2);
-            
-            // تحديث ودائع الشغلانات
-            const workOrderDepositsOptions = document.getElementById('workOrderDepositsOptions');
-            workOrderDepositsOptions.innerHTML = '';
-            
-            appData.workOrders.forEach(workOrder => {
-                if (workOrder.depositBalance > 0) {
-                    const optionElement = document.createElement('div');
-                    optionElement.className = 'deposit-source-option';
-                    optionElement.setAttribute('data-source', `workorder-${workOrder.id}`);
-                    optionElement.innerHTML = `
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="depositSource" id="depositSourceWorkOrder${workOrder.id}" value="workorder-${workOrder.id}">
-                            <label class="form-check-label" for="depositSourceWorkOrder${workOrder.id}">
-                                <strong>${workOrder.name}</strong>
-                                <div class="text-muted small">الرصيد المتاح: ${workOrder.depositBalance.toFixed(2)} ج.م</div>
-                            </label>
-                        </div>
-                    `;
-                    workOrderDepositsOptions.appendChild(optionElement);
-                }
-            });
             
             // عرض الفواتير غير المسددة بالكامل
             const unpaidInvoices = appData.invoices.filter(i => i.remaining > 0);
@@ -2120,30 +1952,6 @@
             });
             
             document.getElementById(totalElementId).textContent = total.toFixed(2) + ' ج.م';
-        }
-
-        // تحديث مودال الإيداع
-        function updateDepositModal() {
-            const workOrderSelect = document.getElementById('workOrderDepositSelect');
-            workOrderSelect.innerHTML = '<option value="">اختر الشغلانة</option>';
-            
-            appData.workOrders.forEach(workOrder => {
-                const option = document.createElement('option');
-                option.value = workOrder.id;
-                option.textContent = `${workOrder.name} (الرصيد الحالي: ${workOrder.depositBalance.toFixed(2)} ج.م)`;
-                workOrderSelect.appendChild(option);
-            });
-            
-            // إضافة مستمعي الأحداث لاختيار وجهة الإيداع
-            document.querySelectorAll('input[name="depositDestination"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    if (this.value === 'workorder') {
-                        document.getElementById('workOrderDepositSection').style.display = 'block';
-                    } else {
-                        document.getElementById('workOrderDepositSection').style.display = 'none';
-                    }
-                });
-            });
         }
 
         // تحديث مودال المرتجع
@@ -2354,17 +2162,9 @@
         function addDeposit() {
             const amount = parseFloat(document.getElementById('depositAmount').value);
             const description = document.getElementById('depositDescription').value;
-            const depositDestination = document.querySelector('input[name="depositDestination"]:checked').value;
-            const workOrderId = depositDestination === 'workorder' ? 
-                parseInt(document.getElementById('workOrderDepositSelect').value) : null;
             
             if (!amount || amount <= 0) {
                 alert('يرجى إدخال مبلغ صحيح للإيداع.');
-                return;
-            }
-            
-            if (depositDestination === 'workorder' && !workOrderId) {
-                alert('يرجى اختيار شغلانة للإيداع.');
                 return;
             }
             
@@ -2374,25 +2174,14 @@
                 date: new Date().toISOString().split('T')[0],
                 amount: amount,
                 description: description || 'إيداع نقدي',
-                type: depositDestination === 'workorder' ? 'workorder' : 'customer',
-                workOrderId: workOrderId,
-                balanceBefore: depositDestination === 'workorder' ? 
-                    appData.workOrders.find(wo => wo.id === workOrderId).depositBalance :
-                    appData.currentCustomer.depositBalance,
-                balanceAfter: depositDestination === 'workorder' ? 
-                    appData.workOrders.find(wo => wo.id === workOrderId).depositBalance + amount :
-                    appData.currentCustomer.depositBalance + amount
+                balanceBefore: appData.currentCustomer.depositBalance,
+                balanceAfter: appData.currentCustomer.depositBalance + amount
             };
             
             appData.deposits.unshift(deposit);
             
-            // تحديث الرصيد حسب وجهة الإيداع
-            if (depositDestination === 'workorder') {
-                const workOrder = appData.workOrders.find(wo => wo.id === workOrderId);
-                workOrder.depositBalance += amount;
-            } else {
-                appData.currentCustomer.depositBalance += amount;
-            }
+            // تحديث رصيد الودائع
+            appData.currentCustomer.depositBalance += amount;
             
             // إضافة حركة للإيداع
             const transaction = {
@@ -2413,8 +2202,6 @@
             
             // تنظيف النموذج
             document.getElementById('depositForm').reset();
-            document.getElementById('workOrderDepositSection').style.display = 'none';
-            document.getElementById('depositToCustomer').checked = true;
             
             // تحديث واجهة المستخدم
             updateUI();
@@ -2683,31 +2470,14 @@
         // معالجة السداد من الودائع
         function processDepositPayment() {
             const amount = parseFloat(document.getElementById('depositPaymentAmount').value) || 0;
-            const depositSource = document.querySelector('input[name="depositSource"]:checked').value;
             
             if (amount <= 0) {
-                alert('يرجى إدخال مبلغ صحيح للسداد.');
+                alert('يرجى إدخال مبلغ صحيح للدفع من الودائع.');
                 return;
             }
             
-            let availableBalance = 0;
-            let sourceName = '';
-            
-            // تحديد المصدر والرصيد المتاح
-            if (depositSource === 'customer') {
-                availableBalance = appData.currentCustomer.depositBalance;
-                sourceName = 'الودائع العامة';
-            } else if (depositSource.startsWith('workorder-')) {
-                const workOrderId = parseInt(depositSource.split('-')[1]);
-                const workOrder = appData.workOrders.find(wo => wo.id === workOrderId);
-                if (workOrder) {
-                    availableBalance = workOrder.depositBalance;
-                    sourceName = workOrder.name;
-                }
-            }
-            
-            if (amount > availableBalance) {
-                alert(`المبلغ المطلوب أكبر من الرصيد المتاح في ${sourceName} (${availableBalance.toFixed(2)} ج.م).`);
+            if (amount > appData.currentCustomer.depositBalance) {
+                alert('المبلغ المطلوب أكبر من الرصيد المتاح في الودائع.');
                 return;
             }
             
@@ -2721,27 +2491,19 @@
                 if (remainingAmount <= 0) break;
                 
                 const paymentAmount = Math.min(invoice.remaining, remainingAmount);
-                processPaymentForInvoice(invoice, paymentAmount, [{ method: sourceName, amount: paymentAmount }]);
+                processPaymentForInvoice(invoice, paymentAmount, [{ method: "وديعة", amount: paymentAmount }]);
                 remainingAmount -= paymentAmount;
             }
             
-            // تحديث رصيد المصدر المختار
-            if (depositSource === 'customer') {
-                appData.currentCustomer.depositBalance -= amount;
-            } else if (depositSource.startsWith('workorder-')) {
-                const workOrderId = parseInt(depositSource.split('-')[1]);
-                const workOrder = appData.workOrders.find(wo => wo.id === workOrderId);
-                if (workOrder) {
-                    workOrder.depositBalance -= amount;
-                }
-            }
+            // تحديث رصيد الودائع
+            appData.currentCustomer.depositBalance -= amount;
             
             // إضافة حركة لاستخدام الودائع
             const transaction = {
                 date: new Date().toISOString().split('T')[0],
                 time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
                 type: 'payment',
-                description: `سداد من ${sourceName}`,
+                description: `سداد من الودائع`,
                 amount: amount,
                 balanceBefore: appData.currentCustomer.currentBalance + amount,
                 balanceAfter: appData.currentCustomer.currentBalance
@@ -2749,7 +2511,7 @@
             
             appData.transactions.unshift(transaction);
             
-            alert(`تم استخدام ${amount.toFixed(2)} ج.م من ${sourceName} للسداد بنجاح.`);
+            alert(`تم استخدام ${amount.toFixed(2)} ج.م من الودائع للسداد بنجاح.`);
         }
 
         // معالجة السداد للشغلانة
@@ -3123,18 +2885,6 @@
             }
         }
 
-        // فتح مودال الإيداع لشغلانة محددة
-        function openDepositModalForWorkOrder(workOrderId) {
-            // تحديد خيار الشغلانة في مودال الإيداع
-            document.getElementById('depositToWorkOrder').checked = true;
-            document.getElementById('workOrderDepositSection').style.display = 'block';
-            document.getElementById('workOrderDepositSelect').value = workOrderId;
-            
-            // فتح المودال
-            const depositModal = new bootstrap.Modal(document.getElementById('depositModal'));
-            depositModal.show();
-        }
-
         // إضافة عميل جديد
         function addNewCustomer() {
             const name = document.getElementById('customerNameInput').value;
@@ -3296,7 +3046,6 @@
                 notes: notes,
                 paid: 0,
                 remaining: budget,
-                depositBalance: 0,
                 invoices: []
             };
             
@@ -3468,7 +3217,48 @@
                     const totalPaymentMethods = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
                     
                     if (amount && amount > 0) {
-                        if     (Math.abs(totalPaymentMethods - amount) > 0.01) {
+                        if (Math.abs(totalPaymentMethods - amount) > 0.01) {
+                            alert('إجمالي طرق الدفع يجب أن يساوي المبلغ المدفوع.');
+                            return;
+                        }
+                        
+                        processAutoPayment(amount, paymentMethods);
+                        const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+                        paymentModal.hide();
+                    } else {
+                        alert('يرجى إدخال مبلغ صحيح للدفع.');
+                    }
+                } else if (document.getElementById('manualPayment').checked) {
+                    const paymentMethods = collectPaymentMethods('manualPaymentMethods');
+                    const totalPaymentMethods = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+                    const totalManualPayments = Array.from(document.querySelectorAll('.manual-payment-amount'))
+                        .reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+                    
+                    if (Math.abs(totalPaymentMethods - totalManualPayments) > 0.01) {
+                        alert('إجمالي طرق الدفع يجب أن يساوي إجمالي المبالغ المسددة للفواتير.');
+                        return;
+                    }
+                    
+                    processManualPayment(paymentMethods);
+                    const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+                    paymentModal.hide();
+                } else if (document.getElementById('depositPayment').checked) {
+                    processDepositPayment();
+                    const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+                    paymentModal.hide();
+                } else if (document.getElementById('workOrderPayment').checked) {
+                    const workOrderId = parseInt(document.getElementById('workOrderPaymentSelect').value);
+                    const amount = parseFloat(document.getElementById('workOrderPaymentAmount').value);
+                    const paymentMethods = collectPaymentMethods('workOrderPaymentMethods');
+                    const totalPaymentMethods = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+                    
+                    if (!workOrderId) {
+                        alert('يرجى اختيار شغلانة.');
+                        return;
+                    }
+                    
+                    if (amount && amount > 0) {
+                        if (Math.abs(totalPaymentMethods - amount) > 0.01) {
                             alert('إجمالي طرق الدفع يجب أن يساوي المبلغ المدفوع.');
                             return;
                         }
@@ -3524,10 +3314,5 @@
             });
         });
     </script>
-
-
-<script>
-    
-</script>
 </body>
 </html>

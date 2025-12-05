@@ -186,28 +186,6 @@ INSERT INTO `expense_categories` (`id`, `name`, `description`, `created_at`) VAL
 -- Table structure for table `invoices_out`
 --
 
-CREATE TABLE `invoices_out` (
-  `id` int(11) NOT NULL COMMENT 'المعرف التلقائي للفاتورة',
-  `customer_id` int(11) NOT NULL COMMENT 'معرف العميل المرتبط بالفاتورة',
-  `delivered` enum('yes','no','canceled','reverted','partial') NOT NULL DEFAULT 'no',
-  `invoice_group` enum('group1','group2','group3','group4','group5','group6','group7','group8','group9','group10','group11') NOT NULL COMMENT 'مجموعة الفاتورة (من 1 إلى 11)',
-  `created_by` int(11) DEFAULT NULL COMMENT 'معرف المستخدم الذي أنشأ الفاتورة',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp() COMMENT 'تاريخ ووقت الإنشاء',
-  `updated_by` int(11) DEFAULT NULL COMMENT 'معرف المستخدم الذي آخر من عدل الفاتورة',
-  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp() COMMENT 'تاريخ ووقت آخر تعديل',
-  `notes` text DEFAULT NULL,
-  `cancel_reason` varchar(255) DEFAULT NULL,
-  `revert_reason` varchar(255) DEFAULT NULL,
-  `total_before_discount` decimal(12,2) DEFAULT 0.00 COMMENT 'مجموع البيع قبل أي خصم',
-  `discount_type` enum('percent','amount') DEFAULT 'percent' COMMENT 'نوع الخصم',
-  `discount_value` decimal(10,2) DEFAULT 0.00 COMMENT 'قيمة الخصم: إذا percent -> تخزن النسبة (مثال: 10) وإلا قيمة المبلغ',
-  `discount_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'مبلغ الخصم المحسوب بالعملة',
-  `total_after_discount` decimal(12,2) DEFAULT 0.00 COMMENT 'المجموع النهائي بعد الخصم',
-  `total_cost` decimal(12,2) DEFAULT 0.00 COMMENT 'اجمالي التكلفة (مخزن للتقارير)',
-  `profit_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'اجمالي الربح = total_before_discount - total_cost',
-  `paid_amount` decimal(12,2) DEFAULT 0.00,
-  `remaining_amount` decimal(12,2) DEFAULT 0.00
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='جدول فواتير العملاء الصادرة';
 
 --
 -- Dumping data for table `invoices_out`
