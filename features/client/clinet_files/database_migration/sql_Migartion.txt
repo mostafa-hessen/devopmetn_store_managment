@@ -1,0 +1,259 @@
+بعد مقارنة الجداول النهائية المقترحة مع قاعدة البيانات الحالية (`store_v1_db.sql`)، إليك التحليل الكامل:
+
+## 🔍 **المقارنة والتحليل**
+
+### **1. الجداول الجديدة المطلوبة:**
+- `work_orders` ❌ (غير موجود - مطلوب)
+- `returns` ❌ (غير موجود - مطلوب)
+- `return_items` ❌ (غير موجود - مطلوب)
+- `deposits` ❌ (غير موجود - مطلوب)
+- `customer_transactions` ❌ (غير موجود - مطلوب)
+
+### **2. الجداول الحالية التي تحتاج تعديل:**
+
+#### **أ) `customers` - يحتاج إضافة حقول:**
+```sql
+ALTER TABLE customers 
+ADD COLUMN balance DECIMAL(12,2) DEFAULT 0.00 COMMENT 'الرصيد الحالي (مدين + / دائن -)',
+ADD COLUMN wallet DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة',
+ADD COLUMN join_date DATE DEFAULT CURRENT_DATE COMMENT 'تاريخ الانضمام';
+```
+
+#### **ب) `invoices_out` - يحتاج إعادة هيكلة كاملة:**
+الحقول الناقصة حالياً:
+1. `invoice_number` (رقم فاتورة فريد)
+2. `work_order_id` (ربط بالشغلانة)
+3. `returned_amount`, `fully_returned`, `last_return_date` (للمرتجع)
+4. `payment_method` و `payment_status` بدلاً من `delivered`
+
+#### **ج) `invoice_out_items` - يحتاج حقول المرتجع:**
+```sql
+ALTER TABLE invoice_out_items 
+ADD COLUMN returned_quantity DECIMAL(10,2) DEFAULT 0.00 COMMENT 'الكمية المرتجعة',
+ADD COLUMN current_quantity DECIMAL(10,2) GENERATED ALWAYS AS (quantity - returned_quantity) STORED,
+ADD COLUMN current_total DECIMAL(10,2) GENERATED ALWAYS AS ((quantity - returned_quantity) * selling_price) STORED,
+ADD COLUMN fully_returned BOOLEAN GENERATED ALWAYS AS (returned_quantity >= quantity) STORED;
+```
+
+#### **د) `invoice_payments` - يحتاج حقول الأرصدة:**
+```sql
+ALTER TABLE invoice_payments 
+ADD COLUMN balance_before DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد العميل قبل الدفع',
+ADD COLUMN balance_after DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد العميل بعد الدفع',
+ADD COLUMN wallet_before DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة قبل الدفع',
+ADD COLUMN wallet_after DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة بعد الدفع',
+ADD COLUMN work_order_id INT NULL COMMENT 'ربط بالشغلانة';
+```
+
+### **3. مشكلات توافق البيانات القديمة:**
+
+#### **المشكلة 1: حقل `delivered` في `invoices_out`**
+الحالي: `enum('yes','no','canceled','reverted','partial')`
+المطلوب: `payment_status` مع قيم مختلفة
+
+**الحل المقترح:** 
+```sql
+-- إضافة حقل جديد مع الاحتفاظ بالقديم لفترة انتقالية
+ALTER TABLE invoices_out 
+ADD COLUMN payment_status ENUM('pending', 'partial', 'paid', 'returned') DEFAULT 'pending',
+ADD COLUMN payment_method ENUM('cash', 'credit', 'wallet', 'mixed') DEFAULT 'credit';
+
+-- تحويل البيانات القديمة
+UPDATE invoices_out 
+SET payment_status = CASE 
+    WHEN delivered = 'yes' THEN 'paid'
+    WHEN delivered = 'partial' THEN 'partial'
+    WHEN delivered IN ('no', 'canceled', 'reverted') THEN 'pending'
+    ELSE 'pending'
+END;
+```
+
+#### **المشكلة 2: عدم وجود `invoice_number` فريد**
+**الحل:** إنشاء أرقام فواتير بأثر رجعي:
+```sql
+ALTER TABLE invoices_out 
+ADD COLUMN invoice_number VARCHAR(50) UNIQUE;
+
+UPDATE invoices_out 
+SET invoice_number = CONCAT('#', LPAD(id, 6, '0'))
+WHERE invoice_number IS NULL;
+```
+
+#### **المشكلة 3: حساب أرصدة العملاء الحالية**
+```sql
+-- حساب الرصيد الأولي لكل عميل
+UPDATE customers c
+SET balance = (
+    SELECT COALESCE(SUM(total_after_discount), 0) - COALESCE(SUM(paid_amount), 0)
+    FROM invoices_out 
+    WHERE customer_id = c.id 
+    AND payment_status != 'returned'
+);
+```
+
+## 📋 **خطة الترقية الكاملة**
+
+### **المرحلة 1: إنشاء الجداول الجديدة**
+```sql
+-- 1. جدول الشغلانات
+CREATE TABLE work_orders (...); -- كما في النص
+
+-- 2. جدول المرتجعات
+CREATE TABLE returns (...); -- كما في النص
+
+-- 3. جدول بنود المرتجعات
+CREATE TABLE return_items (...); -- كما في النص
+
+-- 4. جدول الإيداعات
+CREATE TABLE deposits (...); -- كما في النص
+
+-- 5. جدول حركات العميل
+CREATE TABLE customer_transactions (...); -- كما في النص
+```
+
+### **المرحلة 2: تعديل الجداول الحالية**
+```sql
+-- 1. تعديل customers
+ALTER TABLE customers 
+ADD COLUMN balance DECIMAL(12,2) DEFAULT 0.00,
+ADD COLUMN wallet DECIMAL(12,2) DEFAULT 0.00,
+ADD COLUMN join_date DATE DEFAULT CURRENT_DATE;
+
+-- 2. تعديل invoices_out
+ALTER TABLE invoices_out 
+ADD COLUMN invoice_number VARCHAR(50) UNIQUE,
+ADD COLUMN work_order_id INT NULL,
+ADD COLUMN returned_amount DECIMAL(12,2) DEFAULT 0.00,
+ADD COLUMN fully_returned BOOLEAN DEFAULT FALSE,
+ADD COLUMN last_return_date DATE NULL,
+ADD COLUMN payment_status ENUM('pending', 'partial', 'paid', 'returned') DEFAULT 'pending',
+ADD COLUMN payment_method ENUM('cash', 'credit', 'wallet', 'mixed') DEFAULT 'credit',
+ADD FOREIGN KEY (work_order_id) REFERENCES work_orders(id);
+
+-- 3. تعديل invoice_out_items
+ALTER TABLE invoice_out_items 
+ADD COLUMN returned_quantity DECIMAL(10,2) DEFAULT 0.00,
+ADD COLUMN current_quantity DECIMAL(10,2) GENERATED ALWAYS AS (quantity - returned_quantity) STORED,
+ADD COLUMN current_total DECIMAL(10,2) GENERATED ALWAYS AS ((quantity - returned_quantity) * selling_price) STORED,
+ADD COLUMN fully_returned BOOLEAN GENERATED ALWAYS AS (returned_quantity >= quantity) STORED;
+
+-- 4. تعديل invoice_payments
+ALTER TABLE invoice_payments 
+ADD COLUMN work_order_id INT NULL,
+ADD COLUMN balance_before DECIMAL(12,2) DEFAULT 0.00,
+ADD COLUMN balance_after DECIMAL(12,2) DEFAULT 0.00,
+ADD COLUMN wallet_before DECIMAL(12,2) DEFAULT 0.00,
+ADD COLUMN wallet_after DECIMAL(12,2) DEFAULT 0.00,
+ADD FOREIGN KEY (work_order_id) REFERENCES work_orders(id);
+```
+
+### **المرحلة 3: تهيئة البيانات القديمة**
+```sql
+-- 1. إنشاء أرقام فواتير للبيانات القديمة
+UPDATE invoices_out 
+SET invoice_number = CONCAT('#INV-', LPAD(id, 6, '0'))
+WHERE invoice_number IS NULL;
+
+-- 2. تحويل حالة delivered إلى payment_status
+UPDATE invoices_out 
+SET payment_status = CASE 
+    WHEN delivered = 'yes' THEN 'paid'
+    WHEN delivered = 'partial' THEN 'partial'
+    WHEN delivered IN ('no', 'canceled', 'reverted') THEN 'pending'
+    ELSE 'pending'
+END;
+
+-- 3. حساب أرصدة العملاء الأولية
+UPDATE customers c
+SET balance = COALESCE((
+    SELECT SUM(total_after_discount - paid_amount)
+    FROM invoices_out 
+    WHERE customer_id = c.id 
+    AND payment_status IN ('pending', 'partial')
+), 0);
+
+-- 4. تهيئة payment_method بناءً على paid_amount
+UPDATE invoices_out 
+SET payment_method = CASE 
+    WHEN paid_amount = 0 THEN 'credit'
+    WHEN paid_amount >= total_after_discount THEN 'cash'
+    ELSE 'mixed'
+END;
+```
+
+### **المرحلة 4: إنشاء وظائف مساعدة**
+```sql
+-- دالة لتحديث رصيد العميل تلقائياً
+DELIMITER //
+CREATE TRIGGER update_customer_balance_after_payment
+AFTER INSERT ON invoice_payments
+FOR EACH ROW
+BEGIN
+    DECLARE customer_balance DECIMAL(12,2);
+    
+    -- حساب الرصيد الحالي للعميل
+    SELECT balance INTO customer_balance 
+    FROM customers 
+    WHERE id = NEW.customer_id;
+    
+    -- تحديث الدفعة بقيم قبل/بعد
+    UPDATE invoice_payments 
+    SET balance_before = customer_balance,
+        balance_after = customer_balance - NEW.payment_amount,
+        wallet_before = (SELECT wallet FROM customers WHERE id = NEW.customer_id)
+    WHERE id = NEW.id;
+    
+    -- تحديث رصيد العميل
+    UPDATE customers 
+    SET balance = balance - NEW.payment_amount
+    WHERE id = NEW.customer_id;
+END//
+DELIMITER ;
+```
+
+## ⚠️ **التحديات والتحذيرات**
+
+### **1. المرتجعات القديمة:**
+- المرتجعات القديمة المسجلة كـ `canceled` أو `reverted` لن تظهر في نظام المرتجعات الجديد
+- **الحل:** يمكن إنشاء `returns` يدوي لهذه الفواتير أو تجاهلها
+
+### **2. الدفعات القديمة:**
+- ستكون `balance_before` و `balance_after` قيم افتراضية (0) للدفعات القديمة
+- **الحل:** يمكن تركها كما هي أو حسابها بأثر رجعي عبر سكريبت
+
+### **3. البيانات التاريخية:**
+- التقارير القديمة ستبقى تعمل بنفس النظام
+- الجداول الجديدة لن تؤثر على الاستعلامات القديمة
+
+### **4. الانتقال التدريجي:**
+```php
+// في الكود، يمكن استخدام شرط للانتقال التدريجي
+if ($new_system_enabled) {
+    // استخدام الجداول الجديدة
+    $invoice->processReturn($returnData);
+} else {
+    // استخدام النظام القديم (canceled/reverted)
+    $invoice->cancel($reason);
+}
+```
+
+## 🎯 **توصيات التنفيذ**
+
+1. **نسخ احتياطي كامل** قبل أي تعديل
+2. **تنفيذ المراحل بالتسلسل** المذكور أعلاه
+3. **اختبار كل مرحلة** على بيئة تجريبية أولاً
+4. **تحديث التطبيق** ليدعم الحقول والجداول الجديدة
+5. **تدريب المستخدمين** على النظام الجديد (الشغلانات، المرتجعات، المحفظة)
+
+## 📊 **ملخص النقاط المفقودة:**
+
+| العنصر | الحالة | الإجراء |
+|--------|--------|---------|
+| الشغلانات (Work Orders) | ❌ مفقود | إنشاء جدول جديد |
+| نظام المرتجعات المتكامل | ❌ مفقود | إنشاء جداول `returns` و `return_items` |
+| المحفظة والرصيد | ❌ جزئي | إضافة حقول لـ `customers` و `invoice_payments` |
+| أرقام فواتير فريدة | ❌ مفقود | إضافة وتوليد `invoice_number` |
+| تتبع حركات العميل | ❌ مفقود | إنشاء `customer_transactions` |
+| نظام الإيداعات | ❌ مفقود | إنشاء `deposits` |
+
+الترقية ممكنة ولكن تتطلب تخطيطاً دقيقاً بسبب حجم البيانات الحالية والاعتماديات بين الجداول.

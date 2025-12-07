@@ -18,7 +18,7 @@
     />
     <link rel="stylesheet" href="assets/index.css" />
   </head>
-  <body>
+  <body >
     <div class="container-fluid py-4">
       <!-- رأس العميل -->
       <div class="customer-header">
@@ -1509,15 +1509,7 @@
             this.displayAdvancedSearchResults(results);
           });
       }
-      // استدعاء الدالة عند تحميل الصفحة
-
-      // ============================================
-      // مدير الفواتير
-      // ============================================
-   
-      // ============================================
-      // مدير الشغلانات
-      // ============================================
+  
       const WorkOrderManager = {
         init() {
           // بيانات الشغلانات الابتدائية
@@ -1540,7 +1532,7 @@
               status: "completed",
               startDate: "2024-01-15",
               notes: "تم التسليم والعميل راضي",
-              invoices: [122],
+              invoices: [123, 124],
               createdBy: "مدير النظام",
             },
           ];
@@ -2617,7 +2609,7 @@
           }
         },
       };
-function addTestData() {
+      function addTestData() {
     // إضافة فواتير اختبارية إضافية مع حقول الدفع
     AppData.invoices.push(
         {

@@ -3456,7 +3456,7 @@
 
 //         getAvailableBalance() {
 //           return AppData.currentCustomer.walletBalance;
-//         },
+//         }
 
 //         getStatementTransactions(dateFrom, dateTo) {
 //           let transactions = [...AppData.walletTransactions];
