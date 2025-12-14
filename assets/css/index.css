@@ -10,7 +10,6 @@
   --primary-700: #0a58c8;
   --flash-gradient: linear-gradient(
     90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
-  
   --accent: #7c3aed;       /* purple */
   --accent-600: #6d28d9;
   --teal: #10b981;
@@ -563,7 +562,7 @@ body.has-fixed-header .table.customized thead th {
 }
 
 /* badges */
-.custom-table .badge {
+.custom-table .badgy {
   background: linear-gradient(90deg, var(--primary), var(--accent));
   color: #fff;
   padding: 6px 10px;
@@ -853,3 +852,69 @@ select option {
 
 
 
+
+
+
+/* ===============================
+   Bootstrap Modal – Theme Aware
+   =============================== */
+
+/* Container */
+.modal-content {
+  background-color: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition: background-color var(--normal), color var(--normal);
+}
+
+/* Header */
+.modal-header {
+  background-color: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Close button */
+.modal-header .btn-close {
+  opacity: 0.7;
+  transition: opacity var(--fast);
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+/* Body */
+.modal-body {
+  background-color: var(--surface);
+  color: var(--text-soft);
+}
+.modal-backdrop.show {
+  background-color: #000;
+  opacity: 0.6;
+}
+
+[data-app][data-theme="dark"] .modal-backdrop.show {
+  opacity: 0.75;
+}
+
+/* Footer */
+.modal-footer {
+  background-color: var(--surface-2) !important;
+  border-top: 1px solid var(--border) !important;
+  margin: 0 !important;
+}
+
+
+
+[data-app] .text-muted {
+  color: var(--muted) !important;
+  opacity: 0.85;
+}

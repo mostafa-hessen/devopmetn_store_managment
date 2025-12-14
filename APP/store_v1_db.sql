@@ -144,7 +144,7 @@ INSERT INTO `customers` (`id`, `name`, `mobile`, `city`, `address`, `notes`, `cr
 CREATE TABLE `customer_transactions` (
   `id` int(11) NOT NULL,
   `customer_id` int(11) NOT NULL,
-  `transaction_type` enum('invoice','payment','return','deposit','adjustment','withdraw') NOT NULL,
+  `transaction_type` enum('invoice','payment','return','deposit','adjustment') NOT NULL,
   `amount` decimal(12,2) NOT NULL COMMENT 'موجب للزيادة، سالب للنقصان',
   `description` varchar(255) NOT NULL,
   `invoice_id` int(11) DEFAULT NULL,

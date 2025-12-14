@@ -218,52 +218,38 @@ ADD COLUMN work_order_id INT NULL COMMENT 'ربط بالشغلانة';
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-6- CREATE TABLE deposits (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT NOT NULL,
-    amount DECIMAL(12,2) NOT NULL,
-    wallet_before DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة قبل الإيداع',
-    wallet_after DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة بعد الإيداع',
-    description VARCHAR(255) NOT NULL,
-    deposit_date DATE NOT NULL,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id),
-    FOREIGN KEY (created_by) REFERENCES users(id),
-    INDEX idx_customer_date (customer_id, deposit_date)
+6- CREATE TABLE `wallet_transactions` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `customer_id` INT(11) NOT NULL,
+    
+    -- نوع الحركة
+    `type` ENUM('deposit', 'withdraw', 'refund', 'invoice_payment') NOT NULL,
+    
+    `amount` DECIMAL(12,2) NOT NULL,
+    `description` VARCHAR(255) NOT NULL,
+    
+    -- رصيد المحفظة قبل وبعد العملية
+    `wallet_before` DECIMAL(12,2) DEFAULT 0.00,
+    `wallet_after` DECIMAL(12,2) DEFAULT 0.00,
+    
+    -- تاريخ الحركة
+    `transaction_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    `created_by` INT(11) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (`id`),
+    
+    -- العلاقات
+    FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+    
+    -- فهرسة لتسريع البحث
+    INDEX idx_customer_date (`customer_id`, `transaction_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-
-7--- 2.1: إنشاء جدول customer_transactions إذا لم يكن موجوداً
-CREATE TABLE IF NOT EXISTS customer_transactions (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT NOT NULL,
-    transaction_type ENUM('invoice', 'payment', 'return', 'deposit', 'adjustment') NOT NULL,
-    amount DECIMAL(12,2) NOT NULL COMMENT 'موجب للزيادة، سالب للنقصان',
-    description VARCHAR(255) NOT NULL,
-    invoice_id INT NULL,
-    payment_id INT NULL,
-    return_id INT NULL,
-    deposit_id INT NULL,
-    work_order_id INT NULL,
-    balance_before DECIMAL(12,2) DEFAULT 0.00,
-    balance_after DECIMAL(12,2) DEFAULT 0.00,
-    wallet_before DECIMAL(12,2) DEFAULT 0.00,
-    wallet_after DECIMAL(12,2) DEFAULT 0.00,
-    transaction_date DATE NOT NULL,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id),
-    FOREIGN KEY (invoice_id) REFERENCES invoices_out(id),
-    FOREIGN KEY (payment_id) REFERENCES invoice_payments(id),
-    <!-- FOREIGN KEY (return_id) REFERENCES returns(id), مهمش عشان لسه معملناش الجدول ده  -->
-    FOREIGN KEY (deposit_id) REFERENCES deposits(id),
-    FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
-    FOREIGN KEY (created_by) REFERENCES users(id),
-    INDEX idx_customer_type (customer_id, transaction_type),
-    INDEX idx_date (transaction_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+7--- 2.1: إنشاء جدول customer_transactions إذا لم يكن موجود
 
 -- 2.2: التحقق من إنشاء الجدو
 
@@ -273,31 +259,49 @@ START TRANSACTION;
 CREATE TABLE IF NOT EXISTS customer_transactions (
     id INT PRIMARY KEY AUTO_INCREMENT,
     customer_id INT NOT NULL,
-    transaction_type ENUM('invoice', 'payment', 'return', 'deposit', 'adjustment') NOT NULL,
+
+    -- نوع الحركة
+    transaction_type ENUM('invoice', 'payment', 'return', 'deposit', 'withdraw', 'adjustment') NOT NULL,
+
     amount DECIMAL(12,2) NOT NULL COMMENT 'موجب للزيادة، سالب للنقصان',
     description VARCHAR(255) NOT NULL,
+
+    -- الربط مع باقي العمليات
     invoice_id INT NULL,
     payment_id INT NULL,
     return_id INT NULL,
-    deposit_id INT NULL,
+    wallet_transaction_id INT NULL,   -- الجديد
+
     work_order_id INT NULL,
+
+    -- الأرصدة
     balance_before DECIMAL(12,2) DEFAULT 0.00,
     balance_after DECIMAL(12,2) DEFAULT 0.00,
+
     wallet_before DECIMAL(12,2) DEFAULT 0.00,
     wallet_after DECIMAL(12,2) DEFAULT 0.00,
-    transaction_date DATE NOT NULL,
+
+    -- التاريخ
+    transaction_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- العلاقات
     FOREIGN KEY (customer_id) REFERENCES customers(id),
     FOREIGN KEY (invoice_id) REFERENCES invoices_out(id),
     FOREIGN KEY (payment_id) REFERENCES invoice_payments(id),
-    -- FOREIGN KEY (return_id) REFERENCES returns(id) -- جدول الReturns مش موجود بعد
-    FOREIGN KEY (deposit_id) REFERENCES deposits(id),
+    FOREIGN KEY (return_id) REFERENCES returns(id),
+
+    FOREIGN KEY (wallet_transaction_id) REFERENCES wallet_transactions(id) ON DELETE SET NULL,
+
     FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
     FOREIGN KEY (created_by) REFERENCES users(id),
+
+    -- الفهارس
     INDEX idx_customer_type (customer_id, transaction_type),
     INDEX idx_date (transaction_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- 2️⃣ إدخال الحركات (فواتير + دفعات) مع رصيد تراكمي
 INSERT INTO customer_transactions

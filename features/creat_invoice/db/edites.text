@@ -18,7 +18,9 @@ CREATE TABLE `invoice_payments` (
   `invoice_id` int(11) NOT NULL,
   `payment_amount` decimal(12,2) NOT NULL,
   `payment_date` timestamp NOT NULL DEFAULT current_timestamp(),
-  `payment_method` enum('cash','bank_transfer','check','card') DEFAULT 'cash',
+  `payment_method` enum('cash','bank_transfer','check','card','mixed' , ' wallet') DEFAULT 'cash',
+
+
   `notes` text DEFAULT NULL,
   `created_by` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -45,7 +47,7 @@ AND (paid_amount = 0 OR paid_amount IS NULL);
 
 ```sql
 -- الخطوة 4: إنشاء سجلات مدفوعات للفواتير المدفوعة قديماً
-INSERT INTO invoice_payments (invoice_id, payment_amount, payment_method, notes, created_by, created_at)
+INSERT INTO invoice_payments (invoice_id, payment_amount, payment_method, notes, created_by, payment_date)
 SELECT 
     id,
     COALESCE(total_after_discount,0),

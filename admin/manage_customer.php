@@ -231,6 +231,9 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                     <td><?php echo e($row["city"]); ?></td>
                                     <td><?php echo e($preview_notes); ?></td>
                                     <td class="text-center">
+                                          <a  href="../client/customer_details.php?customer_id=<?php echo $row['id']; ?>" class="btn btn-info btn-sm" title="تفاصيل">
+        <i class="fas fa-info-circle"></i>
+    </a>
                                         <button type="button" class="btn btn-info btn-sm btn-view" title="عرض">
                                             <i class="fas fa-eye"></i>
                                         </button>
