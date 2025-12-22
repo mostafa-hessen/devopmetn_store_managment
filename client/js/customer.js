@@ -22,7 +22,7 @@ export const CustomerManager = {
         if (result.success) {
             this.handleSuccess(result.data);
         } else {
-            this.handleError(result.message);
+            // this.handleError(result.message);
         }
     },
     
@@ -64,7 +64,7 @@ export const CustomerManager = {
             }
             
             const data = await response.json();
-            // console.log('✅ API Response:', data);
+            // ('✅ API Response:', data);
             return data;
             
         } catch (error) {

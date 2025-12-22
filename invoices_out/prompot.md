@@ -1,6 +1,12 @@
+ركز معايا كويس قوي تصرف كمحترف باك اند وفرونت
+html css js php mysql
+عندي صفحه انشاء فاتوره 
+عادي وليها api 
+وليها طرق دفع وهكذا مؤجل جوئي مدفوع 
+واقدر احدد كل طريقه بنفسي
+كنت شغال علي api
+قديم هبعتوا ليك
    if ($action === 'save_invoice' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-
-
                 $token = $_POST['csrf_token'] ?? '';
                 if (!hash_equals($_SESSION['csrf_token'], (string)$token)) {
                     jsonOut(['ok' => false, 'error' => 'رمز التحقق (CSRF) غير صالح. أعد تحميل الصفحة وحاول مجدداً.']);
@@ -359,6 +365,7 @@
             }
 
 
+تقدر تذاكروا وتفهموا كويس قوي وده الrquest
  const invoiceData = {
                         work_order_id: AppState.currentWorkOrder?.id || null,
                         customer_id: AppState.currentCustomer.id,
@@ -379,18 +386,142 @@
 
 
 
+الميزات الجديده اللي ضيفتها هي تحركات العميل وحركات المحفظه 
+وان الفاتوره ممكن تبقي تبع 
+شغلانه معينه 
+دي الجداول
+
+CREATE TABLE `invoices_out` (
+  `id` int(11) NOT NULL COMMENT 'المعرف التلقائي للفاتورة',
+  `customer_id` int(11) NOT NULL COMMENT 'معرف العميل المرتبط بالفاتورة',
+  `delivered` enum('yes','no','canceled','reverted','partial') NOT NULL DEFAULT 'no',
+  `invoice_group` enum('group1','group2','group3','group4','group5','group6','group7','group8','group9','group10','group11') NOT NULL COMMENT 'مجموعة الفاتورة (من 1 إلى 11)',
+  `created_by` int(11) DEFAULT NULL COMMENT 'معرف المستخدم الذي أنشأ الفاتورة',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp() COMMENT 'تاريخ ووقت الإنشاء',
+  `updated_by` int(11) DEFAULT NULL COMMENT 'معرف المستخدم الذي آخر من عدل الفاتورة',
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp() COMMENT 'تاريخ ووقت آخر تعديل',
+  `notes` text DEFAULT NULL,
+  `cancel_reason` varchar(255) DEFAULT NULL,
+  `revert_reason` varchar(255) DEFAULT NULL,
+  `total_before_discount` decimal(12,2) DEFAULT 0.00 COMMENT 'مجموع البيع قبل أي خصم',
+  `discount_type` enum('percent','amount') DEFAULT 'percent' COMMENT 'نوع الخصم',
+  `discount_value` decimal(10,2) DEFAULT 0.00 COMMENT 'قيمة الخصم: إذا percent -> تخزن النسبة (مثال: 10) وإلا قيمة المبلغ',
+  `discount_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'مبلغ الخصم المحسوب بالعملة',
+  `total_after_discount` decimal(12,2) DEFAULT 0.00 COMMENT 'المجموع النهائي بعد الخصم',
+  `total_cost` decimal(12,2) DEFAULT 0.00 COMMENT 'اجمالي التكلفة (مخزن للتقارير)',
+  `profit_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'اجمالي الربح = total_before_discount - total_cost',
+  `paid_amount` decimal(12,2) DEFAULT 0.00,
+  `remaining_amount` decimal(12,2) DEFAULT 0.00,
+  `work_order_id` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='جدول فواتير العملاء الصادرة';
+
+--
+
+CREATE TABLE `work_orders` (
+  `id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL COMMENT 'عنوان الشغلانة',
+  `description` text DEFAULT NULL COMMENT 'وصف تفصيلي',
+  `status` enum('pending','in_progress','completed','cancelled') DEFAULT 'pending',
+  `start_date` date NOT NULL COMMENT 'تاريخ البدء',
+  `notes` text DEFAULT NULL COMMENT 'ملاحظات إضافية',
+  `total_invoice_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'إجمالي فواتير الشغلانة',
+  `total_paid` decimal(12,2) DEFAULT 0.00 COMMENT 'إجمالي المدفوع',
+  `total_remaining` decimal(12,2) DEFAULT 0.00 COMMENT 'إجمالي المتبقي',
+  `created_by` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `customer_transactions` (
+  `id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `transaction_type` enum('invoice','payment','return','deposit','adjustment','withdraw') NOT NULL,
+  `amount` decimal(12,2) NOT NULL COMMENT 'موجب للزيادة، سالب للنقصان',
+  `description` varchar(255) NOT NULL,
+  `invoice_id` int(11) DEFAULT NULL,
+  `payment_id` int(11) DEFAULT NULL,
+  `return_id` int(11) DEFAULT NULL,
+  `wallet_transaction` int(11) DEFAULT NULL,
+  `work_order_id` int(11) DEFAULT NULL,
+  `balance_before` decimal(12,2) DEFAULT 0.00,
+  `balance_after` decimal(12,2) DEFAULT 0.00,
+  `wallet_before` decimal(12,2) DEFAULT 0.00,
+  `wallet_after` decimal(12,2) DEFAULT 0.00,
+  `transaction_date` date NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+
+الجدول الاتي
+لو في سحب من محفظه 
+CREATE TABLE `wallet_transactions` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `customer_id` INT(11) NOT NULL,
+    
+    -- نوع الحركة
+    `type` ENUM('deposit', 'withdraw', 'refund', 'invoice_payment') NOT NULL,
+    
+    `amount` DECIMAL(12,2) NOT NULL,
+    `description` VARCHAR(255) NOT NULL,
+    
+    -- رصيد المحفظة قبل وبعد العملية
+    `wallet_before` DECIMAL(12,2) DEFAULT 0.00,
+    `wallet_after` DECIMAL(12,2) DEFAULT 0.00,
+    
+    -- تاريخ الحركة
+    `transaction_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    `created_by` INT(11) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (`id`),
+    
+    -- العلاقات
+    FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+    
+    -- فهرسة لتسريع البحث
+    INDEX idx_customer_date (`customer_id`, `transaction_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE `invoice_payments` (
+  `id` int(11) NOT NULL,
+  `invoice_id` int(11) NOT NULL,
+  `payment_amount` decimal(12,2) NOT NULL,
+  `payment_date` timestamp NOT NULL DEFAULT current_timestamp(),
+  `payment_method` enum('cash','bank_transfer','check','card','wallet','mixed') DEFAULT 'cash',
+  `notes` text DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `wallet_before` decimal(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة قبل الدفع',
+  `wallet_after` decimal(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة بعد الدفع',
+  `work_order_id` int(11) DEFAULT NULL COMMENT 'ربط بالشغلانة'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `customers` (
+  `id` int(11) NOT NULL,
+  `name` varchar(150) NOT NULL COMMENT 'اسم العميل',
+  `mobile` varchar(11) NOT NULL COMMENT 'رقم الموبايل (11 رقم)',
+  `city` varchar(100) NOT NULL COMMENT 'المدينة',
+  `address` varchar(255) DEFAULT NULL COMMENT 'العنوان التفصيلي',
+  `notes` text DEFAULT NULL,
+  `created_by` int(11) DEFAULT NULL COMMENT 'معرف المستخدم الذي أضاف العميل',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp() COMMENT 'تاريخ الإضافة',
+  `balance` decimal(12,2) DEFAULT 0.00 COMMENT 'الرصيد الحالي (مدين + / دائن -)',
+  `wallet` decimal(12,2) DEFAULT 0.00 COMMENT 'رصيد المحفظة',
+  `join_date` date DEFAULT curdate() COMMENT 'تاريخ الانضمام'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+انا كده عندي 2api 
+save_invoice 
+القديم 
+و
+payment
+اعمل اي

@@ -3,7 +3,7 @@ import AppData from "./app_data.js";
 // import WalletManager from "./wallet.js";
 import CustomerManager from "./customer.js";
 import PrintManager from "./print.js";
-import { setupNumberInputPrevention, escapeHtml } from "./helper.js";
+import { setupNumberInputPrevention, escapeHtml, toggleSection } from "./helper.js";
 import { ReturnManager, CustomReturnManager } from "./return.js";
 import InvoiceManager from "./invoices.js";
 import { updateInvoiceStats } from "./helper.js";
@@ -34,7 +34,7 @@ async function initializeApp() {
     UIManager.init();
 
     // تحديث الإحصائيات
-    updateInvoiceStats();
+    // updateInvoiceStats();
 }
 
 function setupEventListeners() {
@@ -85,11 +85,20 @@ function setupEventListeners() {
     document
         .getElementById("advancedProductSearch")
         .addEventListener("input", (e) => {
-            console.log("Dewsa");
+
 
             const searchTerm = e.target.value;
             const results = ReturnManager.searchProductsInInvoices(searchTerm);
             this.displayAdvancedSearchResults(results);
         });
+
+        document.querySelectorAll('.toggleInvoicesSectionBtn')
+  .forEach(btn => {
+    btn.addEventListener('click', function () {
+      const sectionKey = this.dataset.section;
+      toggleSection(sectionKey, this);
+    });
+  });
+
 }
 

@@ -86,10 +86,10 @@
        mainContent.classList.toggle("expanded");
      });
 
-     sidebarClose.addEventListener("click", () => {
-       sidebar.classList.add("collapsed");
-       mainContent.classList.add("expanded");
-     });
+    //  sidebarClose.addEventListener("click", () => {
+    //    sidebar.classList.add("collapsed");
+    //    mainContent.classList.add("expanded");
+    //  });
    });
  </script>
 

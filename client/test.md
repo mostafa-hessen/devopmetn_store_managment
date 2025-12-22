@@ -21,6 +21,7 @@ client\customer_details.php
 هبعتلك ملف 
 تقولي اي الدوال اللي هتسخدمها عشان ابعت الداتا للسيرفر
 الفكره اني عندي الجداول الاتيه 
+
 CREATE TABLE `invoices_out` (
   `id` int(11) NOT NULL COMMENT 'المعرف التلقائي للفاتورة',
   `customer_id` int(11) NOT NULL COMMENT 'معرف العميل المرتبط بالفاتورة',
@@ -41,10 +42,27 @@ CREATE TABLE `invoices_out` (
   `total_cost` decimal(12,2) DEFAULT 0.00 COMMENT 'اجمالي التكلفة (مخزن للتقارير)',
   `profit_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'اجمالي الربح = total_before_discount - total_cost',
   `paid_amount` decimal(12,2) DEFAULT 0.00,
-  `remaining_amount` decimal(12,2) DEFAULT 0.00
+  `remaining_amount` decimal(12,2) DEFAULT 0.00,
+  `work_order_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='جدول فواتير العملاء الصادرة';
 
 --
+
+CREATE TABLE `work_orders` (
+  `id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL COMMENT 'عنوان الشغلانة',
+  `description` text DEFAULT NULL COMMENT 'وصف تفصيلي',
+  `status` enum('pending','in_progress','completed','cancelled') DEFAULT 'pending',
+  `start_date` date NOT NULL COMMENT 'تاريخ البدء',
+  `notes` text DEFAULT NULL COMMENT 'ملاحظات إضافية',
+  `total_invoice_amount` decimal(12,2) DEFAULT 0.00 COMMENT 'إجمالي فواتير الشغلانة',
+  `total_paid` decimal(12,2) DEFAULT 0.00 COMMENT 'إجمالي المدفوع',
+  `total_remaining` decimal(12,2) DEFAULT 0.00 COMMENT 'إجمالي المتبقي',
+  `created_by` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `customer_transactions` (
   `id` int(11) NOT NULL,

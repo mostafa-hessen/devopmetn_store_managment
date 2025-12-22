@@ -1,7 +1,7 @@
 <?php
 // get_customer_transactions.php
 header('Content-Type: application/json; charset=utf-8');
-require_once '../../config.php';
+    require_once dirname(__DIR__) . '/config.php';
 
 // التحقق من وجود customer_id
 if (!isset($_GET['customer_id']) || !is_numeric($_GET['customer_id'])) {

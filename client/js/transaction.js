@@ -450,12 +450,16 @@ const CustomerTransactionManager = {
         getStatementTransactions(dateFrom, dateTo) {
           let transactions = [...AppData.customerTransactions];
 
+          
+
           if (dateFrom) {
-            transactions = transactions.filter((t) => t.date >= dateFrom);
+            transactions = transactions.filter((t) => t.date
+ >= dateFrom);
           }
 
           if (dateTo) {
-            transactions = transactions.filter((t) => t.date <= dateTo);
+            transactions = transactions.filter((t) => t.date
+ <= dateTo);
           }
 
           return transactions;

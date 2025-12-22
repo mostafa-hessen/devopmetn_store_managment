@@ -1,7 +1,7 @@
 <?php
 // get_work_order_details.php
 header('Content-Type: application/json; charset=utf-8');
-require_once '../../config.php';
+    require_once dirname(__DIR__) . '/config.php';
 
 // التحقق من وجود work_order_id
 if (!isset($_GET['work_order_id']) || !is_numeric($_GET['work_order_id'])) {
@@ -17,19 +17,23 @@ $workOrderId = (int)$_GET['work_order_id'];
 
 try {
     // جلب بيانات الشغلانة
-    $sql = "
-        SELECT 
-            wo.*,
-            c.name as customer_name,
-            c.mobile as customer_mobile,
-            c.city as customer_city,
-            c.address as customer_address,
-            u.username as created_by_name
-        FROM work_orders wo
-        LEFT JOIN customers c ON wo.customer_id = c.id
-        LEFT JOIN users u ON wo.created_by = u.id
-        WHERE wo.id = ?
-    ";
+  // جلب بيانات الشغلانة
+$sql = "
+    SELECT 
+        wo.*,
+        c.name AS customer_name,
+        c.mobile AS customer_mobile,
+        c.city AS customer_city,
+        c.address AS customer_address,
+        u.username AS created_by_name
+    FROM work_orders wo
+    LEFT JOIN customers c ON wo.customer_id = c.id
+    LEFT JOIN users u ON wo.created_by = u.id
+    
+    WHERE wo.id = ?
+";
+
+
     
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -95,17 +99,19 @@ try {
     
     // جلب الفواتير المرتبطة إذا طلبناها
     $invoices = [];
-    if (!isset($_GET['exclude_invoices']) || $_GET['exclude_invoices'] != '1') {
+    // if (!isset($_GET['exclude_invoices']) || $_GET['exclude_invoices'] != '1') {
         $invoicesSql = "
-            SELECT 
-                io.*,
-                SUM(p.amount) as total_payments
-            FROM invoices_out io
-            LEFT JOIN payments p ON io.id = p.invoice_id
-            WHERE io.work_order_id = ?
-            GROUP BY io.id
-            ORDER BY io.id DESC
-        ";
+        SELECT 
+            io.id,
+            DATE(io.created_at) AS date,
+            io.total_after_discount AS total,
+            io.paid_amount AS paid,
+            io.remaining_amount AS remaining,
+            io.notes,
+        FROM invoices_out io
+        WHERE io.work_order_id = ?
+        ORDER BY io.id DESC
+    ";
         
         $stmt2 = $conn->prepare($invoicesSql);
         if ($stmt2) {
@@ -168,7 +174,7 @@ try {
         
         $formattedWorkOrder['invoices'] = $invoices;
         $formattedWorkOrder['invoices_count'] = count($invoices);
-    }
+    // }
     
     // إرجاع النتيجة
     echo json_encode([

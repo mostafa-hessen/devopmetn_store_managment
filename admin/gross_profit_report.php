@@ -201,7 +201,6 @@ if (!empty($start_date_filter) && !empty($end_date_filter)) {
             FROM invoices_out io
             JOIN invoice_out_items ioi ON ioi.invoice_out_id = io.id
             LEFT JOIN products p ON p.id = ioi.product_id
-            WHERE io.delivered = 'yes'
               AND io.created_at BETWEEN ? AND ?
         ";
         if ($stt = $conn->prepare($totals_sql)) {
@@ -234,7 +233,6 @@ if (!empty($start_date_filter) && !empty($end_date_filter)) {
           JOIN invoice_out_items ioi ON ioi.invoice_out_id = io.id
           LEFT JOIN products p ON p.id = ioi.product_id
           LEFT JOIN customers c ON c.id = io.customer_id
-          WHERE io.delivered = 'yes'
             AND io.created_at BETWEEN ? AND ?
           GROUP BY io.id
           ORDER BY io.created_at DESC, io.id DESC
@@ -765,7 +763,7 @@ document.addEventListener('DOMContentLoaded', function(){
         let totalCost = 0
         let totalProfit = 0
         qsa('#reportTable tbody tr').forEach(tr=>{
-        console.log(tr);
+
         
             const tds = tr.querySelectorAll('td');
             if (!tds || tds.length < 5) return;

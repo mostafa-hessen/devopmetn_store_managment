@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-require_once "../../config.php";
+    require_once dirname(__DIR__) . '/config.php';
 
 // =============================
 // helper: check prepare errors
@@ -53,6 +53,8 @@ $query = "
         TIME(i.created_at) AS time,
         c.name AS customer_name,
         u.username AS created_by_name,
+    w.title AS workOrderName
+,
 
         CASE 
             WHEN i.delivered = 'reverted' THEN 'returned'
@@ -60,8 +62,8 @@ $query = "
             WHEN i.paid_amount > 0 AND i.remaining_amount > 0 THEN 'partial'
             ELSE 'pending'
         END AS status
-
     FROM invoices_out i
+    LEFT JOIN work_orders w ON w.id = i.work_order_id
     LEFT JOIN customers c ON i.customer_id = c.id
     LEFT JOIN users u ON i.created_by = u.id
     WHERE i.id = ?

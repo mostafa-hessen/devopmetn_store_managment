@@ -26,7 +26,7 @@ const AppData = {
     
     // دوال مساعدة
     formatCurrency(amount) {
-        // console.log(parseFloat(amount).toFixed(2));
+        // (parseFloat(amount).toFixed(2));
         
         
         return parseFloat(amount).toFixed(2) + ' ج.م';

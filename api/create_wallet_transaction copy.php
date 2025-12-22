@@ -2,7 +2,8 @@
 // create_wallet_transaction.php (modified, timezone + transaction_date fixes)
 
 header('Content-Type: application/json; charset=utf-8');
-require_once '../../config.php';
+    require_once dirname(__DIR__) . '/config.php';
+
 
 // تمكين CORS للتعامل مع الطلبات من النطاقات المختلفة
 header("Access-Control-Allow-Origin: *");

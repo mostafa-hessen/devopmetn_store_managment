@@ -2,7 +2,8 @@
 // create_wallet_transaction.php (full corrected version)
 // UTF-8
 header('Content-Type: application/json; charset=utf-8');
-require_once '../../config.php';
+    require_once dirname(__DIR__) . '/config.php';
+
 
 // CORS
 header("Access-Control-Allow-Origin: *");
@@ -108,13 +109,44 @@ function formatWalletTransactionForResponse($transaction) {
 
 /**
  * Format customer transaction for response
- */
+ */function getTransactionTypeText($type) {
+    $typeMap = [
+        'invoice' => 'فاتورة',
+        'payment' => 'سداد',
+        'return' => 'مرتجع',
+        'deposit' => 'إيداع',
+        'adjustment' => 'تسوية',
+        'withdraw' => 'سحب'
+    ];
+    return $typeMap[$type] ?? $type;
+}
+function getTransactionBadgeClass($type) {
+    $classMap = [
+        'invoice' => 'bg-primary',
+        'payment' => 'bg-success',
+        'return' => 'bg-warning',
+        'deposit' => 'bg-info',
+        'adjustment' => 'bg-secondary',
+        'withdraw' => 'bg-danger'
+    ];
+    return $classMap[$type] ?? 'bg-secondary';
+}
 function formatCustomerTransactionForResponse($ct) {
+    $isPositive = (float)$ct['amount'] >= 0;
+
+    $typeText = getTransactionTypeText($ct['transaction_type']);
+
     if (!$ct) return null;
     return [
         'id' => (int)$ct['id'],
         'customer_id' => (int)$ct['customer_id'],
         'transaction_type' => $ct['transaction_type'],
+        'date' => $ct['date'] ?? ($ct['transaction_date'] ?? $row['created_at'] ?? null ? date('Y-m-d', strtotime($ct['transaction_date'] ?? $ct['created_at'] ?? null)) : null),
+        'type_text' => $typeText,
+        'amount_sign' => $isPositive ? '+' : '-',
+        'amount_class' => $isPositive ? 'text-success' : 'text-danger',
+        'badge_class' => getTransactionBadgeClass($ct['transaction_type']),
+        
         'amount' => (float)$ct['amount'],
         'formatted_amount' => ((float)$ct['amount'] >= 0 ? '+' : '') . number_format(abs((float)$ct['amount']), 2) . ' ج.م',
         'description' => $ct['description'],

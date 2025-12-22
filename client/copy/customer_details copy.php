@@ -679,7 +679,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
         currentUser: "<?php echo $_SESSION['user_name'] ?? 'مدير النظام'; ?>"
     };
     
-    console.log('PHP Data loaded:', PHP_DATA);
+
     
     // استيراد الموديولات الخاصة بك
     import PaymentManager from "./js/payment.js";

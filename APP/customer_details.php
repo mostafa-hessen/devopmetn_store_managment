@@ -1526,7 +1526,7 @@ if (!$customer_id) {
         document
           .getElementById("advancedProductSearch")
           .addEventListener("input", (e) => {
-            console.log("Dewsa");
+
 
             const searchTerm = e.target.value;
             const results = ReturnManager.searchProductsInInvoices(searchTerm);
@@ -2198,7 +2198,7 @@ if (!$customer_id) {
           document
             .getElementById("advancedProductSearch")
             .addEventListener("input", (e) => {
-              console.log("d");
+
 
               const searchTerm = e.target.value;
               const results =

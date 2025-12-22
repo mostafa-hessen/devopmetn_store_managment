@@ -1,7 +1,8 @@
 <?php
 // get_customer_info.php
 header('Content-Type: application/json');
-require_once '../../config.php'; // هنا $conn جاهز
+// require_once __DIR__ . '../config.php';
+    require_once dirname(__DIR__) . '/config.php';
 
 // التحقق من وجود customer_id
 if (!isset($_GET['customer_id']) || !is_numeric($_GET['customer_id'])) {

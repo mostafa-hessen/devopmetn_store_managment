@@ -6,10 +6,10 @@ import PaymentManager from "./payment.js";
 import WorkOrderManager from "./work_order.js";
 import { ReturnManager } from "./return.js";
 import InvoiceManager from "./invoices.js";
+import PrintManager from "./print.js";
  const UIManager = {
         init() {
           this.setupEventListeners();
-          this.initializeModals();
         },
 
         setupEventListeners() {
@@ -123,7 +123,7 @@ import InvoiceManager from "./invoices.js";
           this.updateFilterTags();
 
           // تطبيق الفلاتر على الجداول
-          console.log(AppData.activeFilters);
+
           
           InvoiceManager.updateInvoicesTable();
         },
@@ -266,10 +266,12 @@ import InvoiceManager from "./invoices.js";
 
           let currentBalance = 0;
 
+        (AppData.customerTransactions);
+
 
           transactions.forEach((transaction) => {
             const row = document.createElement("tr");
-            // console.log(transaction);
+            (transaction);
 
 
             // تحديد لون المبلغ
@@ -300,7 +302,7 @@ import InvoiceManager from "./invoices.js";
                     <div>${transaction.description}</div>
                 </td>
                 <td class="${transaction.amount_class} fw-bold">
-                    ${transaction.amount_sign} ${transaction.formatted_amount}
+                     ${transaction.formatted_amount}
                 </td>
                 <td>
                     <div class="text-center">

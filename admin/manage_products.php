@@ -286,6 +286,8 @@ require_once BASE_DIR . 'partials/sidebar.php';
 
   #mp-manage-products .custom-table-wrapper {
     max-height: 100%;
+            -webkit-overflow-scrolling: touch;
+
   }
 
   #mp-manage-products .content {

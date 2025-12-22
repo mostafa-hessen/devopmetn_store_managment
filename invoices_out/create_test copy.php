@@ -3904,7 +3904,7 @@ const App = {
         
         // جلب رقم الفاتورة التالي
         const nextInvoice = await ApiManager.getNextInvoiceNumber();
-        console.log('رقم الفاتورة التالي:', nextInvoice);
+
     }
 };
 

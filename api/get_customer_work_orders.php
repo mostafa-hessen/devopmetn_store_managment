@@ -1,7 +1,7 @@
 <?php
 // get_work_orders.php
 header('Content-Type: application/json; charset=utf-8');
-require_once '../../config.php';
+    require_once dirname(__DIR__) . '/config.php';
 
 try {
     // جمع الفلاتر
@@ -53,6 +53,57 @@ try {
     $workOrders = [];
     
     while ($row = $result->fetch_assoc()) {
+        // ===== جلب الفواتير المرتبطة =====
+$invoices = [];
+
+$invStmt = $conn->prepare("
+    SELECT 
+        id,
+        total_after_discount AS total,
+        paid_amount AS paid,
+        remaining_amount AS remaining,
+        created_at,
+        delivered,
+                total_before_discount,
+discount_type,
+discount_value,
+discount_amount,
+         CASE 
+        WHEN delivered = 'reverted' THEN 'returned'
+        WHEN remaining_amount = 0 THEN 'paid'
+        WHEN paid_amount > 0 AND remaining_amount > 0 THEN 'partial'
+        ELSE 'pending'
+    END AS status
+    FROM invoices_out
+    WHERE work_order_id = ?
+    ORDER BY id DESC
+");
+
+
+$invStmt->bind_param("i", $row['id']);
+$invStmt->execute();
+$invResult = $invStmt->get_result();
+
+while ($inv = $invResult->fetch_assoc()) {
+    $invoices[] = [
+        'id' => (int)$inv['id'],
+        'total' => (float)$inv['total'],
+        'paid' => (float)$inv['paid'],
+        'remaining' => (float)$inv['remaining'],
+        'status'    => $inv['status'],
+        'created_at' => $inv['created_at'],
+        'total_before_discount' => (float)$inv['total_before_discount'],
+        'discount_type' => $inv['discount_type'],
+        'discount_value' => (float)$inv['discount_value'],
+        'discount_amount' => (float)$inv['discount_amount']
+
+    ];
+}
+
+
+$invStmt->close();
+// ===== نهاية جلب الفواتير =====
+
         $workOrders[] = [
             'id' => (int)$row['id'],
             'customer_id' => (int)$row['customer_id'],
@@ -71,9 +122,17 @@ try {
                 ? round(($row['total_paid'] / $row['total_invoice_amount']) * 100, 2) 
                 : 0,
             'invoices_count' => (int)$row['invoices_count'],
+                'invoices' => $invoices, // المهم
+
             'created_at' => $row['created_at']
         ];
+
+
+        
     }
+
+    
+
     $stmt->close();
     
     echo json_encode([

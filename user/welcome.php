@@ -146,7 +146,8 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
                      <a  href="<?php echo BASE_URL; ?>invoices_out/create_invoice.php" class="btn btn-primary btn-action
                      flex-grow-1">
                     <i class="fas fa-plus"></i> إضافة فاتورة بيع </a>
-                    <a href="<?php echo BASE_URL; ?>admin/pending_invoices.php" class="btn btn-warning btn-action"> <i class="fas fa-file-invoice"></i> الفواتير غير المسلمة </a> <a href="<?php echo BASE_URL; ?>admin/net_profit_report.php" class="btn btn-danger btn-action"> <i class="fas fa-chart-pie"></i> تقرير الأرباح </a>
+                    <!-- <a href="<?php echo BASE_URL; ?>admin/pending_invoices.php" class="btn btn-warning btn-action"> <i class="fas fa-file-invoice"></i> الفواتير غير المسلمة </a>  -->
+                    <a href="<?php echo BASE_URL; ?>admin/net_profit_report.php" class="btn btn-danger btn-action"> <i class="fas fa-chart-pie"></i> تقرير الأرباح </a>
             </div>
         </div>
     </div>
@@ -191,7 +192,7 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
         </div>
 
         <!-- فواتير لم تسلم -->
-        <div class="stat-card">
+        <!-- <div class="stat-card">
             <div class="stat-left">
                 <div class="stat-icon icon-warning"><i class="fas fa-truck-loading"></i></div>
                 <div class="stat-body">
@@ -200,7 +201,7 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
                 </div>
             </div>
             <div class="view-page"><a href="<?php echo BASE_URL; ?>admin/pending_invoices.php" class="small text-muted">عرض</a></div>
-        </div>
+        </div> -->
 
         <!-- مصاريف الشهر -->
         <div class="stat-card">
@@ -228,39 +229,6 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
     </div>
 
     <!-- جدول منتجات منخفضة الرصيد -->
-<div style="margin-top:18px">
-    <div class="low-stock" style="background:var(--surface); padding:14px; border-radius:var(--radius); box-shadow:var(--shadow-1); border:1px solid var(--border);">
-        <h3 style="margin:0 0 10px 0">تفاصيل المنتجات منخفضة الرصيد</h3>
-        <?php if ($total_low_stock_items > 0): ?>
-            <table class="low-table" role="table">
-                <thead>
-                    <tr>
-                        <th>المنتج</th>
-                        <th>الكود</th>
-                        <!-- <th>الرصيد (current_stock)</th> -->
-                        <th>المتبقي من الدفعات</th>
-                        <th>حد إعادة الطلب</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($low_stock_preview as $row): ?>
-                        <tr class="low-row">
-                            <td><?php echo e($row['name']); ?></td>
-                            <td><?php echo e($row['product_code']); ?></td>
-                            <!-- <td><?php echo number_format($row['current_stock'], 2); ?></td> -->
-                            <td class="fw-bold text-danger">
-                                <?php echo number_format($row['batches_remaining'], 2); ?>
-                            </td>
-                            <td><?php echo number_format($row['reorder_level'], 2); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <div class="small note-text">لا توجد منتجات منخفضة الرصيد الآن — كل شيء على ما يرام ✅</div>
-        <?php endif; ?>
-    </div>
-</div>
 
 
 
@@ -276,7 +244,7 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
             <div class="card-header category-sales">المبيعات والعملاء</div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="<?php echo BASE_URL; ?>admin/pending_invoices.php" class="btn btn-outline-primary text-start">
+                    <!-- <a href="<?php echo BASE_URL; ?>admin/pending_invoices.php" class="btn btn-outline-primary text-start">
                         <i class="fas fa-cash-register me-2"></i>
                         فواتير البيع المؤجله
 
@@ -288,7 +256,7 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
                     <a href="<?php echo BASE_URL; ?>admin/canceled_invoices.php" class="btn btn-outline-primary text-start">
                         <i class="fas fa-ban card-icon-lg text-danger mb-3"></i>
                         فواتير البيع الملغاة
-                    </a>
+                    </a> -->
 
 
 

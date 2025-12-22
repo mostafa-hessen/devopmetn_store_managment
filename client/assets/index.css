@@ -264,10 +264,7 @@
             border: 1px solid var(--border);
         }
         
-        body {
-            background: var(--bg);
-            color: var(--text);
-        }
+     
 
         .filter-tag .close {
             cursor: pointer;
@@ -280,27 +277,34 @@
         }
 
         .invoice-items-tooltip {
-            display: none;
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--surface);
+            display: block;
+                  background: var(--surface);
             color: var(--text);
             padding: 16px;
             border-radius: var(--radius);
             font-size: 0.85rem;
             white-space: normal;
-            z-index: 1000;
             min-width: 320px;
             max-width: 400px;
             text-align: right;
             box-shadow: var(--shadow-2);
             border: 1px solid var(--border);
             margin-bottom: 10px;
+            z-index: 9999;
+
+
+
+              position: fixed;
+    top: 20%;
+    right: 5% ;
+    /* transform: translateY(-50%); */
+    width: 400px;
+    z-index: 9999;
+    max-height: 600px;
+    overflow-y: scroll;
         }
         
-        .invoice-items-tooltip::after {
+        /* .invoice-items-tooltip::after {
             content: '';
             position: absolute;
             top: 100%;
@@ -308,8 +312,8 @@
             transform: translateX(-50%);
             border: 8px solid transparent;
             border-top-color: var(--surface);
-            z-index: 1000;
-        }
+            z-index: 1100;
+        } */
         
         .invoice-items-tooltip .tooltip-header {
             font-weight: bold;
@@ -350,9 +354,9 @@
             justify-content: space-between;
         }
 
-        .invoice-item-hover:hover .invoice-items-tooltip {
+        /* .invoice-item-hover:hover .invoice-items-tooltip {
             display: block;
-        }
+        } */
 
         .payment-method-item {
             border: 1px solid var(--border);
@@ -560,6 +564,7 @@
         .table-responsive-fixed {
             /* overflow-x: auto; */
             width: 100%;
+
         }
         
         .invoice-returns-modal .return-item {
@@ -754,3 +759,317 @@ input[type="number"]::-webkit-outer-spin-button {
     color: var(--text);
 }
   
+
+.modal.show {
+    z-index: 1055 !important; /* اعلى من المودال الأول */
+}
+.modal-backdrop.show {
+    z-index: 1050 !important; /* خلف المودال الجديد */
+}
+
+/* تصميم الإجمالي مع الخصم في جدول الفواتير */
+.invoice-total-with-discount {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+}
+
+.invoice-total-with-discount .original-amount {
+    font-size: 11px;
+    color: #6c757d;
+}
+
+.invoice-total-with-discount .final-amount {
+    font-size: 13px;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.invoice-total-with-discount .discount-percentage {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* تصميم للمودال */
+.amount-with-discount {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+}
+
+.amount-with-discount .amount-original {
+    font-size: 14px;
+    color: #6c757d;
+    text-decoration: line-through;
+}
+
+.amount-with-discount .amount-final {
+    font-size: 16px;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.amount-with-discount .discount-badge {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    width: fit-content;
+}
+
+/* تصميم تفاصيل الخصم في المودال */
+#invoiceDiscountDetails .card {
+    border-width: 2px;
+}
+
+#invoiceDiscountDetails .card-header {
+    font-size: 13px;
+}
+.amount-with-discount {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.amount-original {
+    font-size: 11px;
+    color: #6c757d;
+    text-decoration: line-through;
+}
+
+.amount-final {
+    font-size: 13px;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.discount-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: #dc3545;
+    color: white;
+    border-radius: 10px;
+    width: fit-content;
+}
+/* ===== ENHANCED LOADER ===== */
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: opacity var(--normal), visibility var(--normal);
+}
+
+.loader-content {
+    text-align: center;
+    padding: 40px;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+    border: 1px solid var(--border);
+    max-width: 400px;
+    width: 90%;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Background glow effect */
+.loader-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--grad-1);
+    animation: gradientFlow 3s ease-in-out infinite;
+}
+
+@keyframes gradientFlow {
+    0%, 100% { background: var(--grad-1); }
+    25% { background: var(--grad-2); }
+    50% { background: var(--grad-3); }
+    75% { background: var(--grad-4); }
+}
+
+/* Main spinner */
+.loader-spinner {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 25px;
+}
+
+.spinner-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+.spinner-ring-1 {
+    border: 4px solid var(--primary);
+    border-top-color: transparent;
+    animation: spin 1.5s linear infinite;
+}
+
+.spinner-ring-2 {
+    border: 4px solid var(--accent);
+    border-top-color: transparent;
+    animation: spin 2s linear infinite reverse;
+    opacity: 0.6;
+    transform: scale(0.8);
+}
+
+.spinner-ring-3 {
+    border: 4px solid var(--teal);
+    border-top-color: transparent;
+    animation: spin 2.5s linear infinite;
+    opacity: 0.4;
+    transform: scale(0.6);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg) scale(var(--scale, 1)); }
+    100% { transform: rotate(360deg) scale(var(--scale, 1)); }
+}
+
+/* Loading text */
+.loader-text {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 15px;
+    min-height: 24px;
+}
+
+/* Progress dots */
+.loader-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.loader-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loader-dot:nth-child(1) {
+    animation-delay: -0.32s;
+    background: var(--primary);
+}
+
+.loader-dot:nth-child(2) {
+    animation-delay: -0.16s;
+    background: var(--accent);
+}
+
+.loader-dot:nth-child(3) {
+    background: var(--teal);
+}
+
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Progress bar (optional) */
+.loader-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    margin-top: 20px;
+    overflow: hidden;
+}
+
+.loader-progress-bar {
+    height: 100%;
+    background: var(--grad-1);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.loader-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--flash-gradient);
+    animation: flash 1.5s ease-in-out infinite;
+}
+
+@keyframes flash {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Percentage counter */
+.loader-percentage {
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* Fade out animation */
+.page-loader.fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Dark mode adjustments */
+[data-app][data-theme="dark"] .loader-content {
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+}
+
+[data-app][data-theme="dark"] .loader-progress {
+    background: var(--surface-2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .loader-content {
+        padding: 30px 20px;
+        width: 85%;
+    }
+    
+    .loader-spinner {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .loader-text {
+        font-size: 14px;
+    }
+}
+
+
+

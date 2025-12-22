@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-require_once "../../config.php";  // ← مسار ملف config بتاعك
+    require_once dirname(__DIR__) . '/config.php';
 
 // التحقق من المدخل
 $customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : 0;
@@ -34,12 +34,20 @@ $check->close();
 $query = "
     SELECT 
         i.id,
+        i.work_order_id ,
         i.id AS invoice_number,
         DATE(i.created_at) AS date,
         TIME(i.created_at) AS time,
         i.total_after_discount AS total,
         i.paid_amount AS paid,
         i.remaining_amount AS remaining,
+        i.created_by,
+        i.total_before_discount,
+i.discount_type,
+i.discount_value,
+i.discount_amount,
+ i.discount_scope,
+
 
         CASE 
             WHEN i.delivered = 'reverted' THEN 'returned'
@@ -48,6 +56,7 @@ $query = "
             ELSE 'pending'
         END AS status,
 
+        
         -- عدد البنود
         (SELECT COUNT(*) FROM invoice_out_items WHERE invoice_out_id = i.id) AS items_count,
 
@@ -57,10 +66,14 @@ $query = "
             WHERE invoice_out_id = i.id AND returned_quantity > 0
         ) AS has_returns,
 
-        i.notes AS description
-
+        i.notes AS description,
+        w.title AS workOrderName,
+        u.username AS createdByName
     FROM invoices_out i
+LEFT JOIN work_orders w ON w.id = i.work_order_id
+LEFT JOIN users u ON u.id = i.created_by
     WHERE i.customer_id = ?
+
     ORDER BY i.created_at DESC
 ";
 
@@ -82,15 +95,19 @@ $itemStmt = $conn->prepare("
     SELECT 
         i.id,
         i.product_id,
-        p.name AS product_name,   -- ← اسم المنتج
+        p.name AS product_name,   
         i.quantity,
         i.selling_price,
-        i.total_price,
+        i.total_before_discount,
         i.returned_quantity,
         i.return_flag,
         i.available_for_return,
         i.price_type,
-        i.cost_price_per_unit
+        i.cost_price_per_unit,
+          i.discount_amount,
+        i.total_after_discount,         
+        i.discount_type ,
+        i.discount_value 
     FROM invoice_out_items i
     JOIN products p ON p.id = i.product_id
     WHERE i.invoice_out_id = ?
@@ -103,13 +120,16 @@ $items = [];
 while ($item = $itemsRes->fetch_assoc()) {
     $item['quantity'] = floatval($item['quantity']);
     $item['selling_price'] = floatval($item['selling_price']);
-    $item['total_price'] = floatval($item['total_price']);
+    $item['total_before_discount'] = floatval($item['total_before_discount']);
+    $item['discount_amount'] = floatval($item['discount_amount'] ?? 0);
+    $item['total_after_discount'] = floatval($item['total_after_discount'] ?? 0);
     $item['returned_quantity'] = floatval($item['returned_quantity']);
     $item['cost_price_per_unit'] = floatval($item['cost_price_per_unit']);
     $item['return_flag'] = boolval($item['return_flag']);
     $item['available_for_return'] = floatval($item['available_for_return']);
     $items[] = $item;
 }
+
 
 $itemStmt->close();
 $row['items'] = $items;

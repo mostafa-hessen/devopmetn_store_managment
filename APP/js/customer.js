@@ -15,7 +15,7 @@ export const CustomerManager = {
             return;
         }
         
-        console.log(`🔍 Fetching customer info for ID: ${id}`);
+
         
         // 2. جلب البيانات من API
         const result = await this.fetchCustomerInfo(id);
@@ -48,7 +48,7 @@ export const CustomerManager = {
     
     async fetchCustomerInfo(customerId) {
         try {
-            console.log(`📡 Calling API for customer ${customerId}...`);
+
             
             const response = await fetch(
                 `${apis.getCustomerInfo}${encodeURIComponent(customerId)}`,
@@ -66,7 +66,7 @@ export const CustomerManager = {
             }
             
             const data = await response.json();
-            console.log('✅ API Response:', data);
+
             return data;
             
         } catch (error) {
@@ -90,7 +90,7 @@ export const CustomerManager = {
         // 3. تحديث بقية المانجرز
         this.updateOtherManagers(apiData);
         
-        console.log('✅ Customer data loaded successfully');
+
     },
     
     updateCustomerInfo(customer) {

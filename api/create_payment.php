@@ -1,5 +1,7 @@
 <?php
-require_once __DIR__ . '/../../config.php';
+    require_once dirname(__DIR__) . '/config.php';
+
+
 require_once __DIR__ . './helper/payment_functions.php';
 
 // CORS Headers
@@ -70,13 +72,77 @@ function calculateWalletForPayment($allocations, &$currentWallet) {
         'has_wallet' => false
     ];
 }
+/**
+ * تحديث إجماليات الشغلانة بعد السداد
+ */
+function updateWorkOrderTotals($conn, $workOrderId) {
+    // حساب المجاميع من الفواتير المرتبطة بالشغلانة
+    $calculateQuery = "
+        SELECT 
+            COALESCE(SUM(total_after_discount), 0) as total_invoice_amount,
+            COALESCE(SUM(paid_amount), 0) as total_paid,
+            COALESCE(SUM(remaining_amount), 0) as total_remaining
+        FROM invoices_out 
+        WHERE work_order_id = ? 
+          AND delivered NOT IN ('canceled', 'reverted')
+    ";
+    
+    $stmt = $conn->prepare($calculateQuery);
+    $stmt->bind_param("i", $workOrderId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $totals = $result->fetch_assoc();
+    $stmt->close();
+    
+    // تحديث الشغلانة
+    $updateQuery = "
+        UPDATE work_orders 
+        SET total_invoice_amount = ?,
+            total_paid = ?,
+            total_remaining = ?,
+            updated_at = NOW()
+        WHERE id = ?
+    ";
+    
+    $stmt = $conn->prepare($updateQuery);
+    $stmt->bind_param("dddi", 
+        $totals['total_invoice_amount'],
+        $totals['total_paid'],
+        $totals['total_remaining'],
+        $workOrderId
+    );
+    $stmt->execute();
+    $stmt->close();
+}
 
+/**
+ * الحصول على بيانات الشغلانة
+ */
+function getWorkOrderData($conn, $workOrderId) {
+    $query = "
+        SELECT id, title, total_invoice_amount, total_paid, total_remaining
+        FROM work_orders 
+        WHERE id = ?
+    ";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $workOrderId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $data = $result->fetch_assoc();
+    $stmt->close();
+    
+    return $data ?: null;
+}
 // ==============================================
 // الدوال الرئيسية
 // ==============================================
 
 /**
  * معالجة سداد فاتورة واحدة
+ */
+/**
+ * معالجة سداد فاتورة واحدة (محدث بالكامل)
  */
 function processSinglePayment($conn, $input) {
     // التحقق من البيانات
@@ -97,7 +163,7 @@ function processSinglePayment($conn, $input) {
     
     // التحقق من وجود الفاتورة
     $invoiceStmt = $conn->prepare("
-        SELECT id, customer_id, total_after_discount, paid_amount, remaining_amount 
+        SELECT id, customer_id, total_after_discount, paid_amount, remaining_amount, work_order_id
         FROM invoices_out 
         WHERE id = ? AND customer_id = ?
     ");
@@ -110,6 +176,25 @@ function processSinglePayment($conn, $input) {
     }
     
     $invoice = $invoiceResult->fetch_assoc();
+    
+    // ✅ التعديل 1: تحديد work_order_id من الفاتورة إذا لم يأتِ من الفرونت
+    if (empty($workOrderId) && !empty($invoice['work_order_id'])) {
+        $workOrderId = (int)$invoice['work_order_id'];
+    } else {
+        $workOrderId = $invoice['work_order_id']; // استخدم القيمة من قاعدة البيانات
+    }
+    
+    // ✅ التعديل 2: جلب بيانات الشغلانة للوصف
+    $workOrderInfo = null;
+    $workOrderDescription = "";
+    if (!empty($workOrderId)) {
+        $workOrderInfo = getWorkOrderData($conn, $workOrderId);
+        if ($workOrderInfo) {
+            $workOrderTitle = !empty($workOrderInfo['title']) ? $workOrderInfo['title'] : "شغلانة #$workOrderId";
+            $workOrderDescription = " تابعة لشغلانة #$workOrderId ($workOrderTitle)";
+        }
+    }
+    
     $invoiceStmt->close();
     
     // التحقق من المبلغ
@@ -146,8 +231,9 @@ function processSinglePayment($conn, $input) {
             // تحديث رصيد المحفظة
             updateCustomerWallet($conn, $customerId, -$walletDeduction);
             
-            // ✅ إصلاح: وصف مفصل لحركة المحفظة
-            $description = "سحب من المحفظة لسداد فاتورة #$invoiceId - مبلغ " . number_format($amount, 2) . " ج.م";
+            // ✅ التعديل 3: إضافة وصف الشغلانة لحركة المحفظة
+            $description = "سحب من المحفظة لسداد فاتورة #$invoiceId" . $workOrderDescription . 
+                          " - مبلغ " . number_format($amount, 2) . " ج.م";
             
             // تسجيل حركة المحفظة
             $walletTransactionId = createWalletTransaction($conn, [
@@ -166,7 +252,10 @@ function processSinglePayment($conn, $input) {
         
         // 3. إنشاء سجل الدفع
         $paymentMethodArabic = getPaymentMethodArabic($paymentMethod);
-        $paymentDescription = "سداد فاتورة #$invoiceId - " . number_format($amount, 2) . " ج.م ($paymentMethodArabic)";
+        
+        // ✅ التعديل 4: إضافة وصف الشغلانة للدفع
+        $paymentDescription = "سداد فاتورة #$invoiceId" . $workOrderDescription . 
+                             " - " . number_format($amount, 2) . " ج.م ($paymentMethodArabic)";
         
         $paymentId = createInvoicePayment($conn, [
             'invoice_id' => $invoiceId,
@@ -174,8 +263,8 @@ function processSinglePayment($conn, $input) {
             'payment_method' => $paymentMethod,
             'notes' => $notes . " | " . $paymentDescription,
             'created_by' => $createdBy,
-            'wallet_before' => $walletBefore,  // ✅ إصلاح: دائماً قيمة، ليست null
-            'wallet_after' => $walletAfter,    // ✅ إصلاح: دائماً قيمة، ليست null
+            'wallet_before' => $walletBefore,
+            'wallet_after' => $walletAfter,
             'work_order_id' => $workOrderId
         ]);
         
@@ -184,7 +273,9 @@ function processSinglePayment($conn, $input) {
         $balanceAfter = $balanceBefore - $amount;
         
         // 5. إنشاء سجل في customer_transactions
-        $description = "سداد فاتورة #$invoiceId - " . number_format($amount, 2) . " ج.م ($paymentMethodArabic)";
+        // ✅ التعديل 5: إضافة وصف الشغلانة لحركة العميل
+        $description = "سداد فاتورة #$invoiceId" . $workOrderDescription . 
+                      " - " . number_format($amount, 2) . " ج.م ($paymentMethodArabic)";
         
         $transactionId = createCustomerTransaction($conn, [
             'customer_id' => $customerId,
@@ -202,11 +293,32 @@ function processSinglePayment($conn, $input) {
             'created_by' => $createdBy
         ]);
         
+        // ✅ التعديل 6: تحديث الشغلانة إذا كانت موجودة
+        if (!empty($workOrderId)) {
+            updateWorkOrderTotals($conn, $workOrderId);
+        }
+        
         $conn->commit();
         
         // جلب البيانات المحدثة
         $updatedCustomer = getCustomerData($conn, $customerId);
         $updatedInvoice = getInvoiceData($conn, $invoiceId);
+        
+        // ✅ التعديل 7: جلب بيانات الشغلانة المحدثة للرد
+        $workOrderResponse = null;
+        if (!empty($workOrderId) && !empty($workOrderInfo)) {
+            // جلب البيانات المحدثة بعد التحديث
+            $updatedWorkOrder = getWorkOrderData($conn, $workOrderId);
+            if ($updatedWorkOrder) {
+                $workOrderResponse = [
+                    'id' => $updatedWorkOrder['id'],
+                    'title' => $updatedWorkOrder['title'],
+                    'total_paid' => (float)$updatedWorkOrder['total_paid'],
+                    'total_remaining' => (float)$updatedWorkOrder['total_remaining'],
+                    'was_updated' => true
+                ];
+            }
+        }
         
         return [
             'transaction_id' => $transactionId,
@@ -218,6 +330,8 @@ function processSinglePayment($conn, $input) {
             'payment_method' => $paymentMethod,
             'payment_method_arabic' => $paymentMethodArabic,
             'wallet_deduction' => $walletDeduction,
+            'work_order_id' => $workOrderId,
+            'payment_description' => $paymentDescription, // ✅ إضافة الوصف للفرونت
             'customer' => [
                 'new_balance' => (float)$updatedCustomer['balance'],
                 'new_wallet' => (float)$updatedCustomer['wallet'],
@@ -228,7 +342,8 @@ function processSinglePayment($conn, $input) {
                 'new_paid_amount' => (float)$updatedInvoice['paid_amount'],
                 'new_remaining_amount' => (float)$updatedInvoice['remaining_amount'],
                 'is_fully_paid' => $updatedInvoice['remaining_amount'] == 0
-            ]
+            ],
+            'work_order' => $workOrderResponse // ✅ إضافة بيانات الشغلانة
         ];
         
     } catch (Exception $e) {
@@ -254,8 +369,29 @@ function processBatchPayment($conn, $input) {
     $paymentMethods = $input['payment_methods'];
     $createdBy = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 1;
     $notes = $input['notes'] ?? '';
-    $workOrderId = isset($input['work_order_id']) ? (int)$input['work_order_id'] : null;
     $strategy = $input['distribution_strategy'] ?? 'smallest_first';
+    
+    // ✅ التعديل 1: استخراج work_order_id من الفواتير
+    $workOrderId = null;
+    $workOrdersFromInvoices = [];
+    
+    foreach ($invoices as $invoice) {
+        if (isset($invoice['work_order_id']) && !empty($invoice['work_order_id'])) {
+            $woId = (int)$invoice['work_order_id'];
+            $workOrdersFromInvoices[$woId] = true;
+            
+            if ($workOrderId === null) {
+                $workOrderId = $woId;
+            }
+        }
+    }
+    
+    $hasMultipleWorkOrders = count($workOrdersFromInvoices) > 1;
+    $hasWorkOrders = !empty($workOrdersFromInvoices);
+    
+    if ($hasMultipleWorkOrders) {
+        $workOrderId = null;
+    }
     
     // جلب بيانات العميل
     $customer = getCustomerData($conn, $customerId);
@@ -271,13 +407,70 @@ function processBatchPayment($conn, $input) {
     // حساب التوزيع
     $distribution = calculateDistribution($invoices, $paymentMethods, $strategy);
     
+    // ✅ التعديل 2: تحسين تجميع بيانات الشغلانات
+    $workOrdersData = [];
+    $workOrdersMap = [];
+    $hasWorkOrderInvoices = false;
+    
+    // جمع work_order_id من كل فاتورة في التوزيع
+    foreach ($distribution as $item) {
+        $invoiceId = $item['invoice_id'];
+        
+        // ✅ البحث عن work_order_id في مصفوفة invoices الأصلية
+        $invoiceWorkOrderId = null;
+        foreach ($invoices as $inv) {
+            if ($inv['id'] == $invoiceId && isset($inv['work_order_id'])) {
+                $invoiceWorkOrderId = (int)$inv['work_order_id'];
+                break;
+            }
+        }
+        
+        // إذا لم نجده في الـ invoices، نجربه من قاعدة البيانات
+        if (!$invoiceWorkOrderId) {
+            $invoiceData = getInvoiceData($conn, $invoiceId);
+            $invoiceWorkOrderId = $invoiceData['work_order_id'] ?? null;
+        }
+        
+        if ($invoiceWorkOrderId) {
+            $hasWorkOrderInvoices = true;
+            
+            if (!isset($workOrdersMap[$invoiceWorkOrderId])) {
+                $workOrdersMap[$invoiceWorkOrderId] = [
+                    'id' => $invoiceWorkOrderId,
+                    'invoice_ids' => [],
+                    'invoice_numbers' => [], // ✅ تخزين أرقام الفواتير كنص
+                    'total_amount' => 0,
+                    'invoice_details' => []
+                ];
+                
+                // جلب بيانات الشغلانة
+                $workOrderInfo = getWorkOrderData($conn, $invoiceWorkOrderId);
+                if ($workOrderInfo) {
+                    $workOrdersMap[$invoiceWorkOrderId]['title'] = $workOrderInfo['title'];
+                    $workOrdersMap[$invoiceWorkOrderId]['description'] = "شغلانة #$invoiceWorkOrderId: " . $workOrderInfo['title'];
+                }
+            }
+            
+            $workOrdersMap[$invoiceWorkOrderId]['invoice_ids'][] = $invoiceId;
+            $workOrdersMap[$invoiceWorkOrderId]['invoice_numbers'][] = "#$invoiceId"; // ✅ تخزين كنص
+            $workOrdersMap[$invoiceWorkOrderId]['total_amount'] += $item['total_amount'];
+            $workOrdersMap[$invoiceWorkOrderId]['invoice_details'][] = [
+                'id' => $invoiceId,
+                'amount' => $item['total_amount']
+            ];
+        }
+    }
+    
+    // تحويل المصفوفة إلى قائمة
+    $workOrdersData = array_values($workOrdersMap);
+    
     // بدء المعاملة
     $conn->begin_transaction();
     
     try {
         $walletBefore = (float)$customer['wallet'];
         $balanceBefore = (float)$customer['balance'];
-        $currentWallet = $walletBefore;  // ✅ لتتبع المحفظة لكل دفعة
+        $currentWallet = $walletBefore;
         
         // حساب إجمالي السحب من المحفظة
         $walletDeduction = 0;
@@ -300,29 +493,84 @@ function processBatchPayment($conn, $input) {
             // تحديث رصيد المحفظة
             updateCustomerWallet($conn, $customerId, -$walletDeduction);
             
-            // ✅ إصلاح: وصف مفصل لحركة المحفظة مع أرقام الفواتير
+            // ✅ التعديل 3: وصف دقيق جداً للمحفظة مع أرقام الفواتير
+            $walletWorkOrderInfo = [];
             $walletInvoiceIds = [];
-            $walletInvoiceAmounts = [];
+            $walletInvoicesByWorkOrder = []; // ✅ تجميع الفواتير حسب الشغلانة
             
             foreach ($distribution as $item) {
+                $invoiceId = $item['invoice_id'];
+                
+                // ✅ البحث عن work_order_id للفاتورة
+                $invoiceWorkOrderId = null;
+                foreach ($invoices as $inv) {
+                    if ($inv['id'] == $invoiceId && isset($inv['work_order_id'])) {
+                        $invoiceWorkOrderId = (int)$inv['work_order_id'];
+                        break;
+                    }
+                }
+                
                 foreach ($item['allocations'] as $allocation) {
                     if ($allocation['method'] === 'wallet') {
-                        $walletInvoiceIds[] = $item['invoice_id'];
-                        $walletInvoiceAmounts[] = number_format($allocation['amount'], 2);
+                        $walletInvoiceIds[] = $invoiceId;
+                        
+                        // ✅ تجميع الفواتير حسب الشغلانة
+                        if ($invoiceWorkOrderId) {
+                            if (!isset($walletInvoicesByWorkOrder[$invoiceWorkOrderId])) {
+                                $walletInvoicesByWorkOrder[$invoiceWorkOrderId] = [];
+                                $workOrderData = getWorkOrderData($conn, $invoiceWorkOrderId);
+                                if ($workOrderData) {
+                                    $walletWorkOrderInfo[$invoiceWorkOrderId] = [
+                                        'title' => $workOrderData['title'] ?? "شغلانة #$invoiceWorkOrderId",
+                                        'invoice_count' => 0,
+                                        'invoice_ids' => []
+                                    ];
+                                }
+                            }
+                            $walletInvoicesByWorkOrder[$invoiceWorkOrderId][] = $invoiceId;
+                            if (isset($walletWorkOrderInfo[$invoiceWorkOrderId])) {
+                                $walletWorkOrderInfo[$invoiceWorkOrderId]['invoice_count']++;
+                                $walletWorkOrderInfo[$invoiceWorkOrderId]['invoice_ids'][] = $invoiceId;
+                            }
+                        }
                         break;
                     }
                 }
             }
             
-            $description = "سحب من المحفظة لسداد ";
-            if (!empty($walletInvoiceIds)) {
-                $description .= "من " . count($walletInvoiceIds) . " فواتير";
-                if (count($walletInvoiceIds) <= 5) { // إذا كانت قليلة، عرض الأرقام
-                    $description .= " (#" . implode(', #', $walletInvoiceIds) . ")";
+            // ✅ بناء وصف دقيق جداً للمحفظة
+            $description = "💰 سحب من المحفظة لسداد ";
+            
+            if (!empty($walletWorkOrderInfo)) {
+                $workOrderCount = count($walletWorkOrderInfo);
+                $workOrderDetails = [];
+                
+                foreach ($walletWorkOrderInfo as $woId => $info) {
+                    $invoiceCount = $info['invoice_count'];
+                    $invoiceList = implode(' و ', $info['invoice_ids']);
+                    
+                    if ($invoiceCount == 1) {
+                        $workOrderDetails[] = "فاتورة #{$info['invoice_ids'][0]} تابعة ل{$info['title']}";
+                    } else {
+                        $workOrderDetails[] = "فواتير {$invoiceList} تابعة ل{$info['title']}";
+                    }
+                }
+                
+                if ($workOrderCount == 1) {
+                    $description .= $workOrderDetails[0];
+                } else {
+                    $description .= implode('، ', $workOrderDetails);
                 }
             } else {
-                $description .= count($distribution) . " فواتير";
+                $walletInvoiceCount = count($walletInvoiceIds);
+                if ($walletInvoiceCount == 1) {
+                    $description .= "فاتورة #{$walletInvoiceIds[0]}";
+                } else {
+                    $invoiceList = implode(' و ', $walletInvoiceIds);
+                    $description .= "فواتير {$invoiceList}";
+                }
             }
+            
             $description .= " - مبلغ " . number_format($walletDeduction, 2) . " ج.م";
             
             // تسجيل حركة المحفظة
@@ -343,11 +591,41 @@ function processBatchPayment($conn, $input) {
         $totalPaid = 0;
         $paymentIds = [];
         $invoiceSummaries = [];
-        $invoiceDetailsForDescription = []; // ✅ لتخزين تفاصيل كل فاتورة
+        $invoiceDetailsForDescription = [];
+        $allInvoicesList = []; // ✅ قائمة بجميع الفواتير
         
         foreach ($distribution as $item) {
             $invoiceId = $item['invoice_id'];
             $invoiceAmount = $item['total_amount'];
+            $allInvoicesList[] = $invoiceId; // ✅ تجميع جميع الفواتير
+            
+            // ✅ البحث عن work_order_id للفاتورة
+            $invoiceWorkOrderId = null;
+            $workOrderDescription = "";
+            $workOrderTitle = "";
+            
+            // البحث أولاً في مصفوفة invoices الأصلية
+            foreach ($invoices as $inv) {
+                if ($inv['id'] == $invoiceId && isset($inv['work_order_id'])) {
+                    $invoiceWorkOrderId = (int)$inv['work_order_id'];
+                    break;
+                }
+            }
+            
+            // إذا لم نجده، نجربه من قاعدة البيانات
+            if (!$invoiceWorkOrderId) {
+                $invoiceData = getInvoiceData($conn, $invoiceId);
+                $invoiceWorkOrderId = $invoiceData['work_order_id'] ?? null;
+            }
+            
+            // ✅ الحصول على وصف الشغلانة
+            if ($invoiceWorkOrderId) {
+                $workOrderInfo = getWorkOrderData($conn, $invoiceWorkOrderId);
+                if ($workOrderInfo) {
+                    $workOrderTitle = $workOrderInfo['title'] ?? "شغلانة #$invoiceWorkOrderId";
+                    $workOrderDescription = " تابعة لشغلانة #$invoiceWorkOrderId ($workOrderTitle)";
+                }
+            }
             
             // تحديث الفاتورة
             updateInvoice($conn, $invoiceId, $invoiceAmount, $createdBy);
@@ -357,38 +635,60 @@ function processBatchPayment($conn, $input) {
             $allocations = $item['allocations'];
             $paymentMethod = count($allocations) > 1 ? 'mixed' : $allocations[0]['method'];
             
-            // ✅ إصلاح: حساب wallet_before و wallet_after لكل دفعة
+            // حساب wallet_before و wallet_after لكل دفعة
             $walletInfo = calculateWalletForPayment($allocations, $currentWallet);
             
-            // ✅ إصلاح: إنشاء وصف تفصيلي بالعربي لكل فاتورة
+            // ✅ إنشاء وصف تفصيلي مع الشغلانة
             $methodDetails = [];
             foreach ($allocations as $allocation) {
                 $methodArabic = getPaymentMethodArabic($allocation['method']);
                 $methodDetails[] = number_format($allocation['amount'], 2) . ' ج.م ' . $methodArabic;
             }
             
-            $invoiceDescription = "فاتورة #$invoiceId: " . implode(' + ', $methodDetails);
-            $invoiceSummaries[] = "#$invoiceId: " . number_format($invoiceAmount, 2) . " ج.م";
+            $invoiceDescription = "فاتورة #$invoiceId" . $workOrderDescription . ": " . implode(' + ', $methodDetails);
+            $invoiceSummaries[] = "#$invoiceId: " . number_format($invoiceAmount, 2) . " ج.م" . 
+                                 ($invoiceWorkOrderId ? " (شغلانة #$invoiceWorkOrderId)" : "");
             
-            // ✅ تخزين التفاصيل للوصف الرئيسي
             $invoiceDetailsForDescription[] = $invoiceDescription;
             
-            // تحويل payment_method إلى عربي للـ notes
+            // تحويل payment_method إلى عربي
             $paymentMethodArabic = getPaymentMethodArabic($paymentMethod);
             
-            // إنشاء سجل الدفع
+            // ✅ استخدام work_order_id الصحيح لكل فاتورة
             $paymentId = createInvoicePayment($conn, [
                 'invoice_id' => $invoiceId,
                 'payment_amount' => $invoiceAmount,
                 'payment_method' => $paymentMethod,
                 'notes' => $notes . " | " . $invoiceDescription,
                 'created_by' => $createdBy,
-                'wallet_before' => $walletInfo['wallet_before'],  // ✅ إصلاح: القيمة الصحيحة لكل دفعة
-                'wallet_after' => $walletInfo['wallet_after'],    // ✅ إصلاح: القيمة الصحيحة لكل دفعة
-                'work_order_id' => $workOrderId
+                'wallet_before' => $walletInfo['wallet_before'],
+                'wallet_after' => $walletInfo['wallet_after'],
+                'work_order_id' => $invoiceWorkOrderId
             ]);
             
             $paymentIds[] = $paymentId;
+        }
+        
+        // ✅ التعديل 4: تحديث جميع الشغلانات المتأثرة
+        $updatedWorkOrders = [];
+        foreach ($workOrdersMap as $workOrderId => $workOrderData) {
+            updateWorkOrderTotals($conn, $workOrderId);
+            
+            // جلب البيانات المحدثة
+            $updatedWorkOrder = getWorkOrderData($conn, $workOrderId);
+            if ($updatedWorkOrder) {
+                $updatedWorkOrders[] = [
+                    'id' => $updatedWorkOrder['id'],
+                    'title' => $updatedWorkOrder['title'],
+                    'total_paid' => (float)$updatedWorkOrder['total_paid'],
+                    'total_remaining' => (float)$updatedWorkOrder['total_remaining'],
+                    'invoice_count' => count($workOrderData['invoice_ids']),
+                    'invoice_numbers' => implode(' و ', $workOrderData['invoice_numbers']), // ✅ أرقام الفواتير كنص
+                    'total_paid_in_this_batch' => $workOrderData['total_amount'],
+                    'invoice_ids' => $workOrderData['invoice_ids'],
+                    'was_updated' => true
+                ];
+            }
         }
         
         // 3. تحديث رصيد العميل
@@ -396,31 +696,21 @@ function processBatchPayment($conn, $input) {
         $balanceAfter = $balanceBefore - $totalPaid;
         
         // 4. إنشاء سجل شامل في customer_transactions
-        // ✅ إصلاح: وصف مفصل يظهر كل فاتورة وطرق دفعها
-        if (count($invoiceDetailsForDescription) <= 3) {
-            // إذا كانت الفواتير قليلة، عرض تفاصيل كل واحدة
-            $description = "سداد دفعة متعددة (" . implode('، ', $invoiceDetailsForDescription) . ")";
-        } else {
-            // إذا كانت كثيرة، عرض ملخص
-            $description = "سداد " . count($distribution) . " فواتير (مجموع: " . number_format($totalPaid, 2) . " ج.م)";
-            
-            // ✅ إضافة تفاصيل طرق الدفع بالعربي
-            $paymentMethodDetails = [];
-            foreach ($paymentMethods as $method) {
-                $methodArabic = getPaymentMethodArabic($method['method']);
-                $paymentMethodDetails[] = number_format($method['amount'], 2) . ' ج.م ' . $methodArabic;
-            }
-            $description .= " | طرق الدفع: " . implode(' + ', $paymentMethodDetails);
-            
-            // ✅ إضافة ملخص الفواتير إذا كانت هناك محفظة
-            if ($walletDeduction > 0) {
-                $description .= " | منها " . number_format($walletDeduction, 2) . " ج.م من المحفظة";
-            }
-        }
+        // ✅ التعديل 5: دالة لإنشاء وصف دقيق جداً
+        $description = createDetailedBatchDescription(
+            $distribution,
+            $workOrdersData,
+            $allInvoicesList, // ✅ تمرير قائمة الفواتير
+            $totalPaid,
+            $paymentMethods,
+            $walletDeduction,
+            $invoiceDetailsForDescription
+        );
         
-        // ✅ التأكد من أن الوصف لا يتجاوز 255 حرف (حدود قاعدة البيانات)
-        if (strlen($description) > 255) {
-            $description = substr($description, 0, 252) . '...';
+        // ✅ تحديد work_order_id للحركة الرئيسية
+        $primaryWorkOrderId = null;
+        if (count($workOrdersData) == 1) {
+            $primaryWorkOrderId = $workOrdersData[0]['id'];
         }
         
         $transactionId = createCustomerTransaction($conn, [
@@ -431,7 +721,7 @@ function processBatchPayment($conn, $input) {
             'invoice_id' => null,
             'payment_id' => null,
             'wallet_transaction' => $walletTransactionId,
-            'work_order_id' => $workOrderId,
+            'work_order_id' => $primaryWorkOrderId,
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceAfter,
             'wallet_before' => $walletBefore,
@@ -451,7 +741,13 @@ function processBatchPayment($conn, $input) {
             'customer_id' => $customerId,
             'total_paid' => $totalPaid,
             'invoices_count' => count($distribution),
+            'invoices_list' => $allInvoicesList, // ✅ قائمة الفواتير
+            'invoices_list_text' => 'فواتير ' . implode(' و ', $allInvoicesList), // ✅ نص الفواتير
             'wallet_deduction' => $walletDeduction,
+            'has_work_orders' => $hasWorkOrders,
+            'work_orders_count' => count($workOrdersData),
+            'all_same_work_order' => !$hasMultipleWorkOrders,
+            'primary_work_order_id' => $workOrderId,
             'customer' => [
                 'new_balance' => (float)$updatedCustomer['balance'],
                 'new_wallet' => (float)$updatedCustomer['wallet'],
@@ -461,13 +757,92 @@ function processBatchPayment($conn, $input) {
             'invoices_summary' => $invoiceSummaries,
             'payment_methods_summary' => $paymentMethods,
             'description' => $description,
-            'distribution' => $distribution
+            'work_orders' => $updatedWorkOrders,
+            'detailed_summary' => [ // ✅ ملخص تفصيلي
+                'الفواتير_المدفوعة' => array_map(function($inv) use ($workOrdersMap) {
+                    $workOrderId = null;
+                    foreach ($workOrdersMap as $woId => $data) {
+                        if (in_array($inv, $data['invoice_ids'])) {
+                            $workOrderId = $woId;
+                            break;
+                        }
+                    }
+                    return [
+                        'رقم_الفاتورة' => $inv,
+                        'تابعة_لشغلانة' => $workOrderId ? "شغلانة #$workOrderId" : "عامة"
+                    ];
+                }, $allInvoicesList),
+                'الشغلانات_المتأثرة' => array_map(function($wo) {
+                    return [
+                        'رقم_الشغلانة' => $wo['id'],
+                        'اسم_الشغلانة' => $wo['title'] ?? '',
+                        'الفواتير' => $wo['invoice_ids']
+                    ];
+                }, $updatedWorkOrders)
+            ]
         ];
         
     } catch (Exception $e) {
         $conn->rollback();
         throw $e;
     }
+}
+
+// ✅ التعديل 6: دالة لإنشاء وصف دقيق جداً للدفعة
+ function createDetailedBatchDescription($distribution, $workOrdersData, $allInvoicesList, $totalPaid, $paymentMethods, $walletDeduction, $invoiceDetailsForDescription) {
+    $invoiceCount = count($distribution);
+    $invoiceListText = 'فواتير ' . implode(' و ', $allInvoicesList);
+    
+    // ✅ إذا كانت الفواتير قليلة، عرض تفاصيل كل واحدة
+    if ($invoiceCount <= 3) {
+        $description = "💳 سداد دفعة متعددة (" . implode('، ', $invoiceDetailsForDescription) . ")";
+        return $description;
+    }
+    
+    // ✅ بناء وصف دقيق مع أرقام الفواتير
+    $description = "💳 سداد {$invoiceCount} فواتير ({$invoiceListText})";
+    
+    // ✅ إضافة معلومات الشغلانات
+    if (!empty($workOrdersData)) {
+        $workOrderCount = count($workOrdersData);
+        
+        if ($workOrderCount == 1) {
+            $wo = $workOrdersData[0];
+            $invoiceNumbers = implode(' و ', array_map(function($id) { return "#$id"; }, $wo['invoice_ids']));
+            $description .= " تابعة لشغلانة #{$wo['id']} ({$wo['title']}) - الفواتير: {$invoiceNumbers}";
+        } elseif ($workOrderCount <= 3) {
+            $workOrderDetails = [];
+            foreach ($workOrdersData as $wo) {
+                $invoiceNumbers = implode(' و ', array_map(function($id) { return "#$id"; }, $wo['invoice_ids']));
+                $workOrderDetails[] = "شغلانة #{$wo['id']} ({$wo['title']}): {$invoiceNumbers}";
+            }
+            $description .= " تابعة لـ " . implode('، ', $workOrderDetails);
+        } else {
+            $description .= " تابعة لـ {$workOrderCount} شغلانات مختلفة";
+        }
+    }
+    
+    $description .= " - المجموع: " . number_format($totalPaid, 2) . " ج.م";
+    
+    // ✅ إضافة تفاصيل طرق الدفع
+    $paymentMethodDetails = [];
+    foreach ($paymentMethods as $method) {
+        $methodArabic = getPaymentMethodArabic($method['method']);
+        $paymentMethodDetails[] = number_format($method['amount'], 2) . ' ج.م ' . $methodArabic;
+    }
+    $description .= " | طرق الدفع: " . implode(' + ', $paymentMethodDetails);
+    
+    // ✅ إضافة ملخص المحفظة
+    if ($walletDeduction > 0) {
+        $description .= " | منها " . number_format($walletDeduction, 2) . " ج.م من المحفظة";
+    }
+    
+    // ✅ التأكد من أن الوصف لا يتجاوز 255 حرف
+    if (strlen($description) > 255) {
+        $description = substr($description, 0, 252) . '...';
+    }
+    
+    return $description;
 }
 
 /**
@@ -492,6 +867,24 @@ function processMixedSingleInvoice($conn, $input) {
     
     // التحقق من وجود الفاتورة
     $invoice = getInvoiceData($conn, $invoiceId);
+    
+    // ✅ التعديل 1: تحديد work_order_id من الفاتورة إذا لم يأتِ من الفرونت
+    if (empty($workOrderId) && !empty($invoice['work_order_id'])) {
+        $workOrderId = (int)$invoice['work_order_id'];
+    } else if (empty($workOrderId)) {
+        $workOrderId = isset($invoice['work_order_id']) ? $invoice['work_order_id'] : null;
+    }
+    
+    // ✅ التعديل 2: جلب بيانات الشغلانة للوصف
+    $workOrderInfo = null;
+    $workOrderDescription = "";
+    if (!empty($workOrderId)) {
+        $workOrderInfo = getWorkOrderData($conn, $workOrderId);
+        if ($workOrderInfo) {
+            $workOrderTitle = !empty($workOrderInfo['title']) ? $workOrderInfo['title'] : "شغلانة #$workOrderId";
+            $workOrderDescription = " تابعة لشغلانة #$workOrderId ($workOrderTitle)";
+        }
+    }
     
     // التحقق من المبلغ
     if ($totalAmount <= 0) {
@@ -538,9 +931,9 @@ function processMixedSingleInvoice($conn, $input) {
         if ($walletDeduction > 0) {
             updateCustomerWallet($conn, $customerId, -$walletDeduction);
             
-            // ✅ إصلاح: وصف مفصل لحركة المحفظة
-            $description = "سحب من المحفظة لسداد جزء من فاتورة #$invoiceId - مبلغ " . 
-                          number_format($walletDeduction, 2) . " ج.م";
+            // ✅ التعديل 3: إضافة وصف الشغلانة لحركة المحفظة
+            $description = "سحب من المحفظة لسداد جزء من فاتورة #$invoiceId" . $workOrderDescription . 
+                          " - مبلغ " . number_format($walletDeduction, 2) . " ج.م";
             
             // تسجيل حركة المحفظة
             $walletTransactionId = createWalletTransaction($conn, [
@@ -581,7 +974,8 @@ function processMixedSingleInvoice($conn, $input) {
             }
         }
         
-        $paymentDescription = "فاتورة #$invoiceId: " . implode(' + ', $methodDetailsArabic);
+        // ✅ التعديل 4: إضافة وصف الشغلانة للدفع
+        $paymentDescription = "فاتورة #$invoiceId" . $workOrderDescription . ": " . implode(' + ', $methodDetailsArabic);
         
         // ✅ إصلاح: تحديد قيم wallet_before و wallet_after بشكل صحيح
         $paymentWalletBefore = $walletBefore;
@@ -609,12 +1003,8 @@ function processMixedSingleInvoice($conn, $input) {
         updateCustomerBalance($conn, $customerId, -$totalAmount);
         $balanceAfter = $balanceBefore - $totalAmount;
         
-        // // 6. إنشاء سجل في customer_transactions
-        // $description = "سداد فاتورة #$invoiceId - " . number_format($totalAmount, 2) . " ج.م (مختلط: " . 
-        //               implode(' + ', array_column($methodDetailsArabic, 'ج.م')) . ")";
-
-                      $description = "سداد " . $paymentDescription;
-
+        // ✅ التعديل 5: إضافة وصف الشغلانة لحركة العميل
+        $description = "سداد " . $paymentDescription;
         
         $transactionId = createCustomerTransaction($conn, [
             'customer_id' => $customerId,
@@ -632,11 +1022,32 @@ function processMixedSingleInvoice($conn, $input) {
             'created_by' => $createdBy
         ]);
         
+        // ✅ التعديل 6: تحديث الشغلانة إذا كانت موجودة
+        if (!empty($workOrderId)) {
+            updateWorkOrderTotals($conn, $workOrderId);
+        }
+        
         $conn->commit();
         
         // جلب البيانات المحدثة
         $updatedCustomer = getCustomerData($conn, $customerId);
         $updatedInvoice = getInvoiceData($conn, $invoiceId);
+        
+        // ✅ التعديل 7: جلب بيانات الشغلانة المحدثة للرد
+        $workOrderResponse = null;
+        if (!empty($workOrderId) && !empty($workOrderInfo)) {
+            // جلب البيانات المحدثة بعد التحديث
+            $updatedWorkOrder = getWorkOrderData($conn, $workOrderId);
+            if ($updatedWorkOrder) {
+                $workOrderResponse = [
+                    'id' => $updatedWorkOrder['id'],
+                    'title' => $updatedWorkOrder['title'],
+                    'total_paid' => (float)$updatedWorkOrder['total_paid'],
+                    'total_remaining' => (float)$updatedWorkOrder['total_remaining'],
+                    'was_updated' => true
+                ];
+            }
+        }
         
         return [
             'transaction_id' => $transactionId,
@@ -648,6 +1059,7 @@ function processMixedSingleInvoice($conn, $input) {
             'payment_methods' => $paymentMethods,
             'payment_description' => $paymentDescription,
             'wallet_deduction' => $walletDeduction,
+            'work_order_id' => $workOrderId, // ✅ إضافة work_order_id للرد
             'customer' => [
                 'new_balance' => (float)$updatedCustomer['balance'],
                 'new_wallet' => (float)$updatedCustomer['wallet'],
@@ -658,7 +1070,8 @@ function processMixedSingleInvoice($conn, $input) {
                 'new_paid_amount' => (float)$updatedInvoice['paid_amount'],
                 'new_remaining_amount' => (float)$updatedInvoice['remaining_amount'],
                 'is_fully_paid' => $updatedInvoice['remaining_amount'] == 0
-            ]
+            ],
+            'work_order' => $workOrderResponse // ✅ إضافة بيانات الشغلانة
         ];
         
     } catch (Exception $e) {

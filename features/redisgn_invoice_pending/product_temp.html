@@ -263,7 +263,7 @@
     // save invoice (demo) -> just print payload
     document.getElementById('btnSaveInvoice').addEventListener('click', ()=>{
       const payload = invoiceItems.map(it=>({product_id: it.product_id || 0, is_adhoc: it.is_adhoc?1:0, adhoc_name: it.is_adhoc?it.name:null, qty:it.qty, selling_price:it.sell, adhoc_purchase_cost: it.is_adhoc? (it.cost!==null?it.cost:null):null, adhoc_supplier: it.is_adhoc?it.supplier:null, note: it.note||''}));
-      console.log('Invoice payload:', payload);
+
       alert('انظر JSON في console (F12)');
     });
 

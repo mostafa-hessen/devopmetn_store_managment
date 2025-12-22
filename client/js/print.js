@@ -28,378 +28,928 @@ const PrintManager = {
         }, 500);
     },
 
-    generateInvoicePrintContent(invoice) {
-        const customer = AppData.currentCustomer;
+    // generateInvoicePrintContent(invoice) {
+    //     const customer = AppData.currentCustomer;
 
-        // تنسيق التاريخ
-        const date = new Date(invoice.date);
-        const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-        const formattedDate = date.toLocaleDateString('ar-SA', options);
-        const timeString = invoice.time || '12:00 م';
+    //     // تنسيق التاريخ
+    //     const date = new Date(invoice.date);
+    //     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+    //     const formattedDate = date.toLocaleDateString('ar-SA', options);
+    //     const timeString = invoice.time || '12:00 م';
 
-        // حساب المدفوع والمتبقي
-        const paid = invoice.paid || 0;
-        const remaining = invoice.remaining || 0;
-        const status = invoice.status;
+    //     // حساب المدفوع والمتبقي
+    //     const paid = invoice.paid || 0;
+    //     const remaining = invoice.remaining || 0;
+    //     const status = invoice.status;
 
-        // إنشاء بنود الفاتورة
-        let itemsHTML = '';
-        let itemNumber = 1;
-        let subtotal = 0;
+    //     // إنشاء بنود الفاتورة
+    //     let itemsHTML = '';
+    //     let itemNumber = 1;
+    //     let subtotal = 0;
 
-        invoice.items.forEach((item) => {
-            if (!item.fullyReturned) {
-                const remainingQuantity = item.quantity - (item.returnedQuantity || 0);
-                if (remainingQuantity > 0) {
-                    const itemTotal = remainingQuantity * item.price;
-                    subtotal += itemTotal;
+    //     (invoice);
+    //     invoice.items.forEach((item) => {
 
-                    itemsHTML += `
-                    <tr>
-                        <td style="width: 10%; text-align: center;">${itemNumber}</td>
-                        <td style="width: 40%; text-align: right; padding-right: 5px;">${item.productName}</td>
-                        <td style="width: 15%; text-align: center;">${remainingQuantity.toFixed(2)}</td>
-                        <td style="width: 15%; text-align: left; padding-left: 5px;">${item.price.toFixed(2)}</td>
-                        <td style="width: 20%; text-align: left; padding-left: 5px;">${itemTotal.toFixed(2)}</td>
-                    </tr>
-                `;
-                    itemNumber++;
-                }
-            }
-        });
+    //         if (!item.fullyReturned) {
+    //             const remainingQuantity = item.quantity - (item.returnedQuantity || 0);
+    //             if (remainingQuantity > 0) {
+    //                 const itemTotal = remainingQuantity * item.selling_price;
+    //                 subtotal += itemTotal;
 
-        // بناء HTML كامل للطباعة
-        return `
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>فاتورة ${invoice.number}</title>
-            <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                }
+    //                 itemsHTML += `
+    //         <tr>
+    //             <td style="width:10%; text-align:center;">
+    //                 ${item.id}
+    //             </td>
+
+    //             <td style="width:40%; text-align:right; padding-right:5px;">
+    //                 ${item.product_name}
+    //             </td>
+
+    //             <td style="width:15%; text-align:center;">
+    //                 ${remainingQuantity.toFixed(2)}
+    //             </td>
+
+    //             <td style="width:15%; text-align:left; padding-left:5px;">
+    //                 ${item.selling_price.toFixed(2)}
+    //             </td>
+
+    //             <td style="width:20%; text-align:left; padding-left:5px;">
+    //                 ${itemTotal.toFixed(2)}
+    //             </td>
+    //         </tr>
+    //     `;
+    //                 // itemNumber++;
+    //             }
+    //         }
+    //     });
+
+    //     // بناء HTML كامل للطباعة
+    //     return `
+    //     <!DOCTYPE html>
+    //     <html lang="ar" dir="rtl">
+    //     <head>
+    //         <meta charset="UTF-8">
+    //         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    //         <title>فاتورة ${invoice.id}</title>
+    //         <style>
+    //             * {
+    //                 margin: 0;
+    //                 padding: 0;
+    //                 box-sizing: border-box;
+    //                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    //             }
                 
+    //             body {
+    //                 padding: 10px;
+    //                 background: white;
+    //                 color: #000;
+    //                 font-size: 12px;
+    //             }
+                
+    //             .invoice {
+    //                 width: 280px;
+    //                 margin: 0 auto;
+    //                 padding: 10px;
+    //                 border: 1px solid #000;
+    //             }
+                
+    //             .header {
+    //                 text-align: center;
+    //                 padding-bottom: 10px;
+    //                 margin-bottom: 10px;
+    //                 border-bottom: 2px dashed #000;
+    //             }
+                
+    //             .store-name {
+    //                 font-weight: 900;
+    //                 font-size: 16px;
+    //                 margin-bottom: 5px;
+    //                 color: #000;
+    //             }
+                
+    //             .store-info {
+    //                 font-weight: 700;
+    //                 font-size: 10px;
+    //                 margin-bottom: 2px;
+    //                 color: #555;
+    //             }
+                
+    //             .invoice-info {
+    //                 display: flex;
+    //                 justify-content: space-between;
+    //                 margin-bottom: 10px;
+    //                 font-weight: 700;
+    //                 font-size: 10px;
+    //             }
+                
+    //             .customer-info {
+    //                 margin-bottom: 10px;
+    //                 padding: 8px;
+    //                 background: #f8f9fa;
+    //                 border-radius: 4px;
+    //                 font-weight: 700;
+    //                 font-size: 10px;
+    //             }
+                
+    //             table {
+    //                 width: 100%;
+    //                 border-collapse: collapse;
+    //                 margin-bottom: 10px;
+    //                 font-weight: 700;
+    //                 font-size: 10px;
+    //             }
+                
+    //             th, td {
+    //                 padding: 6px 2px;
+    //                 text-align: center;
+    //                 border-bottom: 1px dashed #ddd;
+    //             }
+                
+    //             th {
+    //                 background: #f1f8ff;
+    //                 font-weight: 900;
+    //             }
+                
+    //             .totals {
+    //                 margin-top: 10px;
+    //                 font-size: 11px;
+    //             }
+                
+    //             .total-row {
+    //                 display: flex;
+    //                 justify-content: space-between;
+    //                 padding: 4px 0;
+    //             }
+                
+    //             .total-final {
+    //                 border-top: 2px dashed #000;
+    //                 margin-top: 5px;
+    //                 padding-top: 8px;
+    //                 font-weight: 900;
+    //             }
+                
+    //             .payment-info {
+    //                 margin: 10px 0;
+    //                 padding: 8px;
+    //                 background: #f8f9fa;
+    //                 border-radius: 4px;
+    //                 font-weight: 700;
+    //                 font-size: 10px;
+    //             }
+                
+    //             .payment-details {
+    //                 margin-top: 5px;
+    //             }
+                
+    //             .payment-row {
+    //                 display: flex;
+    //                 justify-content: space-between;
+    //                 padding: 2px 0;
+    //             }
+                
+    //             .footer {
+    //                 text-align: center;
+    //                 margin-top: 15px;
+    //                 padding-top: 10px;
+    //                 border-top: 2px dashed #000;
+    //                 font-weight: 700;
+    //                 font-size: 9px;
+    //                 color: #555;
+    //             }
+                
+    //             .barcode {
+    //                 text-align: center;
+    //                 margin: 10px 0;
+    //                 font-family: monospace;
+    //                 font-size: 16px;
+    //                 letter-spacing: 3px;
+    //                 font-weight: 900;
+    //             }
+                
+    //             .status {
+    //                 display: inline-block;
+    //                 padding: 2px 8px;
+    //                 border-radius: 3px;
+    //                 font-size: 10px;
+    //                 font-weight: 700;
+    //                 margin-top: 5px;
+    //             }
+                
+    //             .status-pending { background: #fff3cd; color: #856404; }
+    //             .status-partial { background: #d1ecf1; color: #0c5460; }
+    //             .status-paid { background: #d4edda; color: #155724; }
+    //             .status-returned { background: #f8d7da; color: #721c24; }
+                
+    //             @media print {
+    //                 body {
+    //                     padding: 0;
+    //                     margin: 0;
+    //                 }
+                    
+    //                 .invoice {
+    //                     border: none;
+    //                     width: 100%;
+    //                     max-width: 280px;
+    //                 }
+    //             }
+    //         </style>
+    //     </head>
+    //     <body>
+    //         <div class="invoice">
+    //             <div class="header">
+    //                 <div class="store-name">نظام الفواتير الإلكتروني</div>
+    //                 <div class="store-info">السجل التجاري: 1234567890</div>
+    //                 <div class="store-info">الهاتف: 01234567890</div>
+    //             </div>
+                
+    //             <div class="invoice-info">
+    //                 <div>
+    //                     <div>رقم الفاتورة: ${invoice.id}</div>
+    //                     <div>التاريخ: ${formattedDate}</div>
+    //                 </div>
+    //                 <div>
+    //                     <div>الوقت: ${timeString}</div>
+    //                     <div>الكاشير: ${invoice.createdByName || 'مدير النظام'}</div>
+    //                 </div>
+    //             </div>
+                
+    //             <div class="customer-info">
+    //                 <div>العميل: ${customer.name}</div>
+    //                 <div>الهاتف: ${customer.mobile}</div>
+    //                 <div class="status status-${status}">
+    //                     حالة الفاتورة:
+    //                     ${status === 'pending' ? 'مؤجل' :
+    //             status === 'partial' ? 'جزئي' :
+    //                 status === 'paid' ? 'مسلم' : 'مرتجع'}
+    //                 </div>
+    //             </div>
+                
+    //             <table>
+    //                 <thead>
+    //                     <tr>
+    //                         <th>#</th>
+    //                         <th>المنتج</th>
+    //                         <th>الكمية</th>
+    //                         <th>السعر</th>
+    //                         <th>الإجمالي</th>
+    //                     </tr>
+    //                 </thead>
+    //                 <tbody>
+    //                     ${itemsHTML}
+    //                 </tbody>
+    //             </table>
+                
+    //             <div class="totals">
+    //                 <div class="total-row">
+    //                     <span>الإجمالي:</span>
+    //                     <span>${invoice.total.toFixed(2)} ج.م</span>
+    //                 </div>
+                    
+    //                 <div class="total-row">
+    //                     <span>المدفوع:</span>
+    //                     <span>${paid.toFixed(2)} ج.م</span>
+    //                 </div>
+                    
+    //                 <div class="total-row">
+    //                     <span>المتبقي:</span>
+    //                     <span>${remaining.toFixed(2)} ج.م</span>
+    //                 </div>
+                    
+    //                 <div class="total-row total-final">
+    //                     <span>المبلغ الإجمالي:</span>
+    //                     <span>${invoice.remaining.toFixed(2)} ج.م</span>
+    //                 </div>
+    //             </div>
+                
+
+    //             <div class="barcode">*${invoice.id}*</div>
+                
+    //             <div class="footer">
+    //                 <div>شكراً لتعاملكم معنا</div>
+    //                 <div>للاستفسار: 01234567890</div>
+    //                 <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
+    //             </div>
+    //         </div>
+            
+    //         <script>
+    //             // طباعة تلقائية بعد تحميل الصفحة
+    //             window.onload = function() {
+    //                 setTimeout(() => {
+    //                     window.print();
+    //                 }, 300);
+    //             };
+    //         </script>
+    //     </body>
+    //     </html>
+    // `;
+    // },
+    generateInvoicePrintContent(invoice) {
+    const customer = AppData.currentCustomer;
+
+    // تنسيق التاريخ
+    const date = new Date(invoice.date);
+    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+    const formattedDate = date.toLocaleDateString('ar-SA', options);
+    const timeString = invoice.time || '12:00 م';
+
+    // حساب المدفوع والمتبقي
+    const paid = invoice.paid || 0;
+    const remaining = invoice.remaining || 0;
+    const status = invoice.status;
+    
+    // حساب بيانات الخصم
+    const discountAmount = parseFloat(invoice.discount_amount || 0);
+    const discountValue = parseFloat(invoice.discount_value || 0);
+    const discountType = invoice.discount_type || 'percent';
+    const beforeDiscount = parseFloat(invoice.total_before_discount || invoice.total || 0);
+    const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
+
+    // إنشاء بنود الفاتورة
+    let itemsHTML = '';
+    let subtotal = 0;
+
+    invoice.items.forEach((item) => {
+        if (!item.fullyReturned) {
+            const remainingQuantity = item.quantity - (item.returnedQuantity || 0);
+            if (remainingQuantity > 0) {
+                const itemTotal = remainingQuantity * item.selling_price;
+                subtotal += itemTotal;
+
+                itemsHTML += `
+            <tr>
+                <td style="width:10%; text-align:center;">
+                    ${item.id}
+                </td>
+
+                <td style="width:40%; text-align:right; padding-right:5px;">
+                    ${item.product_name}
+                </td>
+
+                <td style="width:15%; text-align:center;">
+                    ${remainingQuantity.toFixed(2)}
+                </td>
+
+                <td style="width:15%; text-align:left; padding-left:5px;">
+                    ${item.selling_price.toFixed(2)}
+                </td>
+
+                <td style="width:20%; text-align:left; padding-left:5px;">
+                    ${itemTotal.toFixed(2)}
+                </td>
+            </tr>
+        `;
+            }
+        }
+    });
+
+    // بناء HTML كامل للطباعة
+    return `
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>فاتورة ${invoice.id}</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            
+            body {
+                padding: 10px;
+                background: white;
+                color: #000;
+                font-size: 12px;
+            }
+            
+            .invoice {
+                width: 280px;
+                margin: 0 auto;
+                padding: 10px;
+                border: 1px solid #000;
+            }
+            
+            .header {
+                text-align: center;
+                padding-bottom: 10px;
+                margin-bottom: 10px;
+                border-bottom: 2px dashed #000;
+            }
+            
+            .store-name {
+                font-weight: 900;
+                font-size: 16px;
+                margin-bottom: 5px;
+                color: #000;
+            }
+            
+            .store-info {
+                font-weight: 700;
+                font-size: 10px;
+                margin-bottom: 2px;
+                color: #555;
+            }
+            
+            .invoice-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            .customer-info {
+                margin-bottom: 10px;
+                padding: 8px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 10px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            th, td {
+                padding: 6px 2px;
+                text-align: center;
+                border-bottom: 1px dashed #ddd;
+            }
+            
+            th {
+                background: #f1f8ff;
+                font-weight: 900;
+            }
+            
+            .totals {
+                margin-top: 10px;
+                font-size: 11px;
+            }
+            
+            .total-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 4px 0;
+            }
+            
+            .total-final {
+                border-top: 2px dashed #000;
+                margin-top: 5px;
+                padding-top: 8px;
+                font-weight: 900;
+            }
+            
+            .payment-info {
+                margin: 10px 0;
+                padding: 8px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            .payment-details {
+                margin-top: 5px;
+            }
+            
+            .payment-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 2px 0;
+            }
+            
+            .footer {
+                text-align: center;
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 2px dashed #000;
+                font-weight: 700;
+                font-size: 9px;
+                color: #555;
+            }
+            
+            .barcode {
+                text-align: center;
+                margin: 10px 0;
+                font-family: monospace;
+                font-size: 16px;
+                letter-spacing: 3px;
+                font-weight: 900;
+            }
+            
+            .status {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 10px;
+                font-weight: 700;
+                margin-top: 5px;
+            }
+            
+            .status-pending { background: #fff3cd; color: #856404; }
+            .status-partial { background: #d1ecf1; color: #0c5460; }
+            .status-paid { background: #d4edda; color: #155724; }
+            .status-returned { background: #f8d7da; color: #721c24; }
+            
+            /* تصميم الخصم الجديد */
+            .discount-section {
+                margin: 10px 0;
+                padding: 8px;
+                background: #fff3cd;
+                border-radius: 4px;
+                border: 1px dashed #856404;
+            }
+            
+            .discount-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 3px 0;
+            }
+            
+            .original-price {
+                text-decoration: line-through;
+                color: #6c757d;
+            }
+            
+            .discount-badge {
+                display: inline-block;
+                padding: 2px 8px;
+                background: #dc3545;
+                color: white;
+                border-radius: 12px;
+                font-size: 10px;
+                font-weight: bold;
+            }
+            
+            @media print {
                 body {
-                    padding: 10px;
-                    background: white;
-                    color: #000;
-                    font-size: 12px;
+                    padding: 0;
+                    margin: 0;
                 }
                 
                 .invoice {
-                    width: 280px;
-                    margin: 0 auto;
-                    padding: 10px;
-                    border: 1px solid #000;
+                    border: none;
+                    width: 100%;
+                    max-width: 280px;
                 }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="invoice">
+            <div class="header">
+                <div class="store-name">نظام الفواتير الإلكتروني</div>
+                <div class="store-info">السجل التجاري: 1234567890</div>
+                <div class="store-info">الهاتف: 01234567890</div>
+            </div>
+            
+            <div class="invoice-info">
+                <div>
+                    <div>رقم الفاتورة: ${invoice.id}</div>
+                    <div>التاريخ: ${formattedDate}</div>
+                </div>
+                <div>
+                    <div>الوقت: ${timeString}</div>
+                    <div>الكاشير: ${invoice.createdByName || 'مدير النظام'}</div>
+                </div>
+            </div>
+            
+            <div class="customer-info">
+                <div>العميل: ${customer.name}</div>
+                <div>الهاتف: ${customer.mobile}</div>
+                <div class="status status-${status}">
+                    حالة الفاتورة:
+                    ${status === 'pending' ? 'مؤجل' :
+            status === 'partial' ? 'جزئي' :
+                status === 'paid' ? 'مسلم' : 'مرتجع'}
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>السعر</th>
+                        <th>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHTML}
+                </tbody>
+            </table>
+            
+            <!-- قسم الخصم إذا كان موجودًا -->
+            ${discountAmount > 0 ? `
+            <div class="discount-section">
+                <div style="text-align: center; font-weight: 900; margin-bottom: 5px; color: #856404;">
+                    <i class="fas fa-tag"></i> تفاصيل الخصم
+                </div>
+                <div class="discount-row">
+                    <span>الإجمالي قبل الخصم:</span>
+                    <span class="original-price">${beforeDiscount.toFixed(2)} ج.م</span>
+                </div>
+                <div class="discount-row">
+                    <span>قيمة الخصم:</span>
+                    <span class="text-danger">-${discountAmount.toFixed(2)} ج.م</span>
+                </div>
+              
+                <div class="discount-row" style="border-top: 1px dashed #856404; padding-top: 5px;">
+                    <span>الإجمالي بعد الخصم:</span>
+                    <span class="fw-bold">${afterDiscount.toFixed(2)} ج.م</span>
+                </div>
+            </div>
+            ` : ''}
+            
+            <div class="totals">
+              
                 
+                <div class="total-row">
+                    <span>المدفوع:</span>
+                    <span>${paid.toFixed(2)} ج.م</span>
+                </div>
+                
+                <div class="total-row">
+                    <span>المتبقي:</span>
+                    <span>${remaining.toFixed(2)} ج.م</span>
+                </div>
+                
+                <div class="total-row total-final">
+                    <span>صافي المبلغ:</span>
+                    <span>${remaining.toFixed(2)} ج.م</span>
+                </div>
+            </div>
+            
+
+            <div class="barcode">*${invoice.id}*</div>
+            
+            <div class="footer">
+                <div>شكراً لتعاملكم معنا</div>
+                <div>للاستفسار: 01234567890</div>
+                <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+        </div>
+        
+        <script>
+            // طباعة تلقائية بعد تحميل الصفحة
+            window.onload = function() {
+                setTimeout(() => {
+                    window.print();
+                }, 300);
+            };
+        </script>
+    </body>
+    </html>
+`;
+},
+
+printStatement(dateFrom, dateTo) {
+    const transactions = WalletManager.getStatementTransactions(dateFrom, dateTo);
+    
+    // افتح نافذة طباعة جديدة
+    const printWindow = window.open('', '_blank', 'width=1000,height=700');
+    
+    // إنشاء HTML كامل
+    let html = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>كشف حساب العميل - ${AppData.currentCustomer?.name || ""}</title>
+            <style>
+                body {
+                    font-family: 'Arial', 'Tahoma', sans-serif;
+                    margin: 20px;
+                    direction: rtl;
+                    
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 15px;
+                    }
+                }
                 .header {
                     text-align: center;
-                    padding-bottom: 10px;
-                    margin-bottom: 10px;
-                    border-bottom: 2px dashed #000;
+                    margin-bottom: 30px;
+                    border-bottom: 3px double #000;
+                    padding-bottom: 15px;
                 }
-                
-                .store-name {
-                    font-weight: 900;
-                    font-size: 16px;
-                    margin-bottom: 5px;
-                    color: #000;
+                .header h1 {
+                    margin: 0 0 10px 0;
+                    color: #333;
                 }
-                
-                .store-info {
-                    font-weight: 700;
-                    font-size: 10px;
-                    margin-bottom: 2px;
-                    color: #555;
-                }
-                
-                .invoice-info {
+                .company-info, .customer-info {
                     display: flex;
                     justify-content: space-between;
                     margin-bottom: 10px;
-                    font-weight: 700;
-                    font-size: 10px;
+                    font-size: 14px;
                 }
-                
-                .customer-info {
-                    margin-bottom: 10px;
-                    padding: 8px;
-                    background: #f8f9fa;
-                    border-radius: 4px;
-                    font-weight: 700;
-                    font-size: 10px;
-                }
-                
                 table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 10px;
-                    font-weight: 700;
-                    font-size: 10px;
+                    margin: 20px 0;
+                    font-size: 12px;
                 }
-                
-                th, td {
-                    padding: 6px 2px;
-                    text-align: center;
-                    border-bottom: 1px dashed #ddd;
-                }
-                
                 th {
-                    background: #f1f8ff;
-                    font-weight: 900;
+                    background-color: #f2f2f2;
+                    color: #333;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 10px 8px;
+                    border: 1px solid #000;
+                    white-space: nowrap;
                 }
-                
-                .totals {
-                    margin-top: 10px;
-                    font-size: 11px;
-                }
-                
-                .total-row {
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 4px 0;
-                }
-                
-                .total-final {
-                    border-top: 2px dashed #000;
-                    margin-top: 5px;
-                    padding-top: 8px;
-                    font-weight: 900;
-                }
-                
-                .payment-info {
-                    margin: 10px 0;
+                td {
                     padding: 8px;
-                    background: #f8f9fa;
-                    border-radius: 4px;
-                    font-weight: 700;
-                    font-size: 10px;
+                    border: 1px solid #ddd;
+                    text-align: center;
                 }
-                
-                .payment-details {
-                    margin-top: 5px;
+                tr:nth-child(even) {
+                    background-color: #f9f9f9;
                 }
-                
-                .payment-row {
+                .positive {
+                    color: #28a745;
+                }
+                .negative {
+                    color: #dc3545;
+                }
+                .summary {
+                    margin-top: 30px;
+                    padding: 15px;
+                    border: 2px solid #333;
+                    background-color: #f8f9fa;
+                }
+                .summary-row {
                     display: flex;
                     justify-content: space-between;
-                    padding: 2px 0;
+                    margin-bottom: 8px;
+                    font-size: 14px;
                 }
-                
                 .footer {
                     text-align: center;
-                    margin-top: 15px;
-                    padding-top: 10px;
-                    border-top: 2px dashed #000;
-                    font-weight: 700;
-                    font-size: 9px;
-                    color: #555;
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #ddd;
+                    font-size: 12px;
+                    color: #666;
                 }
-                
-                .barcode {
-                    text-align: center;
-                    margin: 10px 0;
-                    font-family: monospace;
-                    font-size: 16px;
-                    letter-spacing: 3px;
-                    font-weight: 900;
+                .signature {
+                    margin-top: 30px;
+                    text-align: left;
+                    padding: 20px 0;
                 }
-                
-                .status {
+                .signature-line {
+                    width: 200px;
+                    border-top: 1px solid #000;
                     display: inline-block;
-                    padding: 2px 8px;
-                    border-radius: 3px;
-                    font-size: 10px;
-                    font-weight: 700;
-                    margin-top: 5px;
-                }
-                
-                .status-pending { background: #fff3cd; color: #856404; }
-                .status-partial { background: #d1ecf1; color: #0c5460; }
-                .status-paid { background: #d4edda; color: #155724; }
-                .status-returned { background: #f8d7da; color: #721c24; }
-                
-                @media print {
-                    body {
-                        padding: 0;
-                        margin: 0;
-                    }
-                    
-                    .invoice {
-                        border: none;
-                        width: 100%;
-                        max-width: 280px;
-                    }
+                    margin: 0 20px;
                 }
             </style>
         </head>
         <body>
-            <div class="invoice">
-                <div class="header">
-                    <div class="store-name">نظام الفواتير الإلكتروني</div>
-                    <div class="store-info">السجل التجاري: 1234567890</div>
-                    <div class="store-info">الهاتف: 01234567890</div>
+            <div class="header">
+                <h1>كشف حساب العميل</h1>
+                <div class="company-info">
+                    <div>التاريخ: ${new Date().toLocaleDateString('ar-EG')}</div>
+                    <div>الوقت: ${new Date().toLocaleTimeString('ar-EG')}</div>
                 </div>
-                
-                <div class="invoice-info">
-                    <div>
-                        <div>رقم الفاتورة: ${invoice.number}</div>
-                        <div>التاريخ: ${formattedDate}</div>
-                    </div>
-                    <div>
-                        <div>الوقت: ${timeString}</div>
-                        <div>الكاشير: ${invoice.createdBy || 'مدير النظام'}</div>
-                    </div>
-                </div>
-                
                 <div class="customer-info">
-                    <div>العميل: ${customer.name}</div>
-                    <div>الهاتف: ${customer.phone}</div>
-                    <div class="status status-${status}">
-                        ${status === 'pending' ? 'مؤجل' :
-                status === 'partial' ? 'جزئي' :
-                    status === 'paid' ? 'مسلم' : 'مرتجع'}
-                    </div>
-                </div>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>المنتج</th>
-                            <th>الكمية</th>
-                            <th>السعر</th>
-                            <th>الإجمالي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHTML}
-                    </tbody>
-                </table>
-                
-                <div class="totals">
-                    <div class="total-row">
-                        <span>الإجمالي:</span>
-                        <span>${invoice.total.toFixed(2)} ج.م</span>
-                    </div>
-                    
-                    <div class="total-row">
-                        <span>المدفوع:</span>
-                        <span>${paid.toFixed(2)} ج.م</span>
-                    </div>
-                    
-                    <div class="total-row">
-                        <span>المتبقي:</span>
-                        <span>${remaining.toFixed(2)} ج.م</span>
-                    </div>
-                    
-                    <div class="total-row total-final">
-                        <span>المبلغ الإجمالي:</span>
-                        <span>${invoice.total.toFixed(2)} ج.م</span>
-                    </div>
-                </div>
-                
-
-                <div class="barcode">*${invoice.number}*</div>
-                
-                <div class="footer">
-                    <div>شكراً لتعاملكم معنا</div>
-                    <div>للاستفسار: 01234567890</div>
-                    <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div><strong>العميل:</strong> ${AppData.currentCustomer?.name || ""}</div>
+                    <div><strong>الهاتف:</strong> ${AppData.currentCustomer?.mobile || AppData.currentCustomer?.mobil || ""}</div>
+                    <div><strong>الفترة:</strong> ${dateFrom || "البداية"} - ${dateTo || "النهاية"}</div>
                 </div>
             </div>
             
+            <table>
+                <thead>
+                    <tr>
+                        <th>تاريخ إنشاء المعاملة</th>
+                        <th>تاريخ تسجيل المعاملة</th>
+                        <th>نوع الحركة</th>
+                        <th>الوصف</th>
+                        <th>المبلغ</th>
+                        <th>المحفظة قبل</th>
+                        <th>المحفظة بعد</th>
+                        <th>الديون قبل</th>
+                        <th>الديون بعد</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // حساب المجاميع
+    let totalIn = 0;
+    let totalOut = 0;
+    let lastBalance = 0;
+    let lastWallet = 0;
+
+    transactions.forEach((transaction, index) => {
+        // استخراج البيانات بطرق مختلفة للتأكد من وجودها
+        const createDate = transaction.created_at || transaction.transaction_date || transaction.date || "";
+        const recordDate = transaction.updated_at || transaction.created_at || "";
+        const type = transaction.type_text || transaction.type || "";
+        const description = transaction.description || "";
+        
+        const amount = parseFloat(transaction.amount) || 0;
+        const walletBefore = parseFloat(transaction.wallet_before) || 0;
+        const walletAfter = parseFloat(transaction.wallet_after) || 0;
+        const balanceBefore = parseFloat(transaction.balance_before) || 0;
+        const balanceAfter = parseFloat(transaction.balance_after) || 0;
+        
+       
+
+        const amountClass = amount > 0 ? 'positive' : 'negative';
+        const amountSign = amount > 0 ? '+' : '';
+        
+        html += `
+            <tr>
+                <td>${this.formatDateForPrint(createDate)}</td>
+                <td>${this.formatDateForPrint(recordDate)}</td>
+                <td>${type}</td>
+                <td>${description}</td>
+                <td class="${amountClass}">${amountSign}${amount.toFixed(2)}</td>
+                <td>${walletBefore.toFixed(2)}</td>
+                <td>${walletAfter.toFixed(2)}</td>
+                <td>${balanceBefore.toFixed(2)}</td>
+                <td>${balanceAfter.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+            
+        
+            
+            <div class="footer">
+                <div>شكراً لتعاملكم معنا</div>
+                <div>هذا الكشف صادر عن نظام إدارة المبيعات</div>
+                <div>توقيع: _________________</div>
+            </div>
+            
             <script>
-                // طباعة تلقائية بعد تحميل الصفحة
+                // دالة تنسيق التاريخ
+                function formatDateForPrint(dateStr) {
+                    if (!dateStr) return "";
+                    try {
+                        const date = new Date(dateStr);
+                        return date.toLocaleDateString('ar-EG') + " " + date.toLocaleTimeString('ar-EG').slice(0, 5);
+                    } catch {
+                        return dateStr;
+                    }
+                }
+                
+                // طباعة عند تحميل الصفحة
                 window.onload = function() {
-                    setTimeout(() => {
+                    setTimeout(function() {
                         window.print();
-                    }, 300);
-                };
+                        // إغلاق النافذة بعد ثانيتين من الطباعة
+                        setTimeout(function() {
+                            window.close();
+                        }, 2000);
+                    }, 500);
+                }
             </script>
         </body>
         </html>
     `;
-    },
-    printStatement(dateFrom, dateTo) {
-        const printSection = document.getElementById("printSection");
-        const transactions = WalletManager.getStatementTransactions(
-            dateFrom,
-            dateTo
-        );
 
-        let content = `
-                    <div class="pos-header">
-                        <h2>كشف حساب العميل</h2>
-                        <div class="pos-details">
-                            <div>العميل: ${AppData.currentCustomer.name}</div>
-                            <div>الفترة: ${dateFrom || "البداية"} - ${dateTo || "النهاية"
-            }</div>
-                            <div>التاريخ: ${new Date().toLocaleDateString(
-                "ar-EG"
-            )}</div>
-                        </div>
-                    </div>
-                    
-                    <table class="pos-items">
-                        <thead>
-                            <tr>
-                                <th>التاريخ</th>
-                                <th>الوصف</th>
-                                <th>المبلغ</th>
-                                <th>الرصيد</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+    // كتابة HTML واغلاق المستند
+    printWindow.document.write(html);
+    printWindow.document.close();
+},
 
-        let currentBalance = 0;
-
-        transactions.forEach((transaction) => {
-            currentBalance = transaction.balanceAfter;
-            const amountSign = transaction.amount > 0 ? "+" : "";
-
-            content += `
-                        <tr>
-                            <td>${transaction.date}</td>
-                            <td>${transaction.description}</td>
-                            <td>${amountSign}${transaction.amount.toFixed(
-                2
-            )}</td>
-                            <td>${transaction.balanceAfter.toFixed(2)}</td>
-                        </tr>
-                    `;
+// أضف هذه الدالة المساعدة خارج printStatement
+ formatDateForPrint(dateStr) {
+    if (!dateStr) return "";
+    try {
+        const date = new Date(dateStr);
+        const formattedDate = date.toLocaleDateString('ar-EG', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
         });
-
-        content += `
-                        </tbody>
-                    </table>
-                    
-                    <div class="pos-totals">
-                        <div class="d-flex justify-content-between">
-                            <span>الرصيد النهائي:</span>
-                            <span>${currentBalance.toFixed(2)} ج.م</span>
-                        </div>
-                    </div>
-                    
-                    <div class="pos-footer">
-                        <div>شكراً لتعاملكم معنا</div>
-                        <div>للاستفسار: ${AppData.currentCustomer.phone}</div>
-                    </div>
-                `;
-
-        printSection.innerHTML = content;
-
-        // الطباعة
-        window.print();
-    },
-
+        const formattedTime = date.toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        return formattedDate + " " + formattedTime;
+    } catch {
+        return dateStr;
+    }
+},
     openPrintMultipleModal() {
         const container = document.getElementById("printInvoicesList");
         container.innerHTML = "";
@@ -425,7 +975,11 @@ const PrintManager = {
         modal.show();
     },
 
-    printMultipleInvoices() {
+   printMultipleInvoices(invoices=[],workOrder=null) {
+    let invoiceIds = invoices;
+
+    if(!workOrder){
+
         const selectedCheckboxes = document.querySelectorAll(
             ".print-invoice-checkbox:checked"
         );
@@ -433,87 +987,482 @@ const PrintManager = {
             Swal.fire("تحذير", "يرجى اختيار فواتير للطباعة.", "warning");
             return;
         }
-
-        const invoiceIds = Array.from(selectedCheckboxes).map((checkbox) =>
-            parseInt(checkbox.value)
+    
+         invoiceIds = Array.from(selectedCheckboxes).map((checkbox) =>
+            parseInt(checkbox.dataset.invoiceId)
         );
+    }
 
-        // إنشاء تقرير مجمع
-        const report = {
-            invoicesCount: invoiceIds.length,
-            items: [],
-            totals: {
-                beforeDiscount: 0,
-                afterDiscount: 0,
-                discount: 0,
-            },
-            invoices: [],
-        };
+    
+    // إنشاء تقرير مجمع
+    const report = {
+        invoicesCount: invoiceIds.length,
+        items: [],
+        totals: {
+            beforeDiscount: 0,
+            afterDiscount: 0,
+            discountAmount: 0,
+            totalCost: 0,
+            profitAmount: 0,
+            discountType: 'percent' // الافتراضي
+        },
+        payments: {
+            totalPaid: 0,
+            totalRemaining: 0
+        },
+        invoices: [],
+        customerName: AppData.currentCustomer?.name || 'غير محدد',
+        workOrder: workOrder?workOrder.name: null
+    };
 
-        // تجميع بيانات الفواتير المحددة
-        invoiceIds.forEach((invoiceId) => {
-            const invoice = AppData.invoices.find((i) => i.id === invoiceId);
-            if (invoice) {
-                report.invoices.push({
-                    id: invoice.id,
-                    customer: AppData.currentCustomer.name,
-                    total: invoice.total,
-                });
+    // تجميع بيانات الفواتير المحددة
+    invoiceIds.forEach((inv) => {
 
-                report.totals.beforeDiscount += invoice.total;
-                report.totals.afterDiscount += invoice.total;
+        const invoice = workOrder ? inv : AppData.invoices.find((i) => i.id === inv);
+        
+        if (invoice) {
+            // بناء كائن الفاتورة كما في قاعدة البيانات
+            report.invoices.push({
+                id: invoice.id,
+                customer_id: invoice.customer_id,
+                delivered: invoice.delivered,
+                invoice_group: invoice.invoice_group,
+                total_before_discount: invoice.total_before_discount || invoice.total || 0,
+                total_after_discount: invoice.total_after_discount || invoice.total || 0,
+                discount_amount: invoice.discount_amount || 0,
+                discount_type: invoice.discount_type || 'percent',
+                discount_value: invoice.discount_value || 0,
+                total_cost: invoice.total_cost || 0,
+                profit_amount: invoice.profit_amount || 0,
+                paid_amount: invoice.paid_amount || invoice.paid || 0,
+                remaining_amount: invoice.remaining_amount || invoice.remaining || 0,
+                notes: invoice.notes,
+                created_at: invoice.created_at || invoice.date,
+                customer_name: invoice.customer_name || AppData.currentCustomer?.name
+            });
 
-                // إضافة البنود غير المرتجعة بالكامل
-                invoice.items.forEach((item) => {
-                    if (!item.fullyReturned) {
-                        const remainingQuantity =
-                            item.quantity - (item.returnedQuantity || 0);
-                        if (remainingQuantity > 0) {
-                            // البحث عن المنتج إذا كان موجودًا بالفعل
-                            const existingItem = report.items.find(
-                                (i) =>
-                                    i.name === item.productName && i.price === item.price
-                            );
-                            if (existingItem) {
-                                existingItem.quantity += remainingQuantity;
-                                existingItem.total += remainingQuantity * item.price;
-                            } else {
-                                report.items.push({
-                                    name: item.productName,
-                                    quantity: remainingQuantity,
-                                    price: item.price,
-                                    total: remainingQuantity * item.price,
-                                });
-                            }
+            // جمع الإجماليات
+            report.totals.beforeDiscount += invoice.total_before_discount || invoice.total || 0;
+            report.totals.afterDiscount += invoice.total_after_discount || invoice.total || 0;
+            report.totals.discountAmount += invoice.discount_amount || 0;
+            report.totals.totalCost += invoice.total_cost || 0;
+            report.totals.profitAmount += invoice.profit_amount || 0;
+            
+            // جمع المدفوعات والمتبقي
+            report.payments.totalPaid += invoice.paid_amount || invoice.paid || 0;
+            report.payments.totalRemaining += invoice.remaining_amount || invoice.remaining || 0;
+
+            // إضافة البنود غير المرتجعة بالكامل
+            invoice.items.forEach((item) => {
+                if (!item.fullyReturned) {
+                    const remainingQuantity =
+                        item.quantity - (item.returnedQuantity || 0);
+                    if (remainingQuantity > 0) {
+                        // البحث عن المنتج إذا كان موجودًا بالفعل
+                        const existingItem = report.items.find(
+                            (i) =>
+                                i.name === item.product_name && 
+                                i.price === item.selling_price
+                        );
+                        if (existingItem) {
+                            existingItem.quantity += remainingQuantity;
+                            existingItem.total += remainingQuantity * item.selling_price;
+                            existingItem.cost_total += remainingQuantity * (item.cost_price || 0);
+                        } else {
+                            report.items.push({
+                                id: item.id,
+                                name: item.product_name,
+                                quantity: remainingQuantity,
+                                price: item.selling_price,
+                                total: remainingQuantity * item.selling_price,
+                                cost_price: item.cost_price || 0,
+                                cost_total: remainingQuantity * (item.cost_price || 0)
+                            });
                         }
                     }
-                });
-            }
-        });
+                }
+            });
+        }
+    });
 
-        // استخدام دالة الطباعة المجمعة
-        printAggregatedReport(report);
+    // استخدام دالة الطباعة المجمعة
+    this.printAggregatedReport(report);
 
-        // إغلاق المودال
-        const modal = bootstrap.Modal.getInstance(
-            document.getElementById("printMultipleModal")
-        );
-        modal.hide();
-    },
+    // إغلاق المودال
+    // const modal = bootstrap.Modal.getInstance(
+    //     document.getElementById("printMultipleModal")
+    // );
+    // modal.hide();
+},
     printAggregatedReport(report) {
-    const printWindow = window.open("", "_blank", "width=300,height=600");
-    if (!printWindow) {
-        Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
-        return;
-    }
+        const printWindow = window.open("", "_blank", "width=400,height=600");
+        if (!printWindow) {
+            Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
+            return;
+        }
+
+        // إنشاء محتوى الطباعة المجمع
+        const receiptContent = this.generateAggregatedReportContent(report);
+
+        printWindow.document.write(receiptContent);
+        printWindow.document.close();
+
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    },
+
+   generateAggregatedReportContent(report) {
     
-    // ... إنشاء receiptContent
-    printWindow.document.write(receiptContent);
-    printWindow.document.close();
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 500);
+    
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('ar-SA');
+    const formattedTime = today.toLocaleTimeString('ar-SA', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // استخدام بيانات المدفوعات من الـ report
+    const totalPaid = report.payments.totalPaid || 0;
+    const totalRemaining = report.payments.totalRemaining || 0;
+    
+    // حساب إجمالي تكلفة وربح المنتجات
+    const totalCost = report.items.reduce((sum, item) => sum + (item.cost_total || 0), 0);
+    const totalSales = report.items.reduce((sum, item) => sum + (item.total || 0), 0);
+    const totalProfit = totalSales - totalCost;
+
+    // إنشاء بنود المنتجات
+    let itemsHTML = '';
+    report.items.forEach((item, index) => {
+        itemsHTML += `
+            <tr>
+                <td style="width:10%; text-align:center;">${index + 1}</td>
+                <td style="width:45%; text-align:right; padding-right:5px;">
+                    ${item.name}
+                </td>
+                <td style="width:15%; text-align:center;">${item.quantity.toFixed(2)}</td>
+                <td style="width:15%; text-align:center;">${item.price?.toFixed(2)}</td>
+                <td style="width:20%; text-align:left; padding-left:5px;">
+                    ${item.total.toFixed(2)} 
+                </td>
+            </tr>
+        `;
+    });
+
+    // إنشاء قائمة الفواتير المختارة
+    let invoicesListHTML = '';
+    if (report.invoices && report.invoices.length > 0) {
+        report.invoices.forEach((inv, index) => {
+            const status = inv.delivered === 'yes' ? 'مسلم' : 
+                          inv.delivered === 'partial' ? 'جزئي' : 
+                          inv.delivered === 'no' ? 'معلق' :
+                          inv.delivered === 'canceled' ? 'ملغى' : 'مرتجع';
+            
+            invoicesListHTML += `
+            <div style="padding: 3px 0; border-bottom: 1px dashed #eee; font-size: 9px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>#${inv.id}</span>
+                    <span>${status}</span>
+                    <span>${inv.total_after_discount?.toFixed(2) || '0.00'}</span>
+                </div>
+            </div>
+            `;
+        });
+    }
+
+    return `
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          ${report.workOrder ? `<title> فواتير شغلانه ${report.workOrder}</title>`: `<title>تقرير فواتير مجمع</title>`}
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            
+            body {
+                padding: 10px;
+                background: white;
+                color: #000;
+                font-size: 12px;
+            }
+            
+            .report {
+                width: 280px;
+                margin: 0 auto;
+                padding: 10px;
+                border: 1px solid #000;
+            }
+            
+            .header {
+                text-align: center;
+                padding-bottom: 10px;
+                margin-bottom: 10px;
+                border-bottom: 2px dashed #000;
+            }
+            
+            .report-title {
+                font-weight: 900;
+                font-size: 16px;
+                margin-bottom: 5px;
+                color: #000;
+            }
+            
+            .report-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            .stats {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 4px;
+            }
+            
+            .stat-item {
+                text-align: center;
+            }
+            
+            .stat-value {
+                font-weight: 900;
+                font-size: 14px;
+                display: block;
+            }
+            
+            .stat-label {
+                font-size: 9px;
+                color: #555;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 10px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            th, td {
+                padding: 6px 2px;
+                text-align: center;
+                border-bottom: 1px dashed #ddd;
+            }
+            
+            th {
+                background: #f1f8ff;
+                font-weight: 900;
+            }
+            
+            .totals {
+                margin-top: 10px;
+                font-size: 11px;
+            }
+            
+            .total-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 4px 0;
+            }
+            
+            .total-final {
+                border-top: 2px dashed #000;
+                margin-top: 5px;
+                padding-top: 8px;
+                font-weight: 900;
+            }
+            
+            .payment-info {
+                margin: 10px 0;
+                padding: 8px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                font-weight: 700;
+                font-size: 10px;
+            }
+            
+            .payment-details {
+                margin-top: 5px;
+            }
+            
+            .payment-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 2px 0;
+            }
+            
+            .invoices-list {
+                margin: 10px 0;
+                padding: 8px;
+                background: #f0f7ff;
+                border-radius: 4px;
+                max-height: 120px;
+                overflow-y: auto;
+            }
+            
+            .invoices-header {
+                font-weight: 900;
+                text-align: center;
+                margin-bottom: 5px;
+                padding-bottom: 3px;
+                border-bottom: 1px solid #ccc;
+            }
+            
+            .footer {
+                text-align: center;
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 2px dashed #000;
+                font-weight: 700;
+                font-size: 9px;
+                color: #555;
+            }
+            
+            .positive { color: #28a745; }
+            .negative { color: #dc3545; }
+            .neutral { color: #6c757d; }
+            
+            @media print {
+                body {
+                    padding: 0;
+                    margin: 0;
+                }
+                
+                .report {
+                    border: none;
+                    width: 100%;
+                    max-width: 280px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="report">
+            <div class="header">
+          ${report.workOrder ? `<div class="report-title"> فواتير شغلانه ${report.workOrder}</div>`: `                <div class="report-title">تقرير فواتير مجمع</div>
+`}
+
+                <div style="font-size: 10px;">نظام الفواتير الإلكتروني</div>
+            </div>
+            
+            <div class="report-info">
+                <div>
+                    <div>عدد الفواتير: ${report.invoicesCount}</div>
+                    <div>التاريخ: ${formattedDate}</div>
+                </div>
+                <div>
+                    <div>الوقت: ${formattedTime}</div>
+                    <div>العميل: ${report.customerName}</div>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-value">${report.invoicesCount}</span>
+                    <span class="stat-label">فواتير</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${report.items.length}</span>
+                    <span class="stat-label">منتج</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${report.totals.afterDiscount.toFixed(2)}</span>
+                    <span class="stat-label">الإجمالي</span>
+                </div>
+            </div>
+            
+          
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>س. البيع</th>
+                        <th>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHTML}
+                </tbody>
+            </table>
+            
+            <div class="totals">
+                <div class="total-row">
+                    <span>إجمالي المبيعات:</span>
+                    <span>${totalSales.toFixed(2)} ج.م</span>
+                </div>
+                
+                
+                
+                <div class="total-row">
+                    <span>الخصومات:</span>
+                    <span class="negative">- ${report.totals.discountAmount.toFixed(2)} ج.م</span>
+                </div>
+                <div class="total-row">
+                    <span>المطلوب بعد الخصم:</span>
+                    <span > ${report.totals.afterDiscount.toFixed(2)} ج.م</span>
+                </div>
+                
+                <!-- قسم المدفوعات والمتبقي -->
+                <div class="payment-info">
+                    <div style="font-weight: 900; margin-bottom: 5px; text-align: center;">بيانات الدفع</div>
+                    <div class="payment-details">
+                        <div class="payment-row">
+                            <span>المدفوع:</span>
+                            <span class="positive">${totalPaid.toFixed(2)} ج.م</span>
+                        </div>
+                        <div class="payment-row">
+                            <span>المتبقي:</span>
+                            <span class="negative">${totalRemaining.toFixed(2)} ج.م</span>
+                        </div>
+                        <div class="payment-row" style="border-top: 1px dashed #ccc; padding-top: 4px;">
+                            <span>نسبة السداد:</span>
+                            <span style="font-weight: 900;">
+                                ${report.totals.afterDiscount > 0 ? 
+                                    ((totalPaid / report.totals.afterDiscount) * 100).toFixed(1) : 0}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="total-row total-final">
+                    <span>صافي المطلوب:</span>
+                    <span style="font-weight: 900; font-size: 12px;">
+                        ${totalRemaining.toFixed(2)} ج.م
+                        
+                    </span>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div>تمت الطباعة بواسطة النظام الإلكتروني</div>
+                <div>${formattedDate} - ${formattedTime}</div>
+            </div>
+        </div>
+        
+        <script>
+            window.onload = function() {
+                setTimeout(() => {
+                    window.print();
+                }, 300);
+            };
+        </script>
+    </body>
+    </html>
+    `;
 },
     // في PrintManager:
     printWorkOrderInvoices(workOrderId) {
@@ -523,9 +1472,10 @@ const PrintManager = {
             return;
         }
 
-        const relatedInvoices = AppData.invoices.filter(inv =>
-            workOrder.invoices.includes(inv.id)
-        );
+        const relatedInvoices =        AppData.invoices.filter(inv => inv.work_order_id === workOrderId);
+
+
+        
 
         if (relatedInvoices.length === 0) {
             Swal.fire('تحذير', 'لا توجد فواتير في هذه الشغلانة', 'warning');
@@ -533,23 +1483,13 @@ const PrintManager = {
         }
 
         // إنشاء محتوى الطباعة المجمع
-        const printContent = this.generateWorkOrderPrintContent(workOrder, relatedInvoices);
+         this.printMultipleInvoices( relatedInvoices , workOrder);
 
         // فتح نافذة طباعة جديدة
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
-        if (!printWindow) {
-            Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
-            return;
-        }
-
-        printWindow.document.write(printContent);
-        printWindow.document.close();
+     
 
         // الانتظار قليلاً ثم الطباعة
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 500);
+    
     },
 
     generateWorkOrderPrintContent(workOrder, invoices) {

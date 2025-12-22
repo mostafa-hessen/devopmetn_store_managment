@@ -1,5 +1,5 @@
 // api_links.js
-const BASE = "http://localhost/store_v1/client/api/";
+const BASE = "http://localhost/store_v1/api/";
 
 const apis = {
     getCustomerInfo:        BASE + "get_customer_info.php?customer_id=",

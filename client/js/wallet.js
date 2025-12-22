@@ -70,7 +70,7 @@ const WalletManager = {
 
         const url = `${apis.getWalletTransactions}${this.currentCustomerId}`;
 
-        console.log("📥 Loading wallet transactions:", url);
+
 
         const response = await fetch(url);
         const data = await response.json();
@@ -230,7 +230,7 @@ const walletTab = document.querySelector('[data-bs-target="#walletTransaction"]'
      * تحضير مودال الإيداع
      */
     prepareDepositModal() {
-        console.log("🔵 Preparing deposit modal");
+
         
         // تحديث الرصيد الحالي
         this.updateWalletBalanceDisplay();
@@ -246,7 +246,7 @@ const walletTab = document.querySelector('[data-bs-target="#walletTransaction"]'
      * تحضير مودال السحب
      */
     prepareWithdrawModal() {
-        console.log("🔴 Preparing withdraw modal");
+
         
         if (!AppData.currentCustomer) {
             this.showNotification("بيانات العميل غير متوفرة", "warning");
@@ -257,7 +257,7 @@ const walletTab = document.querySelector('[data-bs-target="#walletTransaction"]'
         const amountInput = document.getElementById('withdrawAmount');
         
         if (availableAmountEl) {
-            console.log(AppData.currentCustomer);
+
             
             availableAmountEl.textContent = AppData.formatCurrency(AppData.currentCustomer.wallet);
         }
@@ -299,10 +299,11 @@ const walletTab = document.querySelector('[data-bs-target="#walletTransaction"]'
                 type: "deposit",
                 amount: parseFloat(formData.amount),
                 description: formData.description || this.generateDescription('deposit', formData.amount),
-transaction_date: formData.transaction_date || new Date().toISOString()    
+                transaction_date: formData.transaction_date || new Date().toISOString(),
+
         };
             
-            console.log("📤 Sending deposit request:", transactionData);
+
             
             // استدعاء الـ API
             const response = await this.callWalletAPI(transactionData);
@@ -379,7 +380,7 @@ transaction_date: formData.transaction_date || new Date().toISOString()
                 transaction_date: formData.transaction_date || new Date().toISOString()
             };
             
-            console.log("📤 Sending withdraw request:", transactionData);
+
             
             // استدعاء الـ API
             const response = await this.callWalletAPI(transactionData);
@@ -583,6 +584,7 @@ getFormData(formType) {
     if (customerTx) {
         if (!Array.isArray(AppData.customerTransactions)) AppData.customerTransactions = [];
         AppData.customerTransactions.unshift(customerTx);
+        
     }
 
     // 4. إعادة رسم جدول المحفظة
@@ -602,7 +604,7 @@ getFormData(formType) {
 },
   updateStatementTable(transactions) {
 
-    // console.log(transactions.type_text);
+    // (transactions.type_text);
     
     const tbody = document.getElementById("statementTableBody");
     
@@ -709,7 +711,7 @@ getFormData(formType) {
     },
 renderCustomerTransactions() {
 
-    // console.log(transactions.type_text);
+    // (transactions.type_text);
     
     const tbody = document.getElementById("transactionTableBody");
     if (!tbody) return;
@@ -1168,7 +1170,7 @@ setupTimePickers() {
      * تسجيل الأحداث
      */
     logEvent(event, data) {
-        console.log(`📝 Wallet Event: ${event}`, data);
+
         
         // يمكن إضافة إرسال إلى خدمة تحليلات هنا
         if (window.gtag) {

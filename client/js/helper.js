@@ -70,11 +70,11 @@
     ).textContent = `${pending
         .reduce((sum, i) => sum + i.total, 0)
         .toFixed(2)} ج.م`;
-    document.querySelector(
-        '[data-filter="partial"] .stat-amount'
-    ).textContent = `${partial
-        .reduce((sum, i) => sum + i.total, 0)
-        .toFixed(2)} ج.م`;
+    // document.querySelector(
+    //     '[data-filter="partial"] .stat-amount'
+    // ).textContent = `${partial
+    //     .reduce((sum, i) => sum + i.total, 0)
+    //     .toFixed(2)} ج.م`;
     document.querySelector(
         '[data-filter="paid"] .stat-amount'
     ).textContent = `${paid
@@ -116,9 +116,23 @@ function
     const [date, time] = datetime.split(" ");
     return { date, time };
 }
+function toggleSection(sectionId, buttonElement) {
+
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  
+  const isHidden = section.classList.contains('collapse-section');
+
+  section.classList.toggle('collapse-section');
+  buttonElement.innerHTML = `
+    <i class="fas ${!isHidden ? 'fa-chevron-down' : 'fa-chevron-up'} me-1"></i>
+    ${!isHidden ? 'إظهار' : 'إخفاء'} 
+    ${sectionId === 'invoice-payment' ? 'الفواتير' : 'فواتير الشغلانه'}
+  `;
+}
 
 
 
-export { setupNumberInputPrevention, escapeHtml ,updateInvoiceStats,getCustomerIdFromURL, splitDateTime,PaymentMethods};
+export { setupNumberInputPrevention, escapeHtml ,updateInvoiceStats,getCustomerIdFromURL, splitDateTime,PaymentMethods,toggleSection};
 
 

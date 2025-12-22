@@ -196,6 +196,12 @@ ADD COLUMN wallet_after DECIMAL(12,2) DEFAULT 0.00 COMMENT 'رصيد المحف�
 ADD COLUMN work_order_id INT NULL COMMENT 'ربط بالشغلانة';
 
 
+5- ALTER TABLE invoices_out 
+ADD COLUMN work_order_id INT NULL COMMENT 'ربط بالشغلانة';
+ALTER TABLE invoices_out MODIFY work_order_id INT NULL;
+
+
+
 5- CREATE TABLE work_orders (
     id INT PRIMARY KEY AUTO_INCREMENT,
     customer_id INT NOT NULL,
@@ -397,4 +403,61 @@ ORDER BY invoices_out.created_at ASC;
 **
 
 
-9- المرتجعات
+9- المرتجعات مرتجعات المشتريات
+
+CREATE TABLE purchase_returns (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    return_number VARCHAR(50) UNIQUE,
+    purchase_invoice_id INT,
+    supplier_id INT,
+    return_date DATE,
+    total_amount DECIMAL(15,2),
+    status ENUM('pending', 'approved', 'completed', 'cancelled'),
+    reason TEXT,
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME,
+    updated_by INT,
+    updated_at DATETIME,
+    FOREIGN KEY (purchase_invoice_id) REFERENCES purchase_invoices(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+);
+
+
+ALTER TABLE `batches`
+ADD PRIMARY KEY (id);
+ALTER TABLE purchase_invoice_items
+ADD PRIMARY KEY (id);
+
+
+CREATE TABLE purchase_return_items (
+    id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    purchase_return_id INT NOT NULL,
+    purchase_invoice_item_id INT NOT NULL,
+    product_id INT NOT NULL,
+    batch_id BIGINT UNSIGNED NULL,
+    quantity DECIMAL(15,3) NOT NULL,
+    unit_cost DECIMAL(15,2) NOT NULL,
+    total_cost DECIMAL(15,2) NOT NULL,
+    reason TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (purchase_return_id) REFERENCES purchase_returns(id) ON DELETE CASCADE,
+    FOREIGN KEY (purchase_invoice_item_id) REFERENCES purchase_invoice_items(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (batch_id) REFERENCES batches(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+الخصم علي البنود 
+ALTER TABLE invoice_out_items
+ADD discount_type ENUM('percent','amount') DEFAULT NULL,
+ADD discount_value DECIMAL(10,2) DEFAULT 0.00,
+ADD discount_amount DECIMAL(12,2) DEFAULT 0.00,
+ADD total_after_discount DECIMAL(12,2) DEFAULT 0.00;
+
+ALTER TABLE invoices_out
+ADD discount_scope ENUM('invoice','items','mixed')
+DEFAULT 'invoice'
+COMMENT 'مكان تطبيق الخصم';
+

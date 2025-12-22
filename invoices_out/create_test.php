@@ -1497,7 +1497,7 @@ require_once BASE_DIR . 'partials/header.php';
 
             // // جلب رقم الفاتورة التالي
             // const nextInvoice = await ApiManager.getNextInvoiceNumber();
-            // console.log('رقم الفاتورة التالي:', nextInvoice);
+            // ('رقم الفاتورة التالي:', nextInvoice);
         }
     };
 
@@ -1697,7 +1697,7 @@ require_once BASE_DIR . 'partials/header.php';
 
         // حفظ الفاتورة
         async saveInvoice(invoiceData) {
-            console.log(invoiceData);
+
 
             const result = await this.request('save_invoice', {
                 ...invoiceData,
@@ -3018,7 +3018,7 @@ if (DOM.productSelect) {
         
         const productId = parseInt(this.value);
         if (productId) {
-            console.log(productId);
+
             
             const product = AppData.products.find(p => +p.id === productId);
             if (product) {

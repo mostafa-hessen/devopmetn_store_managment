@@ -53,7 +53,7 @@ function setupEventListeners() {
 
   // تحديث بيانات العميل عند التحميل
   document.addEventListener('customerDataLoaded', function() {
-    console.log('بيانات العميل تم تحميلها بنجاح');
+
     // يمكنك إضافة أي كود هنا بعد تحميل بيانات العميل
   });
 }
@@ -64,7 +64,7 @@ async function initializeApp() {
     showLoading(true);
     
     const customerId = getCustomerIdFromUrl();
-    console.log('تحميل بيانات العميل ID:', customerId);
+
     
     // تهيئة بيانات التطبيق
     AppData.currentCustomerId = customerId;

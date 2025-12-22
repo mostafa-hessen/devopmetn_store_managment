@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function(){
         let totalCost = 0
         let totalProfit = 0
         qsa('#reportTable tbody tr').forEach(tr=>{
-        console.log(tr);
+
         
             const tds = tr.querySelectorAll('td');
             if (!tds || tds.length < 5) return;

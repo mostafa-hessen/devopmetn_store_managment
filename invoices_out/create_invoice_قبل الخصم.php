@@ -410,371 +410,371 @@
                 }
             }
 
+     
 
 
+//             if ($action === 'save_invoice' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
-            //             if ($action === 'save_invoice' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+//                 $token = $_POST['csrf_token'] ?? '';
+//                 if (!hash_equals($_SESSION['csrf_token'], (string)$token)) {
+//                     jsonOut(['ok' => false, 'error' => 'رمز التحقق (CSRF) غير صالح. أعد تحميل الصفحة وحاول مجدداً.']);
+//                 }
 
-            //                 $token = $_POST['csrf_token'] ?? '';
-            //                 if (!hash_equals($_SESSION['csrf_token'], (string)$token)) {
-            //                     jsonOut(['ok' => false, 'error' => 'رمز التحقق (CSRF) غير صالح. أعد تحميل الصفحة وحاول مجدداً.']);
-            //                 }
+//                 $customer_id = (int)($_POST['customer_id'] ?? 0);
+// $work_order_id = (!isset($_POST['work_order_id']) || $_POST['work_order_id'] === '' || $_POST['work_order_id'] === 'null')
+//     ? null
+//     : (int)$_POST['work_order_id'];
+//                 $items_json = $_POST['items'] ?? '';
+//                 $notes = trim($_POST['notes'] ?? '');
+//                 $discount_type = in_array($_POST['discount_type'] ?? 'percent', ['percent', 'amount']) ? $_POST['discount_type'] : 'percent';
+//                 $discount_value = (float)($_POST['discount_value'] ?? 0.0);
+//                 $created_by_i = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
 
-            //                 $customer_id = (int)($_POST['customer_id'] ?? 0);
-            // $work_order_id = (!isset($_POST['work_order_id']) || $_POST['work_order_id'] === '' || $_POST['work_order_id'] === 'null')
-            //     ? null
-            //     : (int)$_POST['work_order_id'];
-            //                 $items_json = $_POST['items'] ?? '';
-            //                 $notes = trim($_POST['notes'] ?? '');
-            //                 $discount_type = in_array($_POST['discount_type'] ?? 'percent', ['percent', 'amount']) ? $_POST['discount_type'] : 'percent';
-            //                 $discount_value = (float)($_POST['discount_value'] ?? 0.0);
-            //                 $created_by_i = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
+//                 if ($customer_id <= 0) jsonOut(['ok' => false, 'error' => 'الرجاء اختيار عميل.']);
+//                 if (empty($items_json)) jsonOut(['ok' => false, 'error' => 'لا توجد بنود لإضافة الفاتورة.']);
 
-            //                 if ($customer_id <= 0) jsonOut(['ok' => false, 'error' => 'الرجاء اختيار عميل.']);
-            //                 if (empty($items_json)) jsonOut(['ok' => false, 'error' => 'لا توجد بنود لإضافة الفاتورة.']);
+//                 $items = json_decode($items_json, true);
+//                 if (!is_array($items) || count($items) === 0) jsonOut(['ok' => false, 'error' => 'بنود الفاتورة غير صالحة.']);
 
-            //                 $items = json_decode($items_json, true);
-            //                 if (!is_array($items) || count($items) === 0) jsonOut(['ok' => false, 'error' => 'بنود الفاتورة غير صالحة.']);
+//                 // ===== التحقق من الشغلانة إذا أُرسلت =====
+//                 if ($work_order_id) {
+//                     $checkWorkOrderStmt = $conn->prepare("
+//             SELECT id, customer_id, status, title 
+//             FROM work_orders 
+//             WHERE id = ? AND customer_id = ? AND status != 'cancelled'
+//         ");
+//                     $checkWorkOrderStmt->bind_param('ii', $work_order_id, $customer_id);
+//                     $checkWorkOrderStmt->execute();
+//                     $workOrderResult = $checkWorkOrderStmt->get_result();
 
-            //                 // ===== التحقق من الشغلانة إذا أُرسلت =====
-            //                 if ($work_order_id) {
-            //                     $checkWorkOrderStmt = $conn->prepare("
-            //             SELECT id, customer_id, status, title 
-            //             FROM work_orders 
-            //             WHERE id = ? AND customer_id = ? AND status != 'cancelled'
-            //         ");
-            //                     $checkWorkOrderStmt->bind_param('ii', $work_order_id, $customer_id);
-            //                     $checkWorkOrderStmt->execute();
-            //                     $workOrderResult = $checkWorkOrderStmt->get_result();
+//                     if ($workOrderResult->num_rows === 0) {
+//                         $checkWorkOrderStmt->close();
+//                         jsonOut(['ok' => false, 'error' => 'الشغلانة غير موجودة أو لا تنتمي لهذا العميل أو ملغية.']);
+//                     }
+//                     $workOrderRow = $workOrderResult->fetch_assoc();
+//                     $workOrderName = $workOrderRow['title'] ?? '';
+//                     $checkWorkOrderStmt->close();
+//                 } else {
+//                     $workOrderName = '';
+//                 }
 
-            //                     if ($workOrderResult->num_rows === 0) {
-            //                         $checkWorkOrderStmt->close();
-            //                         jsonOut(['ok' => false, 'error' => 'الشغلانة غير موجودة أو لا تنتمي لهذا العميل أو ملغية.']);
-            //                     }
-            //                     $workOrderRow = $workOrderResult->fetch_assoc();
-            //                     $workOrderName = $workOrderRow['title'] ?? '';
-            //                     $checkWorkOrderStmt->close();
-            //                 } else {
-            //                     $workOrderName = '';
-            //                 }
+//                 // ===== حساب الإجماليات =====
+//                 $total_before = 0.0;
+//                 $total_cost = 0.0;
+//                 foreach ($items as $it) {
+//                     $qty = (float)($it['qty'] ?? $it['quantity'] ?? 0);
+//                     $sp = (float)($it['selling_price'] ?? $it['price'] ?? 0);
+//                     $cp = (float)($it['cost_price_per_unit'] ?? $it['cost_price'] ?? 0);
 
-            //                 // ===== حساب الإجماليات =====
-            //                 $total_before = 0.0;
-            //                 $total_cost = 0.0;
-            //                 foreach ($items as $it) {
-            //                     $qty = (float)($it['qty'] ?? $it['quantity'] ?? 0);
-            //                     $sp = (float)($it['selling_price'] ?? $it['price'] ?? 0);
-            //                     $cp = (float)($it['cost_price_per_unit'] ?? $it['cost_price'] ?? 0);
+//                     $total_before += round($qty * $sp, 2);
+//                     $total_cost += round($qty * $cp, 2);
+//                 }
+//                 $total_before = round($total_before, 2);
+//                 $total_cost = round($total_cost, 2);
 
-            //                     $total_before += round($qty * $sp, 2);
-            //                     $total_cost += round($qty * $cp, 2);
-            //                 }
-            //                 $total_before = round($total_before, 2);
-            //                 $total_cost = round($total_cost, 2);
+//                 // حساب الخصم
+//                 if ($discount_type === 'percent') {
+//                     $discount_amount = round($total_before * ($discount_value / 100.0), 2);
+//                 } else {
+//                     $discount_amount = round($discount_value, 2);
+//                 }
+//                 if ($discount_amount > $total_before) $discount_amount = $total_before;
 
-            //                 // حساب الخصم
-            //                 if ($discount_type === 'percent') {
-            //                     $discount_amount = round($total_before * ($discount_value / 100.0), 2);
-            //                 } else {
-            //                     $discount_amount = round($discount_value, 2);
-            //                 }
-            //                 if ($discount_amount > $total_before) $discount_amount = $total_before;
+//                 $total_after = round($total_before - $discount_amount, 2);
+//                 $profit_after = round($total_after - $total_cost, 2);
 
-            //                 $total_after = round($total_before - $discount_amount, 2);
-            //                 $profit_after = round($total_after - $total_cost, 2);
+//                 // ==== القيم الثابتة للفاتورة الجديدة ====
+//                 $status = 'pending';
+//                 $delivered = 'no';
+//                 $paid_amount = 0;
+//                 $remaining_amount = $total_after;
 
-            //                 // ==== القيم الثابتة للفاتورة الجديدة ====
-            //                 $status = 'pending';
-            //                 $delivered = 'no';
-            //                 $paid_amount = 0;
-            //                 $remaining_amount = $total_after;
+//                 try {
+//                     $conn->begin_transaction();
 
-            //                 try {
-            //                     $conn->begin_transaction();
+//                     // ===== إدراج رأس الفاتورة =====
+//                     $invoice_group = 'group1';
+//                     $stmt = $conn->prepare("
+//             INSERT INTO invoices_out
+//             (customer_id, delivered, invoice_group, created_by, created_at, notes,
+//             total_before_discount, discount_type, discount_value, discount_amount, 
+//             total_after_discount, total_cost, profit_amount, paid_amount, remaining_amount, work_order_id)
+//             VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//         ");
+//                     if (!$stmt) throw new Exception($conn->error);
 
-            //                     // ===== إدراج رأس الفاتورة =====
-            //                     $invoice_group = 'group1';
-            //                     $stmt = $conn->prepare("
-            //             INSERT INTO invoices_out
-            //             (customer_id, delivered, invoice_group, created_by, created_at, notes,
-            //             total_before_discount, discount_type, discount_value, discount_amount, 
-            //             total_after_discount, total_cost, profit_amount, paid_amount, remaining_amount, work_order_id)
-            //             VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            //         ");
-            //                     if (!$stmt) throw new Exception($conn->error);
-
-            //                     // bind_param مع التحقق من null لـ work_order_id
-            //                   $stmt->bind_param(
-            //     'issisdsdddddddi',
-            //     $customer_id,
-            //     $delivered,
-            //     $invoice_group,
-            //     $created_by_i,
-            //     $notes,
-            //     $total_before,
-            //     $discount_type,
-            //     $discount_value,
-            //     $discount_amount,
-            //     $total_after,
-            //     $total_cost,
-            //     $profit_after,
-            //     $paid_amount,
-            //     $remaining_amount,
-            //     $work_order_id   // ← null مسموح
-            // );
-
-
-            //                     $stmt->execute();
-            //                     if ($stmt->errno) {
-            //                         $e = $stmt->error;
-            //                         $stmt->close();
-            //                         throw new Exception($e);
-            //                     }
-
-            //                     $invoice_id = (int)$conn->insert_id;
-            //                     $stmt->close();
-
-            //                     // ===== تسجيل حركة العميل =====
-            //                     $balanceStmt = $conn->prepare("SELECT balance ,wallet FROM customers WHERE id = ? FOR UPDATE");
-            //                     $balanceStmt->bind_param('i', $customer_id);
-            //                     $balanceStmt->execute();
-            //                     $balanceRow = $balanceStmt->get_result()->fetch_assoc();
-            //                     $balance_before = (float)($balanceRow['balance'] ?? 0);
-            //                     $balance_after = $balance_before + $total_after;
-
-            // $wallet_before  = (float)$balanceRow['wallet'];
-            // $work_order_id = $work_order_id ?: null;
-            // $wallet_after  = $wallet_before; 
-            //                     $balanceStmt->close();
-
-            //                     $description = "فاتورة مبيعات جديدة #{$invoice_id}";
-            //                     if ($work_order_id) {
-            //                         $description .= " (الشغلانة: \"{$workOrderName}\" رقم #{$work_order_id})";
-            //                     }
-
-            //                   $transactionStmt = $conn->prepare("
-            //     INSERT INTO customer_transactions 
-            //     (
-            //         customer_id,
-            //         transaction_type,
-            //         amount,
-            //         description,
-            //         invoice_id,
-            //         work_order_id,
-            //         balance_before,
-            //         balance_after,
-            //         wallet_before,
-            //         wallet_after,
-            //         transaction_date,
-            //         created_by
-            //     )
-            //     VALUES (?, 'invoice', ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
-            // ");
-
-            // $transactionStmt->bind_param(
-            //     'idsiiddddi' ,
-            //     $customer_id,
-            //     $total_after,
-            //     $description,
-            //     $invoice_id,
-            //     $work_order_id,
-            //     $balance_before,
-            //     $balance_after,
-            //     $wallet_before,
-            //     $wallet_after,
-            //     $created_by_i
-            // );
-
-            // $transactionStmt->execute();
-            // $transactionStmt->close();
+//                     // bind_param مع التحقق من null لـ work_order_id
+//                   $stmt->bind_param(
+//     'issisdsdddddddi',
+//     $customer_id,
+//     $delivered,
+//     $invoice_group,
+//     $created_by_i,
+//     $notes,
+//     $total_before,
+//     $discount_type,
+//     $discount_value,
+//     $discount_amount,
+//     $total_after,
+//     $total_cost,
+//     $profit_after,
+//     $paid_amount,
+//     $remaining_amount,
+//     $work_order_id   // ← null مسموح
+// );
 
 
+//                     $stmt->execute();
+//                     if ($stmt->errno) {
+//                         $e = $stmt->error;
+//                         $stmt->close();
+//                         throw new Exception($e);
+//                     }
 
-            //                     // ===== تحديث رصيد العميل =====
-            //                     $updateBalanceStmt = $conn->prepare("UPDATE customers SET balance = balance + ? WHERE id = ?");
-            //                     $updateBalanceStmt->bind_param('di', $total_after, $customer_id);
-            //                     $updateBalanceStmt->execute();
-            //                     $updateBalanceStmt->close();
+//                     $invoice_id = (int)$conn->insert_id;
+//                     $stmt->close();
 
-            //                     // ===== إدراج البنود وتخصيص FIFO =====
-            //                     $totalRevenue = 0.0;
-            //                     $totalCOGS = 0.0;
+//                     // ===== تسجيل حركة العميل =====
+//                     $balanceStmt = $conn->prepare("SELECT balance ,wallet FROM customers WHERE id = ? FOR UPDATE");
+//                     $balanceStmt->bind_param('i', $customer_id);
+//                     $balanceStmt->execute();
+//                     $balanceRow = $balanceStmt->get_result()->fetch_assoc();
+//                     $balance_before = (float)($balanceRow['balance'] ?? 0);
+//                     $balance_after = $balance_before + $total_after;
+                    
+// $wallet_before  = (float)$balanceRow['wallet'];
+// $work_order_id = $work_order_id ?: null;
+// $wallet_after  = $wallet_before; 
+//                     $balanceStmt->close();
 
-            //                     $insertItemStmt = $conn->prepare("
-            //             INSERT INTO invoice_out_items
-            //             (invoice_out_id, product_id, quantity, total_price, cost_price_per_unit, selling_price, price_type, created_at)
-            //             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            //         ");
-            //                     $insertAllocStmt = $conn->prepare("INSERT INTO sale_item_allocations (sale_item_id, batch_id, qty, unit_cost, line_cost, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-            //                     $updateBatchStmt = $conn->prepare("UPDATE batches SET remaining = ?, status = ?, adjusted_at = NOW(), adjusted_by = ? WHERE id = ?");
-            //                     $selectBatchesStmt = $conn->prepare("SELECT id, remaining, unit_cost FROM batches WHERE product_id = ? AND status = 'active' AND remaining > 0 ORDER BY received_at ASC, created_at ASC, id ASC FOR UPDATE");
+//                     $description = "فاتورة مبيعات جديدة #{$invoice_id}";
+//                     if ($work_order_id) {
+//                         $description .= " (الشغلانة: \"{$workOrderName}\" رقم #{$work_order_id})";
+//                     }
 
-            //                     foreach ($items as $it) {
-            //                         $product_id = (int)($it['product_id'] ?? 0);
-            //                         $qty = (float)($it['qty'] ?? 0);
-            //                         $selling_price = (float)($it['selling_price'] ?? 0);
-            //                         $price_type = strtolower(trim((string)($it['price_type'] ?? 'wholesale')));
+//                   $transactionStmt = $conn->prepare("
+//     INSERT INTO customer_transactions 
+//     (
+//         customer_id,
+//         transaction_type,
+//         amount,
+//         description,
+//         invoice_id,
+//         work_order_id,
+//         balance_before,
+//         balance_after,
+//         wallet_before,
+//         wallet_after,
+//         transaction_date,
+//         created_by
+//     )
+//     VALUES (?, 'invoice', ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+// ");
 
-            //                         if ($product_id <= 0 || $qty <= 0) {
-            //                             $conn->rollback();
-            //                             jsonOut(['ok' => false, 'error' => "بند غير صالح (معرف/كمية)."]);
-            //                         }
+// $transactionStmt->bind_param(
+//     'idsiiddddi' ,
+//     $customer_id,
+//     $total_after,
+//     $description,
+//     $invoice_id,
+//     $work_order_id,
+//     $balance_before,
+//     $balance_after,
+//     $wallet_before,
+//     $wallet_after,
+//     $created_by_i
+// );
 
-            //                         // جلب اسم المنتج
-            //                         $product_name = null;
-            //                         $pnameStmt = $conn->prepare("SELECT name FROM products WHERE id = ?");
-            //                         if ($pnameStmt) {
-            //                             $pnameStmt->bind_param('i', $product_id);
-            //                             $pnameStmt->execute();
-            //                             $prow = $pnameStmt->get_result()->fetch_assoc();
-            //                             $product_name = $prow['name'] ?? '';
-            //                             $pnameStmt->close();
-            //                         }
+// $transactionStmt->execute();
+// $transactionStmt->close();
 
-            //                         // تخصيص FIFO
-            //                         $selectBatchesStmt->bind_param('i', $product_id);
-            //                         $selectBatchesStmt->execute();
-            //                         $availableBatches = $selectBatchesStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                  
 
-            //                         $need = $qty;
-            //                         $allocations = [];
-            //                         foreach ($availableBatches as $b) {
-            //                             if ($need <= 0) break;
-            //                             $avail = (float)$b['remaining'];
-            //                             if ($avail <= 0) continue;
-            //                             $take = min($avail, $need);
-            //                             $allocations[] = ['batch_id' => (int)$b['id'], 'take' => $take, 'unit_cost' => (float)$b['unit_cost']];
-            //                             $need -= $take;
-            //                         }
+//                     // ===== تحديث رصيد العميل =====
+//                     $updateBalanceStmt = $conn->prepare("UPDATE customers SET balance = balance + ? WHERE id = ?");
+//                     $updateBalanceStmt->bind_param('di', $total_after, $customer_id);
+//                     $updateBalanceStmt->execute();
+//                     $updateBalanceStmt->close();
 
-            //                         if ($need > 0.00001) {
-            //                             $conn->rollback();
-            //                             jsonOut([
-            //                                 'ok' => false,
-            //                                 'error' => "الرصيد غير كافٍ للمنتج '{$product_name}'. (ID: {$product_id})"
-            //                             ]);
-            //                         }
+//                     // ===== إدراج البنود وتخصيص FIFO =====
+//                     $totalRevenue = 0.0;
+//                     $totalCOGS = 0.0;
 
-            //                         $itemTotalCost = 0.0;
-            //                         foreach ($allocations as $a) $itemTotalCost += $a['take'] * $a['unit_cost'];
-            //                         $cost_price_per_unit = ($qty > 0) ? ($itemTotalCost / $qty) : 0.0;
+//                     $insertItemStmt = $conn->prepare("
+//             INSERT INTO invoice_out_items
+//             (invoice_out_id, product_id, quantity, total_price, cost_price_per_unit, selling_price, price_type, created_at)
+//             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+//         ");
+//                     $insertAllocStmt = $conn->prepare("INSERT INTO sale_item_allocations (sale_item_id, batch_id, qty, unit_cost, line_cost, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+//                     $updateBatchStmt = $conn->prepare("UPDATE batches SET remaining = ?, status = ?, adjusted_at = NOW(), adjusted_by = ? WHERE id = ?");
+//                     $selectBatchesStmt = $conn->prepare("SELECT id, remaining, unit_cost FROM batches WHERE product_id = ? AND status = 'active' AND remaining > 0 ORDER BY received_at ASC, created_at ASC, id ASC FOR UPDATE");
 
-            //                         // جلب سعر البيع إذا لم يُرسل
-            //                         if ($selling_price <= 0) {
-            //                             $ppriceStmt = $conn->prepare("SELECT retail_price, selling_price FROM products WHERE id = ?");
-            //                             $ppriceStmt->bind_param('i', $product_id);
-            //                             $ppriceStmt->execute();
-            //                             $prow = $ppriceStmt->get_result()->fetch_assoc();
-            //                             if ($prow) {
-            //                                 $selling_price = ($price_type === 'retail') ? (float)($prow['retail_price'] ?? 0) : (float)($prow['selling_price'] ?? 0);
-            //                             }
-            //                             $ppriceStmt->close();
-            //                         }
+//                     foreach ($items as $it) {
+//                         $product_id = (int)($it['product_id'] ?? 0);
+//                         $qty = (float)($it['qty'] ?? 0);
+//                         $selling_price = (float)($it['selling_price'] ?? 0);
+//                         $price_type = strtolower(trim((string)($it['price_type'] ?? 'wholesale')));
 
-            //                         $lineTotalPrice = $qty * $selling_price;
+//                         if ($product_id <= 0 || $qty <= 0) {
+//                             $conn->rollback();
+//                             jsonOut(['ok' => false, 'error' => "بند غير صالح (معرف/كمية)."]);
+//                         }
 
-            //                         // إدراج البند
-            //                         $invoice_item_id = $invoice_id;
-            //                         $insertItemStmt->bind_param('iidddds', $invoice_item_id, $product_id, $qty, $lineTotalPrice, $cost_price_per_unit, $selling_price, $price_type);
-            //                         $insertItemStmt->execute();
-            //                         if ($insertItemStmt->errno) {
-            //                             $err = $insertItemStmt->error;
-            //                             $insertItemStmt->close();
-            //                             throw new Exception($err);
-            //                         }
-            //                         $invoice_item_id = (int)$conn->insert_id;
+//                         // جلب اسم المنتج
+//                         $product_name = null;
+//                         $pnameStmt = $conn->prepare("SELECT name FROM products WHERE id = ?");
+//                         if ($pnameStmt) {
+//                             $pnameStmt->bind_param('i', $product_id);
+//                             $pnameStmt->execute();
+//                             $prow = $pnameStmt->get_result()->fetch_assoc();
+//                             $product_name = $prow['name'] ?? '';
+//                             $pnameStmt->close();
+//                         }
 
-            //                         // تطبيق التخصيصات على الـ batches
-            //                         foreach ($allocations as $a) {
-            //                             $stmtCur = $conn->prepare("SELECT remaining FROM batches WHERE id = ? FOR UPDATE");
-            //                             $stmtCur->bind_param('i', $a['batch_id']);
-            //                             $stmtCur->execute();
-            //                             $curRow = $stmtCur->get_result()->fetch_assoc();
-            //                             $stmtCur->close();
+//                         // تخصيص FIFO
+//                         $selectBatchesStmt->bind_param('i', $product_id);
+//                         $selectBatchesStmt->execute();
+//                         $availableBatches = $selectBatchesStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-            //                             $newRem = max(0.0, ((float)$curRow['remaining']) - $a['take']);
-            //                             $newStatus = ($newRem <= 0) ? 'consumed' : 'active';
+//                         $need = $qty;
+//                         $allocations = [];
+//                         foreach ($availableBatches as $b) {
+//                             if ($need <= 0) break;
+//                             $avail = (float)$b['remaining'];
+//                             if ($avail <= 0) continue;
+//                             $take = min($avail, $need);
+//                             $allocations[] = ['batch_id' => (int)$b['id'], 'take' => $take, 'unit_cost' => (float)$b['unit_cost']];
+//                             $need -= $take;
+//                         }
 
-            //                             $updateBatchStmt->bind_param('dsii', $newRem, $newStatus, $created_by_i, $a['batch_id']);
-            //                             $updateBatchStmt->execute();
+//                         if ($need > 0.00001) {
+//                             $conn->rollback();
+//                             jsonOut([
+//                                 'ok' => false,
+//                                 'error' => "الرصيد غير كافٍ للمنتج '{$product_name}'. (ID: {$product_id})"
+//                             ]);
+//                         }
 
-            //                             $lineCost = $a['take'] * $a['unit_cost'];
-            //                             $insertAllocStmt->bind_param('iidddi', $invoice_item_id, $a['batch_id'], $a['take'], $a['unit_cost'], $lineCost, $created_by_i);
-            //                             $insertAllocStmt->execute();
-            //                         }
+//                         $itemTotalCost = 0.0;
+//                         foreach ($allocations as $a) $itemTotalCost += $a['take'] * $a['unit_cost'];
+//                         $cost_price_per_unit = ($qty > 0) ? ($itemTotalCost / $qty) : 0.0;
 
-            //                         $totalRevenue += $lineTotalPrice;
-            //                         $totalCOGS += $itemTotalCost;
-            //                     }
+//                         // جلب سعر البيع إذا لم يُرسل
+//                         if ($selling_price <= 0) {
+//                             $ppriceStmt = $conn->prepare("SELECT retail_price, selling_price FROM products WHERE id = ?");
+//                             $ppriceStmt->bind_param('i', $product_id);
+//                             $ppriceStmt->execute();
+//                             $prow = $ppriceStmt->get_result()->fetch_assoc();
+//                             if ($prow) {
+//                                 $selling_price = ($price_type === 'retail') ? (float)($prow['retail_price'] ?? 0) : (float)($prow['selling_price'] ?? 0);
+//                             }
+//                             $ppriceStmt->close();
+//                         }
 
-            //                     $insertItemStmt->close();
-            //                     $insertAllocStmt->close();
-            //                     $updateBatchStmt->close();
-            //                     $selectBatchesStmt->close();
+//                         $lineTotalPrice = $qty * $selling_price;
 
-            //                     function updateWorkOrderTotals($conn, $work_order_id)
-            //                     {
-            //                         $stmt = $conn->prepare("
-            //         SELECT 
-            //             COALESCE(SUM(total_after_discount), 0) as total_invoices,
-            //             COALESCE(SUM(paid_amount), 0) as total_paid,
-            //             COALESCE(SUM(remaining_amount), 0) as total_remaining
-            //         FROM invoices_out 
-            //         WHERE work_order_id = ?   AND delivered NOT IN ('reverted', 'cancelled')
+//                         // إدراج البند
+//                         $invoice_item_id = $invoice_id;
+//                         $insertItemStmt->bind_param('iidddds', $invoice_item_id, $product_id, $qty, $lineTotalPrice, $cost_price_per_unit, $selling_price, $price_type);
+//                         $insertItemStmt->execute();
+//                         if ($insertItemStmt->errno) {
+//                             $err = $insertItemStmt->error;
+//                             $insertItemStmt->close();
+//                             throw new Exception($err);
+//                         }
+//                         $invoice_item_id = (int)$conn->insert_id;
 
-            //     ");
-            //                         $stmt->bind_param('i', $work_order_id);
-            //                         $stmt->execute();
-            //                         $result = $stmt->get_result()->fetch_assoc();
-            //                         $stmt->close();
+//                         // تطبيق التخصيصات على الـ batches
+//                         foreach ($allocations as $a) {
+//                             $stmtCur = $conn->prepare("SELECT remaining FROM batches WHERE id = ? FOR UPDATE");
+//                             $stmtCur->bind_param('i', $a['batch_id']);
+//                             $stmtCur->execute();
+//                             $curRow = $stmtCur->get_result()->fetch_assoc();
+//                             $stmtCur->close();
 
-            //                         $stmt = $conn->prepare("
-            //         UPDATE work_orders 
-            //         SET total_invoice_amount = ?, total_paid = ?, total_remaining = ?, updated_at = NOW() 
-            //         WHERE id = ?
-            //     ");
-            //                         $stmt->bind_param(
-            //                             'dddi',
-            //                             $result['total_invoices'],
-            //                             $result['total_paid'],
-            //                             $result['total_remaining'],
-            //                             $work_order_id
-            //                         );
-            //                         $stmt->execute();
-            //                         $stmt->close();
-            //                     }
-            //                     // تحديث الشغلانة
-            //                     if ($work_order_id) {
-            //                         updateWorkOrderTotals($conn, $work_order_id);
-            //                     }
+//                             $newRem = max(0.0, ((float)$curRow['remaining']) - $a['take']);
+//                             $newStatus = ($newRem <= 0) ? 'consumed' : 'active';
 
-            //                     $conn->commit();
+//                             $updateBatchStmt->bind_param('dsii', $newRem, $newStatus, $created_by_i, $a['batch_id']);
+//                             $updateBatchStmt->execute();
 
-            //                     jsonOut([
-            //                         'ok' => true,
-            //                         'msg' => 'تم إنشاء الفاتورة بنجاح.',
-            //                         'invoice_id' => $invoice_id,
-            //                         'invoice_number' => $invoice_id,
-            //                         'total_revenue' => round($totalRevenue, 2),
-            //                         'total_cogs' => round($totalCOGS, 2),
-            //                         'paid_amount' => 0,
-            //                         'remaining_amount' => $total_after,
-            //                         'payment_status' => 'pending',
-            //                         'discount_type' => $discount_type,
-            //                         'discount_value' => $discount_value,
-            //                         'discount_amount' => $discount_amount,
-            //                         'total_before' => $total_before,
-            //                         'total_after' => $total_after,
-            //                         'work_order_id' => $work_order_id,
-            //                         'customer_balance_after' => $balance_after
-            //                     ]);
-            //                 } catch (Exception $e) {
-            //                     if (isset($conn)) $conn->rollback();
-            //                     error_log("save_invoice error: " . $e->getMessage());
-            //                     jsonOut(['ok' => false, 'error' => 'حدث خطأ أثناء حفظ الفاتورة.', 'detail' => $e->getMessage()]);
-            //                 }
-            //             }
+//                             $lineCost = $a['take'] * $a['unit_cost'];
+//                             $insertAllocStmt->bind_param('iidddi', $invoice_item_id, $a['batch_id'], $a['take'], $a['unit_cost'], $lineCost, $created_by_i);
+//                             $insertAllocStmt->execute();
+//                         }
 
+//                         $totalRevenue += $lineTotalPrice;
+//                         $totalCOGS += $itemTotalCost;
+//                     }
+
+//                     $insertItemStmt->close();
+//                     $insertAllocStmt->close();
+//                     $updateBatchStmt->close();
+//                     $selectBatchesStmt->close();
+
+//                     function updateWorkOrderTotals($conn, $work_order_id)
+//                     {
+//                         $stmt = $conn->prepare("
+//         SELECT 
+//             COALESCE(SUM(total_after_discount), 0) as total_invoices,
+//             COALESCE(SUM(paid_amount), 0) as total_paid,
+//             COALESCE(SUM(remaining_amount), 0) as total_remaining
+//         FROM invoices_out 
+//         WHERE work_order_id = ?   AND delivered NOT IN ('reverted', 'cancelled')
+
+//     ");
+//                         $stmt->bind_param('i', $work_order_id);
+//                         $stmt->execute();
+//                         $result = $stmt->get_result()->fetch_assoc();
+//                         $stmt->close();
+
+//                         $stmt = $conn->prepare("
+//         UPDATE work_orders 
+//         SET total_invoice_amount = ?, total_paid = ?, total_remaining = ?, updated_at = NOW() 
+//         WHERE id = ?
+//     ");
+//                         $stmt->bind_param(
+//                             'dddi',
+//                             $result['total_invoices'],
+//                             $result['total_paid'],
+//                             $result['total_remaining'],
+//                             $work_order_id
+//                         );
+//                         $stmt->execute();
+//                         $stmt->close();
+//                     }
+//                     // تحديث الشغلانة
+//                     if ($work_order_id) {
+//                         updateWorkOrderTotals($conn, $work_order_id);
+//                     }
+
+//                     $conn->commit();
+
+//                     jsonOut([
+//                         'ok' => true,
+//                         'msg' => 'تم إنشاء الفاتورة بنجاح.',
+//                         'invoice_id' => $invoice_id,
+//                         'invoice_number' => $invoice_id,
+//                         'total_revenue' => round($totalRevenue, 2),
+//                         'total_cogs' => round($totalCOGS, 2),
+//                         'paid_amount' => 0,
+//                         'remaining_amount' => $total_after,
+//                         'payment_status' => 'pending',
+//                         'discount_type' => $discount_type,
+//                         'discount_value' => $discount_value,
+//                         'discount_amount' => $discount_amount,
+//                         'total_before' => $total_before,
+//                         'total_after' => $total_after,
+//                         'work_order_id' => $work_order_id,
+//                         'customer_balance_after' => $balance_after
+//                     ]);
+//                 } catch (Exception $e) {
+//                     if (isset($conn)) $conn->rollback();
+//                     error_log("save_invoice error: " . $e->getMessage());
+//                     jsonOut(['ok' => false, 'error' => 'حدث خطأ أثناء حفظ الفاتورة.', 'detail' => $e->getMessage()]);
+//                 }
+//             }
+        
             // دالة تحديث بيانات الشغلانة
 
 
@@ -1228,17 +1228,15 @@
                     <div class="invoice-table-container">
                         <table class="invoice-table">
                             <thead>
-                              <tr>
-    <th width="25%">المنتج</th>
-    <th width="8%">الكمية</th>
-    <th width="10%">سعر الوحدة</th>
-    <th width="8%">نوع السعر</th>
-    <th width="10%">الإجمالي قبل الخصم</th>
-    <th width="8%">قيمة الخصم</th>
-    <th width="8%">نوع الخصم</th>
-    <th width="10%">الإجمالي بعد الخصم</th>
-    <th width="8%">خيارات</th>
-</tr>
+                                <tr>
+                                    <th width="35%">المنتج</th>
+                                    <th width="10%">الكمية</th>
+                                    <th width="20%">سعر الوحدة</th>
+                                    <th width="15%">نوع السعر</th>
+                                    <th width="15%">الإجمالي</th>
+                                    <!-- <th width="15%">تفاصيل FIFO</th> -->
+                                    <th width="15%">خيارات</th>
+                                </tr>
                             </thead>
                             <tbody id="invoice-items">
                                 <!-- سيتم تعبئتها بالبيانات -->
@@ -1397,7 +1395,7 @@
                                 <button class="btn btn-primary add-payment-btn" data-type="full">إضافة دفعة</button>
 
                             </div>
-                            <div class="payment-notes" style="margin-top: 10px;">
+            <div class="payment-notes" style="margin-top: 10px;">
                                 <label>ملاحظات الدفع:</label>
                                 <textarea id="full-payment-notes" placeholder="أدخل ملاحظات الدفع (رقم الحساب، المرجع، إلخ)..." rows="2"></textarea>
                             </div>
@@ -1406,7 +1404,7 @@
                             </div>
 
                             <!-- ملاحظات الدفع للدفع الكامل -->
-
+                            
                         </div>
 
                         <!-- قسم الدفع الجزئي -->
@@ -1457,7 +1455,7 @@
                                 <input type="number" placeholder="المبلغ المدفوع" step="0.01" min="0" id="current-payment-partial">
                                 <button class="btn btn-primary add-payment-btn" data-type="partial">إضافة دفعة</button>
                             </div>
-                            <div class="payment-notes" style="margin-top: 10px;">
+<div class="payment-notes" style="margin-top: 10px;">
                                 <label>ملاحظات الدفع:</label>
                                 <textarea id="partial-payment-notes" placeholder="أدخل ملاحظات الدفع (رقم الحساب، المرجع، إلخ)..." rows="2"></textarea>
                             </div>
@@ -1465,7 +1463,7 @@
                                 <!-- سيتم تعبئتها بالمدفوعات -->
                             </div>
 
-
+                            
                         </div>
                     </div>
 
@@ -1678,7 +1676,6 @@
 
                     UI.addIntegratedSearch();
                     UI.setupIntegratedSearch();
-                    
 
 
                     // // جلب رقم الفاتورة التالي
@@ -1810,8 +1807,8 @@
             // دوال التواصل مع الخادم
             // ============================
             const ApiManager = {
-                async request(endpoint, data = null, external = false) {
-                    const url = external ? endpoint : `?action=${endpoint}`;
+                async request(endpoint, data = null,external=false) {
+                    const url = external?endpoint:`?action=${endpoint}`;
                     const options = {
                         method: data ? 'POST' : 'GET',
                         headers: {
@@ -1898,35 +1895,35 @@
                 // حفظ الفاتورة
 
 
+             
+
+async saveInvoice(invoiceData) {
 
 
-                async saveInvoice(invoiceData) {
-                    console.log('Saving invoice with data:', invoiceData);
+  const result = await this.request(apisForInvoices.saveInvoice, invoiceData,true);
 
-                    const result = await this.request(apisForInvoices.saveInvoice, invoiceData, true);
-
-                    if (!result.ok) {
-                        return result;
-                    }
+  if (!result.ok) {
+    return result;
+  }
 
 
 
-                    return {
-                        ...result,
-                        message: this.getInvoiceMessage(result)
-                    };
-                },
-                getInvoiceMessage(result) {
-                    if (result.paid_amount <= 0) {
-                        return 'تم إنشاء فاتورة مؤجلة';
-                    }
+  return {
+    ...result,
+    message: this.getInvoiceMessage(result)
+  };
+}
+,getInvoiceMessage(result) {
+  if (result.paid_amount <= 0) {
+    return 'تم إنشاء فاتورة مؤجلة';
+  }
 
-                    if (result.remaining_amount > 0) {
-                        return 'تم إنشاء فاتورة بدفع جزئي';
-                    }
+  if (result.remaining_amount > 0) {
+    return 'تم إنشاء فاتورة بدفع جزئي';
+  }
 
-                    return 'تم إنشاء فاتورة مدفوعة بالكامل';
-                },
+  return 'تم إنشاء فاتورة مدفوعة بالكامل';
+},
 
                 // استخدام الدالة
 
@@ -2015,195 +2012,48 @@
                 },
 
                 // حساب الإجمالي
-               calculateTotal() {
-                // في Helpers - إلغاء استخدام خصم الفاتورة:
+                calculateTotal() {
+                    const subtotal = AppState.invoiceItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // حساب مجموع صافي البنود (بعد خصم البنود)
-    const subtotal = AppState.invoiceItems.reduce((sum, item) => {
-        return sum + (item.total_after_discount || 0);
-    }, 0);
-    
-    // خصم الفاتورة (سيتم إهماله عندما discount_scope = 'items')
-    let discountAmount = 0;
-    if (AppState.discount.type === 'percent') {
-        discountAmount = subtotal * (AppState.discount.value / 100);
-    } else {
-        discountAmount = AppState.discount.value;
-    }
-    
-    const afterDiscount = Math.max(0, subtotal - discountAmount);
-    
-    return afterDiscount;
-},
+                    let discountAmount = 0;
+                    if (AppState.discount.type === 'percent') {
+                        discountAmount = subtotal * (AppState.discount.value / 100);
+                    } else {
+                        discountAmount = AppState.discount.value;
+                    }
+
+                    const afterDiscount = Math.max(0, subtotal - discountAmount);
+
+                    return afterDiscount;
+                },
 
                 // حساب الربح
                 calculateProfit() {
-    // الإيرادات: مجموع صافي البنود
-    const totalRevenue = AppState.invoiceItems.reduce((sum, item) => {
-        return sum + (item.total_after_discount || 0);
-    }, 0);
-    
-    // التكلفة: مجموع (الكمية × تكلفة الوحدة)
-    const totalCost = AppState.invoiceItems.reduce((sum, item) => {
-        return sum + (item.quantity * item.cost);
-    }, 0);
-    
-    // خصم الفاتورة (قد يكون صفراً)
-    let discountAmount = 0;
-    if (AppState.discount.type === 'percent') {
-        discountAmount = totalRevenue * (AppState.discount.value / 100);
-    } else {
-        discountAmount = AppState.discount.value;
-    }
-    
-    const revenueAfterDiscount = Math.max(0, totalRevenue - discountAmount);
-    const profitBeforeTax = revenueAfterDiscount - totalCost;
-    const netProfit = profitBeforeTax;
-    
-    return {
-        totalRevenue,
-        totalCost,
-        discountAmount,
-        revenueAfterDiscount,
-        profitBeforeTax,
-        netProfit
-    };
+                    const totalRevenue = AppState.invoiceItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const totalCost = AppState.invoiceItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
 
-    
-},
-// في Helpers - إضافة دالة جديدة:
-calculateInvoiceTotals() {
-    let subtotal = 0; // مجموع البنود قبل الخصم
-    let totalDiscount = 0; // مجموع خصومات البنود
-    let netTotal = 0; // صافي الفاتورة
-    
-    AppState.invoiceItems.forEach(item => {
-        // حساب إجمالي البند قبل الخصم
-        const itemTotal = item.quantity * item.price;
-        subtotal += itemTotal;
-        
-        // حساب خصم البند
-        let itemDiscount = 0;
-        if (item.discount_type === 'percent') {
-            const percentValue = Math.max(0, Math.min(100, parseFloat(item.discount_value) || 0));
-            itemDiscount = itemTotal * (percentValue / 100);
-        } else {
-            itemDiscount = parseFloat(item.discount_value) || 0;
-        }
-        
-        // التأكد من أن الخصم لا يتجاوز قيمة البند
-        if (itemDiscount > itemTotal) {
-            itemDiscount = itemTotal * 0.9999;
-        }
-        
-        itemDiscount = Math.round(itemDiscount * 100) / 100;
-        totalDiscount += itemDiscount;
-        
-        // حساب صافي البند
-        const itemNet = Math.max(0, itemTotal - itemDiscount);
-        netTotal += itemNet;
-    });
-    
-    // تقريب القيم
-    subtotal = Math.round(subtotal * 100) / 100;
-    totalDiscount = Math.round(totalDiscount * 100) / 100;
-    netTotal = Math.round(netTotal * 100) / 100;
-    
-    return {
-        subtotal: subtotal,
-        totalDiscount: totalDiscount,
-        netTotal: netTotal
-    };
-},
+                    let discountAmount = 0;
+                    if (AppState.discount.type === 'percent') {
+                        discountAmount = totalRevenue * (AppState.discount.value / 100);
+                    } else {
+                        discountAmount = AppState.discount.value;
+                    }
 
-// في Helpers - تحديث دالة calculateItemDiscount
-calculateItemDiscount(item) {
-    if (!item) return;
+                    const revenueAfterDiscount = Math.max(0, totalRevenue - discountAmount);
+                    const profitBeforeTax = revenueAfterDiscount - totalCost;
+                    const netProfit = profitBeforeTax;
 
-    const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.price) || 0;
+                    return {
+                        totalRevenue,
+                        totalCost,
+                        discountAmount,
+                        revenueAfterDiscount,
+                        profitBeforeTax,
 
-    if (qty <= 0 || price <= 0) {
-        item.total_before_discount = 0;
-        item.discount_amount = 0;
-        item.total_after_discount = 0;
-        return;
-    }
+                        netProfit
+                    };
+                },
 
-    const totalBefore = qty * price;
-    const discountValue = parseFloat(item.discount_value) || 0;
-    const discountType = item.discount_type || 'amount';
-
-    let discountAmount = 0;
-
-    // حساب مبلغ الخصم
-    if (discountType === 'percent') {
-        // نسبة مئوية
-        const percent = Math.min(100, Math.max(0, discountValue));
-        discountAmount = totalBefore * (percent / 100);
-    } else {
-        // مبلغ مالي
-        discountAmount = Math.min(totalBefore, Math.max(0, discountValue));
-    }
-
-    // تقريب القيم إلى منزلتين عشريتين
-    discountAmount = Math.round(discountAmount * 100) / 100;
-    
-    item.total_before_discount = Math.round(totalBefore * 100) / 100;
-    item.discount_amount = discountAmount;
-    
-    // ❗ هذا هو التصحيح: total_after_discount يجب أن يكون totalBefore - discountAmount
-    item.total_after_discount = Math.max(0, Math.round((totalBefore - discountAmount) * 100) / 100);
-    
-    // تحديد إذا كان المنتج مجانياً
-    item.freeItem = item.total_after_discount === 0;
-    
-    // تحديد مستوى الخصم
-    let discountPercentage = 0;
-    if (discountType === 'percent') {
-        discountPercentage = Math.min(100, discountValue);
-    } else {
-        discountPercentage = totalBefore > 0 ? (discountAmount / totalBefore) * 100 : 0;
-    }
-    
-    // تصنيف مستوى الخصم
-    if (discountPercentage >= 30) {
-        item.discountLevel = 'high';
-    } else if (discountPercentage >= 20) {
-        item.discountLevel = 'medium';
-    } else {
-        item.discountLevel = 'normal';
-    }
-    
-    item.discountExceeded = discountAmount >= totalBefore;
-    item.realDiscountPercentage = discountPercentage;
-},
-
-
-
-// دالة جديدة لتحديد مستوى الخصم
-calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
-    let discountPercentage = 0;
-    
-    if (discountType === 'percent') {
-        discountPercentage = discountValue;
-    } else {
-        discountPercentage = totalBefore > 0 ? (discountValue / totalBefore) * 100 : 0;
-    }
-    
-    // تصنيف مستوى الخصم
-    if (discountPercentage >= 30) {
-        item.discountLevel = 'high'; // عالي - أحمر
-    } else if (discountPercentage >= 20) {
-        item.discountLevel = 'medium'; // متوسط - أصفر
-    } else {
-        item.discountLevel = 'normal'; // عادي
-    }
-    
-    // حفظ نسبة الخصم الحقيقية للعرض
-    item.realDiscountPercentage = discountPercentage;
-}
-,
                 // إظهار Toast Notification
                 showToast(message, type) {
                     DOM.toastMessage.textContent = message;
@@ -2257,11 +2107,6 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                     return totalStock - reserved;
                 }
 
-                ,fieldFocus(element) {
-                    if (element) {
-                        element.focus();
-                        element.select();
-                    }}
 
             };
 
@@ -2628,9 +2473,6 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                         }
                     }
 
-
-
-
                     // **التنقل باستخدام الأسهم**
                     searchInput.addEventListener('keydown', (e) => {
                         if (!resultsContainer.style.display || resultsContainer.style.display === 'none') {
@@ -2836,108 +2678,50 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                         }
                     }
                 }, // تحديث عرض الفاتورة
-     updateInvoiceDisplay() {
-    if (!DOM.invoiceItems) return;
+                updateInvoiceDisplay() {
+                    if (!DOM.invoiceItems) return;
 
-    DOM.invoiceItems.innerHTML = '';
+                    DOM.invoiceItems.innerHTML = '';
 
-    AppState.invoiceItems.forEach((item, index) => {
-        // تحديث حسابات الخصم قبل العرض
-        Helpers.calculateItemDiscount(item);
-        
-        // تحديد لون خلفية حقل الخصم
-        let discountInputStyle = 'width: 100%; text-align: center;';
-        
-        if (item.discountLevel === 'high') {
-            discountInputStyle += ' background-color: #ffcccc; border-color: #dc3545;';
-        } else if (item.discountLevel === 'medium') {
-            discountInputStyle += ' background-color: #fff3cd; border-color: #ffc107;';
-        }
-        
-        // إذا تجاوز الحدود، لون أحمر داكن
-        if (item.discountExceeded) {
-            discountInputStyle += ' background-color: #dc3545; color: white;';
-        }
+                    AppState.invoiceItems.forEach((item, index) => {
+                        const subtotal = item.price * item.quantity;
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <div>${item.name}</div>
-                <small style="color: var(--muted);">${item.product_code}</small>
-            </td>
-            <td>
-                <input type="number" 
-                       class="input-qty" 
-                       value="${item.quantity}" 
-                       min="0.01" 
-                       step="0.01" 
-                       data-index="${index}" 
-                       data-id="${item.id}"
-                       style="width: 100%;">
-            </td>
-            <td>
-                <input type="number" 
-                       class="input-price" 
-                       value="${item.price}" 
-                       step="0.01" 
-                       min="0" 
-                       data-index="${index}"
-                       style="width: 100%;">
-            </td>
-            <td>
-                <span class="price-type-badge ${item.priceType === 'retail' ? 'retail' : 'wholesale'}">
-                    ${item.priceType === 'retail' ? 'قطاعي' : 'جملة'}
-                </span>
-            </td>
-            <td class="total-before-cell" style="background-color: #f8f9fa; padding: 8px; text-align: center;">
-                ${Helpers.formatCurrency(item.total_before_discount || 0)}
-            </td>
-            <td>
-                <input type="number" 
-                       class="input-discount-value" 
-                       value="${item.discount_value || 0}" 
-                       min="0" 
-                       step="${item.discount_type === 'percent' ? '0.01' : '0.01'}"
-                       data-index="${index}"
-                       style="${discountInputStyle}"
-                       title="${item.discountLevel === 'high' ? 'خصم مرتفع ⚠️' : 
-                               item.discountLevel === 'medium' ? 'خصم متوسط' : ''}">
-            </td>
-            <td>
-                <select class="input-discount-type" data-index="${index}" style="width: 100%; padding: 4px;">
-                    <option value="amount" ${item.discount_type === 'amount' ? 'selected' : ''}>ج.م</option>
-                    <option value="percent" ${item.discount_type === 'percent' ? 'selected' : ''}>%</option>
-                </select>
-            </td>
-            <td class="total-after-cell" 
-                style="background-color: ${item.total_after_discount === 0 ? '#ffcccc' : '#e8f5e8'}; 
-                       padding: 8px; text-align: center; font-weight: bold;">
-                ${item.total_after_discount === 0 ? 
-                  '<span style="color: #dc3545;">٠٫٠٠ ج.م</span>' : 
-                  Helpers.formatCurrency(item.total_after_discount || (item.quantity * item.price))}
-                ${item.total_after_discount === 0 ? '<br><small style="color: #dc3545; font-size: 10px;">مجاناً</small>' : ''}
-            </td>
-            <td>
-                <button class="remove-item" data-index="${index}" style="color: #dc3545; background: none; border: none; cursor: pointer;">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </td>
-        `;
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                        <td>
+                            <div>${item.name}</div>
+                            <small style="color: var(--muted);">${item.product_code}</small>
+                        </td>
+                        <td>
+                            <input type="number" class="input-qty" value="${item.quantity}" min="1" data-index="${index}" data-id="${item.id}">
+                        </td>
+                        <td>
+                            <input type="number" class="input-price" value="${item.price}" step="0.01" min="0" data-index="${index}">
+                        </td>
+                        <td>
+                            <span class="price-type-badge ${item.priceType === 'retail' ? 'retail' : 'wholesale'}">
+                                ${item.priceType === 'retail' ? 'قطاعي' : 'جملة'}
+                            </span>
+                        </td>
+                        <td>${Helpers.formatCurrency(subtotal)}</td>
+                       
+                        <td>
+                            <button class="remove-item" data-index="${index}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    `;
+                        DOM.invoiceItems.appendChild(row);
+                    });
 
-        DOM.invoiceItems.appendChild(row);
-    });
-
-    this.setupTableEventListeners();
-},
+                    this.setupTableEventListeners();
+                },
 
                 setupTableEventListeners() {
 
-
+                    
 
                     document.querySelectorAll('.input-qty').forEach(input => {
-                        input.addEventListener('click', function() {
-                            this.select();
-                        });
                         input.addEventListener('change', async function() {
                             const itemIndex = parseInt(this.dataset.index);
 
@@ -2987,7 +2771,7 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                             item.quantity = newQuantity;
                             item.cost = Helpers.calculateAverageCost(fifoResult.allocations);
                             AppState.fifoData[itemIndex] = fifoResult;
-    Helpers.calculateItemDiscount(item);
+
                             UI.update();
                             Helpers.showToast(`تم تحديث الكمية بنجاح`, 'success');
                         });
@@ -2996,7 +2780,7 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
 
 
 
-
+                   
 
                     // باقي الأحداث كما هي...
                     document.querySelectorAll('.input-price').forEach(input => {
@@ -3005,8 +2789,6 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                             const item = AppState.invoiceItems[index];
                             if (item) {
                                 item.price = parseFloat(this.value) || 0;
-            Helpers.calculateItemDiscount(item);
-
                                 UI.update();
                             }
                         });
@@ -3036,234 +2818,30 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                             }
                         });
                     });
-
-
-    
-    //// في setupTableEventListeners - قسم input-discount-value
-document.querySelectorAll('.input-discount-value').forEach(input => {
-    input.addEventListener('click', function() {
-                            this.select();
-                        });
-    input.addEventListener('change', function() {
-        const index = parseInt(this.dataset.index);
-        const item = AppState.invoiceItems[index];
-        if (!item) return;
-
-        const newValue = parseFloat(this.value) || 0;
-        const totalBefore = item.quantity * item.price;
-        const discountType = item.discount_type || 'amount';
-        
-        // منع القيم السالبة
-        if (newValue < 0) {
-            this.value = 0;
-            item.discount_value = 0;
-            item.discountLevel = 'normal';
-            Helpers.calculateItemDiscount(item);
-            UI.update();
-            return;
-        }
-
-        // التحقق من تجاوز الحدود
-        let valueExceeded = false;
-        let correctedValue = newValue;
-        
-        if (discountType === 'percent') {
-            if (newValue > 100) {
-                valueExceeded = true;
-                correctedValue = 100;
-                Helpers.showToast('النسبة لا يمكن أن تتجاوز 100%، تم التصحيح تلقائيًا', 'warning');
-            }
-        } else {
-            if (newValue > totalBefore) {
-                valueExceeded = true;
-                correctedValue = totalBefore;
-                Helpers.showToast(`الخصم لا يمكن أن يتجاوز ${totalBefore.toFixed(2)}، تم التصحيح تلقائيًا`, 'warning');
-            }
-        }
-        
-        // إذا كان هناك تجاوز، صحح القيمة
-        if (valueExceeded) {
-            this.value = correctedValue;
-            item.discount_value = correctedValue;
-        } else {
-            item.discount_value = newValue;
-        }
-        
-        // حساب نسبة الخصم للتحقق من المستوى
-        let discountPercentage = 0;
-        if (discountType === 'percent') {
-            discountPercentage = item.discount_value;
-        } else {
-            discountPercentage = totalBefore > 0 ? (item.discount_value / totalBefore) * 100 : 0;
-        }
-        
-        // طلب تأكيد للخصم العالي (30% فما فوق)
-        if (discountPercentage >= 30 && discountPercentage < 100) {
-            const confirmed = confirm(
-                `⚠️ خصم مرتفع (${discountPercentage.toFixed(1)}%) على "${item.name}".\n` +
-                `قيمة البند: ${Helpers.formatCurrency(totalBefore)}\n` +
-                `بعد الخصم: ${Helpers.formatCurrency(totalBefore * (1 - discountPercentage/100))}\n\n` +
-                `هل أنت متأكد من هذا الخصم الكبير؟`
-            );
-            
-            if (!confirmed) {
-                // إعادة القيمة لما كانت عليه أو 0
-                this.value = 0;
-                item.discount_value = 0;
-                item.discountLevel = 'normal';
-            }
-        }
-        
-        // طلب تأكيد للخصم 100%
-        if (discountPercentage >= 100) {
-            const confirmed = confirm(
-                `⚠️ خصم كامل (100%) على "${item.name}".\n` +
-                `سعر البند سيكون: ٠٫٠٠ ج.م\n\n` +
-                `هل أنت متأكد من بيع هذا المنتج مجانًا؟`
-            );
-            
-            if (!confirmed) {
-                // إعادة القيمة لما كانت عليه أو 0
-                this.value = 0;
-                item.discount_value = 0;
-                item.discountLevel = 'normal';
-            }
-        }
-
-        Helpers.calculateItemDiscount(item);
-        UI.update();
-    });
-
-    // تحديث اللون أثناء الكتابة (input event)
-    input.addEventListener('input', function() {
-        const index = parseInt(this.dataset.index);
-        const item = AppState.invoiceItems[index];
-        if (!item) return;
-
-        const newValue = parseFloat(this.value) || 0;
-        const totalBefore = item.quantity * item.price;
-        const discountType = item.discount_type || 'amount';
-        
-        // حساب النسبة المؤقتة للون
-        let tempPercentage = 0;
-        if (discountType === 'percent') {
-            tempPercentage = newValue;
-        } else {
-            tempPercentage = totalBefore > 0 ? (newValue / totalBefore) * 100 : 0;
-        }
-        
-        // تحديث لون الحقل حسب مستوى الخصم
-        if (tempPercentage >= 30) {
-            this.style.backgroundColor = '#ffcccc'; // أحمر للخصم العالي
-            this.style.borderColor = '#dc3545';
-        } else if (tempPercentage >= 20) {
-            this.style.backgroundColor = '#fff3cd'; // أصفر للخصم المتوسط
-            this.style.borderColor = '#ffc107';
-        } else {
-            this.style.backgroundColor = ''; // عادي
-            this.style.borderColor = '';
-        }
-        
-        // إظهار تحذير إذا تجاوز 100%
-        if (discountType === 'percent' && newValue > 100) {
-            this.style.backgroundColor = '#ff0000';
-            this.style.color = '#ffffff';
-            this.title = 'النسبة تتجاوز 100%!';
-        } else if (discountType === 'amount' && newValue > totalBefore) {
-            this.style.backgroundColor = '#ff0000';
-            this.style.color = '#ffffff';
-            this.title = 'الخصم يتجاوز قيمة البند!';
-        } else {
-            this.style.color = '';
-            this.title = '';
-        }
-    });
-    
-    // إضافة event لتركيز الحقل
-    input.addEventListener('focus', function() {
-        const index = parseInt(this.dataset.index);
-        const item = AppState.invoiceItems[index];
-        if (!item) return;
-        
-        // إذا كان الخصم عالي، إظهار رسالة
-        if (item.discountLevel === 'high') {
-            this.style.boxShadow = '0 0 0 3px rgba(220, 53, 69, 0.25)';
-        } else if (item.discountLevel === 'medium') {
-            this.style.boxShadow = '0 0 0 3px rgba(255, 193, 7, 0.25)';
-        }
-    });
-    
-    input.addEventListener('blur', function() {
-        this.style.boxShadow = '';
-    });
-
-
-});
-document.querySelectorAll('.input-discount-type').forEach(select => {
-    select.addEventListener('change', function() {
-        const index = parseInt(this.dataset.index);
-        const item = AppState.invoiceItems[index];
-        if (!item) return;
-
-        const oldType = item.discount_type;
-        const newType = this.value;
-        item.discount_type = newType;
-
-        // تحويل القيمة بين النوعين مع الحفاظ على النسبة
-        const totalBefore = item.quantity * item.price;
-        
-        if (oldType === 'amount' && newType === 'percent') {
-            // من مبلغ إلى نسبة
-            if (totalBefore > 0) {
-                const percentValue = (item.discount_value / totalBefore) * 100;
-                item.discount_value = Math.min(100, percentValue);
-            } else {
-                item.discount_value = 0;
-            }
-        } else if (oldType === 'percent' && newType === 'amount') {
-            // من نسبة إلى مبلغ
-            const amountValue = totalBefore * (item.discount_value / 100);
-            item.discount_value = Math.min(totalBefore, amountValue);
-        }
-
-        // إذا كانت النسبة 30%+ بعد التحويل، طلب تأكيد
-        if (newType === 'percent' && item.discount_value >= 30 && item.discount_value < 100) {
-            const confirmed = confirm(
-                `⚠️ بعد التحويل: خصم ${item.discount_value.toFixed(1)}% على "${item.name}".\n` +
-                `هل تريد المتابعة بهذا الخصم المرتفع؟`
-            );
-            
-            if (!confirmed) {
-                item.discount_value = 29.99; // تحت 30% لتجنب التأكيد
-            }
-        }
-
-        Helpers.calculateItemDiscount(item);
-        UI.update();
-    });
-});
-
-
-    
                 },
 
                 // تحديث الملخص
-        updateSummary() {
-    if (!DOM.subtotal || !DOM.discountAmount || !DOM.totalAmount) return;
+                updateSummary() {
+                    if (!DOM.subtotal || !DOM.discountAmount || !DOM.totalAmount) return;
 
-    // حساب الإجماليات الجديدة
-    const totals = Helpers.calculateInvoiceTotals();
-    
-    // عرض الإجمالي قبل الخصم (مجموع البنود قبل الخصم)
-    DOM.subtotal.textContent = Helpers.formatCurrency(totals.subtotal);
-    
-    // عرض إجمالي الخصم (مجموع خصومات البنود)
-    DOM.discountAmount.textContent = Helpers.formatCurrency(totals.totalDiscount);
-    
-    // عرض الإجمالي النهائي (صافي الفاتورة بعد خصم البنود)
-    DOM.totalAmount.textContent = Helpers.formatCurrency(totals.netTotal);
-},
-   
+                    const subtotal = AppState.invoiceItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+                    let discountAmount = 0;
+                    if (AppState.discount.type === 'percent') {
+                        discountAmount = subtotal * (AppState.discount.value / 100);
+                    } else {
+                        discountAmount = AppState.discount.value;
+                    }
+
+                    const afterDiscount = Math.max(0, subtotal - discountAmount);
+
+                    const total = afterDiscount;
+
+                    DOM.subtotal.textContent = Helpers.formatCurrency(subtotal);
+                    DOM.discountAmount.textContent = Helpers.formatCurrency(discountAmount);
+                    DOM.totalAmount.textContent = Helpers.formatCurrency(total);
+                },
+
 
                 updatePaymentSection() {
 
@@ -3484,105 +3062,106 @@ document.querySelectorAll('.input-discount-type').forEach(select => {
 
                 // عرض نموذج التأكيد
                 // في UI.showConfirmModal، استبدل الكود بالكامل
-         // في UI.showConfirmModal، استبدل الكود بالكامل
-showConfirmModal() {
-    if (!DOM.confirmModal || !DOM.confirmContent) return;
+                showConfirmModal() {
+                    if (!DOM.confirmModal || !DOM.confirmContent) return;
 
-    // التحقق من صحة البيانات أولاً
-    if (!this.validateInvoiceBeforeConfirm()) {
-        return;
-    }
+                    // التحقق من صحة البيانات أولاً
+                    if (!this.validateInvoiceBeforeConfirm()) {
+                        return;
+                    }
 
-    const paymentStatus = document.querySelector('input[name="payment"]:checked');
-    if (!paymentStatus) return;
+                    const paymentStatus = document.querySelector('input[name="payment"]:checked');
+                    if (!paymentStatus) return;
 
-    const statusText = {
-        'pending': 'مؤجل',
-        'partial': 'مدفوع جزئياً',
-        'paid': 'مدفوع بالكامل'
-    } [paymentStatus.value] || 'مؤجل';
+                    const statusText = {
+                        'pending': 'مؤجل',
+                        'partial': 'مدفوع جزئياً',
+                        'paid': 'مدفوع بالكامل'
+                    } [paymentStatus.value] || 'مؤجل';
 
-    const paidAmount = AppState.payments.reduce((sum, p) => sum + p.amount, 0);
-    const totals = Helpers.calculateInvoiceTotals(); // احصل على الإجماليات الجديدة
+                    const paidAmount = AppState.payments.reduce((sum, p) => sum + p.amount, 0);
+                    const profit = Helpers.calculateProfit();
 
-    let html = `
-        <div class="confirm-modal-content">
-            <div>
-                <div class="confirm-section">
-                    <h3>العميل</h3>
-                    <div>${AppState.currentCustomer.name}</div>
-                    <div>${AppState.currentCustomer.mobile}</div>
-                    <div>${AppState.currentCustomer.city || ''}</div>
+                    let html = `
+            <div class="confirm-modal-content">
+                <div>
+                    <div class="confirm-section">
+                        <h3>العميل</h3>
+                        <div>${AppState.currentCustomer.name}</div>
+                        <div>${AppState.currentCustomer.mobile}</div>
+                        <div>${AppState.currentCustomer.city || ''}</div>
+                    </div>
+                    
+                    <div class="confirm-section">
+                        <h3>حالة الدفع</h3>
+                        <div>${statusText}</div>
+                    </div>
+                    
+                    <div class="confirm-section">
+                        <h3>الخصم</h3>
+                        <div>${AppState.discount.type === 'percent' ? AppState.discount.value + '%' : Helpers.formatCurrency(AppState.discount.value)}</div>
+                    </div>
                 </div>
                 
-                <div class="confirm-section">
-                    <h3>حالة الدفع</h3>
-                    <div>${statusText}</div>
+                <div>
+                    <div class="confirm-section">
+                        <h3>بنود الفاتورة</h3>
+                        <div class="confirm-items">
+            `;
+
+                    AppState.invoiceItems.forEach(item => {
+                        html += `
+                <div class="confirm-item">
+                    <div>${item.name} (${item.quantity})</div>
+                    <div>${Helpers.formatCurrency(item.price * item.quantity)}</div>
                 </div>
+                `;
+                    });
+
+                    html += `
+                        </div>
+                    </div>
+                    
+                    <div class="confirm-section">
+                        <h3>الإجماليات</h3>
+                        <div class="confirm-item">
+                            <div>الإجمالي:</div>
+                            <div>${Helpers.formatCurrency(profit.totalRevenue)}</div>
+                        </div>
+                        <div class="confirm-item">
+                            <div>الخصم:</div>
+                            <div>${Helpers.formatCurrency(profit.discountAmount)}</div>
+                        </div>
+                    
+                        <div class="confirm-item" style="font-weight: bold;">
+                            <div>الإجمالي النهائي:</div>
+                            <div>${Helpers.formatCurrency(profit.revenueAfterDiscount)}</div>
+                        </div>
                 
-                <div class="confirm-section">
-                    <h3>الخصم (على البنود)</h3>
-                    <div>${Helpers.formatCurrency(totals.totalDiscount)} ج.م</div>
+                    </div>
                 </div>
             </div>
             
-            <div>
-                <div class="confirm-section">
-                    <h3>بنود الفاتورة</h3>
-                    <div class="confirm-items">
-    `;
-
-    AppState.invoiceItems.forEach(item => {
-        const itemTotalBefore = item.quantity * item.price;
-        const itemDiscount = item.discount_amount || 0;
-        const itemNet = item.total_after_discount || (itemTotalBefore - itemDiscount);
-        
-        html += `
-            <div class="confirm-item">
-                <div>${item.name} (${item.quantity})</div>
-                <div>${Helpers.formatCurrency(itemNet)}</div>
-                ${itemDiscount > 0 ? `<small style="color: #dc3545; font-size: 11px;">خصم: ${Helpers.formatCurrency(itemDiscount)} ${item.discount_type === 'percent' ? `(${item.discount_value}%)` : ''}</small>` : ''}
-            </div>
-        `;
-    });
-
-    html += `
+            <div class="print-options" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <h4>خيارات الطباعة:</h4>
+                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                    <button class="btn btn-outline" id="confirm-without-print">تأكيد وإنشاء بدون طباعة</button>
+                    <button class="btn btn-primary" id="confirm-and-print">تأكيد وإنشاء وطباعة</button>
                 </div>
             </div>
-            
-            <div class="confirm-section">
-                <h3>الإجماليات</h3>
-                <div class="confirm-item">
-                    <div>الإجمالي قبل الخصم:</div>
-                    <div>${Helpers.formatCurrency(totals.subtotal)}</div>
-                </div>
-                <div class="confirm-item">
-                    <div>إجمالي الخصم:</div>
-                    <div style="color: #dc3545;">-${Helpers.formatCurrency(totals.totalDiscount)}</div>
-                </div>
-            
-                <div class="confirm-item" style="font-weight: bold; border-top: 1px solid #eee; padding-top: 8px;">
-                    <div>الإجمالي النهائي:</div>
-                    <div>${Helpers.formatCurrency(totals.netTotal)}</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="print-options" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
-            <h4>خيارات الطباعة:</h4>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
-                <button class="btn btn-outline" id="confirm-without-print">تأكيد وإنشاء بدون طباعة</button>
-                <button class="btn btn-primary" id="confirm-and-print">تأكيد وإنشاء وطباعة</button>
-            </div>
-        </div>
-    `;
+            `;
 
-    DOM.confirmContent.innerHTML = html;
-    DOM.confirmModal.style.display = 'flex';
+                    //  <div class="confirm-item ${profit.netProfit < 0 ? 'loss' : 'profit'}">
+                    //             <div>صافي الربح:</div>
+                    //             <div>${Helpers.formatCurrency(profit.netProfit)}</div>
+                    //         </div>
 
-    // إضافة event listeners للأزرار الجديدة
-    this.setupConfirmButtons();
-},
+                    DOM.confirmContent.innerHTML = html;
+                    DOM.confirmModal.style.display = 'flex';
+
+                    // إضافة event listeners للأزرار الجديدة
+                    this.setupConfirmButtons();
+                },
 
                 // دالة جديدة للتحقق من صحة الفاتورة قبل التأكيد
                 validateInvoiceBeforeConfirm() {
@@ -3625,8 +3204,6 @@ showConfirmModal() {
 
                     if (confirmAndPrint) {
                         confirmAndPrint.addEventListener('click', () => {
-                            InvoiceManager.printOnly();
-
                             InvoiceManager.processInvoice(true);
                             if (DOM.confirmModal) DOM.confirmModal.style.display = 'none';
                         });
@@ -3640,66 +3217,66 @@ showConfirmModal() {
                 },
 
 
-                //                 async processInvoice(shouldPrint = false) {
-                //                     // التحقق من صحة البيانات أولاً
-                //                     if (!this.validateInvoiceBeforeSave()) {
-                //                         return;
-                //                     }
+//                 async processInvoice(shouldPrint = false) {
+//                     // التحقق من صحة البيانات أولاً
+//                     if (!this.validateInvoiceBeforeSave()) {
+//                         return;
+//                     }
 
-                //                     Helpers.showToast('جاري إنشاء الفاتورة...', 'info');
+//                     Helpers.showToast('جاري إنشاء الفاتورة...', 'info');
 
-                //                     const paymentStatus = document.querySelector('input[name="payment"]:checked').value;
-                //                     const profit = Helpers.calculateProfit();
+//                     const paymentStatus = document.querySelector('input[name="payment"]:checked').value;
+//                     const profit = Helpers.calculateProfit();
+
+                 
+
+//                     const invoiceData = {
+//   customer_id: AppState.currentCustomer.id,
+//   work_order_id: AppState.currentWorkOrderId || null,
+
+//   items: JSON.stringify(
+//     AppState.invoiceItems.map(item => ({
+//       product_id: item.id,
+//       qty: item.quantity,
+//       selling_price: item.price,
+//       price_type: item.priceType,
+//       cost_price_per_unit: item.cost || 0
+//     }))
+//   ),
+
+//   discount_type: AppState.discount.type,
+//   discount_value: AppState.discount.value,
+//   notes: AppState.invoiceNotes,
+//   csrf_token: AppState.csrfToken,
+
+//   // 🔥 الجديد
+//   payments: JSON.stringify(AppState.payments || [])
+// };
 
 
 
-                //                     const invoiceData = {
-                //   customer_id: AppState.currentCustomer.id,
-                //   work_order_id: AppState.currentWorkOrderId || null,
+//                     try {
+//                         const result = await ApiManager.saveInvoice(invoiceData);
 
-                //   items: JSON.stringify(
-                //     AppState.invoiceItems.map(item => ({
-                //       product_id: item.id,
-                //       qty: item.quantity,
-                //       selling_price: item.price,
-                //       price_type: item.priceType,
-                //       cost_price_per_unit: item.cost || 0
-                //     }))
-                //   ),
+//                         if (result.ok) {
+//                             Helpers.showToast('تم إنشاء الفاتورة بنجاح!', 'success');
 
-                //   discount_type: AppState.discount.type,
-                //   discount_value: AppState.discount.value,
-                //   notes: AppState.invoiceNotes,
-                //   csrf_token: AppState.csrfToken,
+//                             // حفظ معرف الفاتورة للطباعة لاحقاً إذا لزم
+//                             AppState.currentInvoiceId = result.invoice_id;
 
-                //   // 🔥 الجديد
-                //   payments: JSON.stringify(AppState.payments || [])
-                // };
+//                             if (shouldPrint) {
+//                                 this.printInvoice(result.invoice_id);
+//                             }
 
-
-
-                //                     try {
-                //                         const result = await ApiManager.saveInvoice(invoiceData);
-
-                //                         if (result.ok) {
-                //                             Helpers.showToast('تم إنشاء الفاتورة بنجاح!', 'success');
-
-                //                             // حفظ معرف الفاتورة للطباعة لاحقاً إذا لزم
-                //                             AppState.currentInvoiceId = result.invoice_id;
-
-                //                             if (shouldPrint) {
-                //                                 this.printInvoice(result.invoice_id);
-                //                             }
-
-                //                             UI.resetInvoice();
-                //                         } else {
-                //                             Helpers.showToast(result.error || 'فشل إنشاء الفاتورة', 'error');
-                //                         }
-                //                     } catch (error) {
-                //                         console.error('Error saving invoice:', error);
-                //                         Helpers.showToast('حدث خطأ أثناء حفظ الفاتورة', 'error');
-                //                     }
-                //                 },
+//                             UI.resetInvoice();
+//                         } else {
+//                             Helpers.showToast(result.error || 'فشل إنشاء الفاتورة', 'error');
+//                         }
+//                     } catch (error) {
+//                         console.error('Error saving invoice:', error);
+//                         Helpers.showToast('حدث خطأ أثناء حفظ الفاتورة', 'error');
+//                     }
+//                 },
 
                 // دالة التحقق من صحة البيانات قبل الحفظ
                 // validateInvoiceBeforeSave() {
@@ -3777,8 +3354,8 @@ showConfirmModal() {
 
 
                     UI.resetProductForm();
-
-
+                   
+                    
                     Helpers.showToast('تم تفريغ الفاتورة وجاهز لإنشاء فاتورة جديدة', 'success');
                     UI.update();
                 },
@@ -3924,7 +3501,7 @@ showConfirmModal() {
                     if (!workOrderSection || !controls) return;
 
                     // إظهار القسم فقط إذا تم اختيار عميل
-                    if (AppState.currentCustomer && AppState.currentCustomer.id !== 8) {
+                    if (AppState.currentCustomer && AppState.currentCustomer.id!==8) {
                         workOrderSection.style.display = 'block';
 
                         let html = '';
@@ -4091,9 +3668,6 @@ showConfirmModal() {
             // ============================
             const InvoiceManager = {
                 // التحقق من صحة المدفوعات
-                // في InvoiceManager - قبل validateInvoiceBeforeSave()
-
-                   
                 validatePayments() {
                     const total = Helpers.calculateTotal();
                     const paidAmount = AppState.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -4172,7 +3746,7 @@ showConfirmModal() {
                 addPayment(type) {
                     const amount = (type == "full" ? parseFloat(DOM.currentPaymentFull.value) : parseFloat(DOM.currentPaymentPartial.value)) || 0;
                     const method = AppState?.currentPaymentMethod;
-                    const notes = (type == "full" ? document.getElementById('full-payment-notes')?.value.trim() : document.getElementById('partial-payment-notes')?.value.trim()) || '';
+                    const notes = (type == "full" ? document.getElementById('full-payment-notes')?.value.trim() : document.getElementById('partial-payment-notes')?.value.trim() )|| '';
 
                     if (amount <= 0) {
                         Helpers.showToast('يرجى إدخال مبلغ صحيح', 'error');
@@ -4214,27 +3788,21 @@ showConfirmModal() {
                         }
                     }
 
-                    const existingPayment = AppState.payments.find(p => p.method === method);
-                    if (existingPayment) {
-                        existingPayment.amount += amount;
-                        existingPayment.notes += `, ${notes}`;
-                        Helpers.showToast('تم تحديث الدفع الحالي', 'success');
-                    } else {
-                        AppState.payments.push({
-                            id: Date.now(),
-                            amount,
-                            method,
-                            notes,
-                            date: new Date().toLocaleDateString('ar-EG')
-                        });
-                        Helpers.showToast('تم إضافة الدفعة', 'success');
-                    }
+                   const existingPayment = AppState.payments.find(p => p.method === method );
+if (existingPayment) {
+    existingPayment.amount += amount;
+    existingPayment.notes += `, ${notes}`;
+    Helpers.showToast('تم تحديث الدفع الحالي', 'success');
+} else {
+    AppState.payments.push({ id: Date.now(), amount, method, notes, date: new Date().toLocaleDateString('ar-EG') });
+    Helpers.showToast('تم إضافة الدفعة', 'success');
+}
 
 
                     // AppState.payments.push(payment);
                     // AppState.payments
                     // (AppState.payments);
-
+                    
                     UI.updatePaymentSection();
 
                     // إعادة تعيين الحقول
@@ -4243,7 +3811,7 @@ showConfirmModal() {
                     document.getElementById('full-payment-notes').value = '';
                     document.getElementById('partial-payment-notes').value = '';
 
-
+                    
 
                     // التحقق إذا كان المبلغ المدفوع يساوي الإجمالي
                     if (type == "partial") {
@@ -4325,8 +3893,174 @@ showConfirmModal() {
                     }
                 },
 
-     
-           
+                // في EventManager.setupModalEvents، تأكد من ربط الزر بالدالة
+
+                // إضافة منتج للفاتورة مع حساب التكلفة
+                // في InvoiceManager.addToInvoice استبدل الكود بـ:
+                // async addToInvoice(productId, quantity, price) {
+                //     const product = AppData.products.find(p => +p.id === productId);
+                //     if (!product) return;
+
+                //     // حساب الكمية الإجمالية للمنتج في الفاتورة (جميع البنود بنفس productId)
+                //     const totalQuantityInInvoice = AppState.invoiceItems
+                //         .filter(item => item.id === productId)
+                //         .reduce((sum, item) => sum + item.quantity, 0);
+
+                //     // البحث عن منتج موجود بنفس الـ ID ونفس نوع السعر
+                //     const existingItemIndex = AppState.invoiceItems.findIndex(item =>
+                //         item.id === productId
+                //     );
+                //     // const existingItemIndex = AppState.invoiceItems.findIndex(item => 
+                //     //     item.id === productId && item.priceType === AppState.currentPriceType
+                //     // );
+
+                //     if (existingItemIndex !== -1) {
+                //         // المنتج موجود - زيادة الكمية فقط
+                //         const existingItem = AppState.invoiceItems[existingItemIndex];
+                //         const newQuantity = existingItem.quantity + quantity;
+
+                //         // التحقق من أن الكمية الإجمالية لا تتجاوز المخزون المتاح
+                //         const totalWithoutCurrent = totalQuantityInInvoice - existingItem.quantity;
+                //         const newTotal = totalWithoutCurrent + newQuantity;
+                //         if (newTotal > product.remaining_active) {
+                //             Helpers.showToast(`الكمية الإجمالية (${newTotal}) تتجاوز المخزون المتاح (${product.remaining_active})`, 'error');
+                //             return;
+                //         }
+
+                //         // التحقق من المخزون المتاح للكمية الجديدة عبر FIFO
+                //         const fifoResult = await ApiManager.simulateFIFO(productId, newQuantity);
+                //         if (!fifoResult.ok || !fifoResult.sufficient) {
+                //             Helpers.showToast(`الكمية الجديدة (${newQuantity}) غير متوفرة في المخزون. المتاح: ${fifoResult.allocations.reduce((sum, alloc) => sum + alloc.taken, 0)}`, 'error');
+                //             return;
+                //         }
+
+                //         // تحديث الكمية والتكلفة
+                //         existingItem.quantity = newQuantity;
+                //         existingItem.cost = Helpers.calculateAverageCost(fifoResult.allocations);
+                //         AppState.fifoData[existingItemIndex] = fifoResult;
+                //         Helpers.showToast(`تم زيادة كمية ${product.name} إلى ${newQuantity}`, 'success');
+                //     } else {
+                //         // منتج جديد - إضافته كالمعتاد
+
+                //         // التحقق من أن الكمية الإجمالية لا تتجاوز المخزون المتاح
+                //         const newTotal = totalQuantityInInvoice + quantity;
+                //         if (newTotal > product.remaining_active) {
+                //             Helpers.showToast(`الكمية الإجمالية (${newTotal}) تتجاوز المخزون المتاح (${product.remaining_active})`, 'error');
+                //             return;
+                //         }
+
+                //         const fifoResult = await ApiManager.simulateFIFO(productId, quantity);
+                //         if (!fifoResult.ok || !fifoResult.sufficient) {
+                //             const available = fifoResult.allocations.reduce((sum, alloc) => sum + alloc.taken, 0);
+                //             Helpers.showToast(`الكمية غير متوفرة في المخزون. المتاح: ${available}`, 'error');
+                //             return;
+                //         }
+
+                //         const cost = Helpers.calculateAverageCost(fifoResult.allocations);
+                //         const newIndex = AppState.invoiceItems.length;
+
+                //         AppState.invoiceItems.push({
+                //             id: productId,
+                //             name: product.name,
+                //             price: price,
+                //             quantity: quantity,
+                //             cost: cost,
+                //             priceType: AppState.currentPriceType,
+                //             product_code: product.product_code,
+                //         });
+
+                //         AppState.fifoData[newIndex] = fifoResult;
+                //         Helpers.showToast('تم إضافة المنتج إلى الفاتورة', 'success');
+                //     }
+
+                //     UI.update();
+                //     UI.resetProductForm();
+                // },
+
+                async addToInvoice(productId, quantity, price) {
+                    // debugger
+                    const product = AppData.products.find(p => +p.id === productId);
+                    if (!product) return;
+
+                    // حساب الكمية الإجمالية لهذا المنتج في جميع البنود
+                    const totalQuantityInInvoice = AppState.invoiceItems
+                        .filter(item => item.id === productId)
+                        .reduce((sum, item) => sum + item.quantity, 0);
+
+                    // البحث عن بند موجود بنفس المنتج ونفس نوع السعر
+                    const existingItemIndex = AppState.invoiceItems.findIndex(item =>
+                        item.id === productId && item.priceType === AppState.currentPriceType
+                    );
+
+                    if (existingItemIndex !== -1) {
+                        // تحديث البند الموجود
+
+                        const existingItem = AppState.invoiceItems[existingItemIndex];
+                        const currentQty = existingItem.quantity;
+                        const newQuantity = currentQty + quantity;
+
+                        // حساب المخزون المتاح (باستثناء الكمية الحالية لهذا البند)
+                        const availableForThisItem = Helpers.calculateAvailableStock(productId, existingItemIndex);
+
+                        if (quantity > availableForThisItem) {
+                            Helpers.showToast(`الكمية الإضافية (${quantity}) تتجاوز المخزون المتاح (${availableForThisItem})`, 'error');
+                            return;
+                        }
+
+                        // محاكاة FIFO للكمية الجديدة
+                        const fifoResult = await ApiManager.simulateFIFO(productId, newQuantity);
+                        if (!fifoResult.ok || !fifoResult.sufficient) {
+                            const available = fifoResult.allocations.reduce((sum, alloc) => sum + alloc.taken, 0);
+                            Helpers.showToast(`الكمية الجديدة (${newQuantity}) غير متوفرة. المتاح: ${available}`, 'error');
+                            return;
+                        }
+
+                        // تحديث البند
+                        existingItem.quantity = newQuantity;
+                        existingItem.cost = Helpers.calculateAverageCost(fifoResult.allocations);
+                        AppState.fifoData[existingItemIndex] = fifoResult;
+
+                        Helpers.showToast(`تم تحديث كمية ${product.name} إلى ${newQuantity}`, 'success');
+                    } else {
+                        // إضافة بند جديد
+
+                        // التحقق من المخزون المتاح
+                        const availableStock = Helpers.calculateAvailableStock(productId);
+
+                        if (quantity > availableStock) {
+                            Helpers.showToast(`الكمية المطلوبة (${quantity}) تتجاوز المخزون المتاح (${availableStock})`, 'error');
+                            return;
+                        }
+
+                        // محاكاة FIFO
+                        const fifoResult = await ApiManager.simulateFIFO(productId, quantity);
+                        if (!fifoResult.ok || !fifoResult.sufficient) {
+                            const available = fifoResult.allocations.reduce((sum, alloc) => sum + alloc.taken, 0);
+                            Helpers.showToast(`الكمية غير متوفرة. المتاح: ${available}`, 'error');
+                            return;
+                        }
+
+                        const cost = Helpers.calculateAverageCost(fifoResult.allocations);
+                        const newIndex = AppState.invoiceItems.length;
+
+                        AppState.invoiceItems.push({
+                            id: productId,
+                            name: product.name,
+                            price: price,
+                            quantity: quantity,
+                            cost: cost,
+                            priceType: AppState.currentPriceType,
+                            product_code: product.product_code,
+                        });
+
+                        AppState.fifoData[newIndex] = fifoResult;
+                        Helpers.showToast('تم إضافة المنتج', 'success');
+                    }
+
+                    UI.update();
+                    UI.resetProductForm();
+                },
+
 
                 // في InvoiceManager، استبدل دالة addToInvoice بالكود التالي:
 
@@ -4346,16 +4080,8 @@ showConfirmModal() {
 
                     if (existingItemIndex !== -1) {
                         // المنتج موجود بنفس نوع السعر - زيادة الكمية فقط
-                           const existingItem = AppState.invoiceItems[existingItemIndex];
-                        const currentQty = existingItem.quantity;
-                        const newQuantity = currentQty + quantity;
-        existingItem.discount_type = existingItem.discount_type || 'amount';
-        existingItem.discount_value = existingItem.discount_value || 0;
-        existingItem.total_before_discount = newQuantity * existingItem.price;
-        existingItem.total_after_discount = existingItem.total_before_discount;
-        
-        // إعادة حساب الخصم إذا كان موجوداً
-        Helpers.calculateItemDiscount(existingItem);
+                        const existingItem = AppState.invoiceItems[existingItemIndex];
+                        const newQuantity = existingItem.quantity + quantity;
 
                         // التحقق من أن الكمية الإجمالية لا تتجاوز المخزون المتاح
                         const totalWithoutCurrent = totalQuantityInInvoice - existingItem.quantity;
@@ -4396,22 +4122,17 @@ showConfirmModal() {
                         }
 
                         const cost = Helpers.calculateAverageCost(fifoResult.allocations);
-                   const newIndex = AppState.invoiceItems.length;
-AppState.invoiceItems.push({
-    id: productId,
-    name: product.name,
-    price: price,
-    quantity: quantity,
-    cost: cost,
-    priceType: AppState.currentPriceType,
-    product_code: product.product_code,
-    // الخصائص الجديدة للخصم
-    discount_type: 'amount', // تغيير من 'percent' إلى 'amount'
-    discount_value: 0,
-    discount_amount: 0,
-    total_before_discount: quantity * price,
-    total_after_discount: quantity * price
-});
+                        const newIndex = AppState.invoiceItems.length;
+
+                        AppState.invoiceItems.push({
+                            id: productId,
+                            name: product.name,
+                            price: price,
+                            quantity: quantity,
+                            cost: cost,
+                            priceType: AppState.currentPriceType,
+                            product_code: product.product_code,
+                        });
 
                         AppState.fifoData[newIndex] = fifoResult;
                         Helpers.showToast(`تم إضافة المنتج ${product.name} (${AppState.currentPriceType === 'retail' ? 'قطاعي' : 'جملة'}) إلى الفاتورة`, 'success');
@@ -4468,38 +4189,30 @@ AppState.invoiceItems.push({
                     const paymentStatus = document.querySelector('input[name="payment"]:checked').value;
                     const profit = Helpers.calculateProfit();
 
+                
+              
 
+                       const invoiceData = {
+  customer_id: AppState.currentCustomer.id,
+  work_order_id: AppState.currentWorkOrder?.id || null,
 
-
-                    // في InvoiceManager.processInvoice() - تحديث invoiceData:
-const invoiceData = {
-    customer_id: AppState.currentCustomer.id,
-    work_order_id: AppState.currentWorkOrder?.id || null,
-
-    // في InvoiceManager.processInvoice() - تحديث الـ items map:
-items: JSON.stringify(
+  items: JSON.stringify(
     AppState.invoiceItems.map(item => ({
-        product_id: item.id,
-        qty: item.quantity,
-        selling_price: item.price,
-        price_type: item.priceType,
-        cost_price_per_unit: item.cost || 0,
-        // تأكد من إضافة discount_type
-        discount_type: item.discount_type || 'amount',
-        discount_value: item.discount_value || 0,
-        discount_amount: item.discount_amount || 0,
-        total_before_discount: item.total_before_discount || (item.quantity * item.price),
-
-            total_after_discount: item.total_after_discount || Math.max(0, (item.quantity * item.price) - (item.discount_amount || 0))
+      product_id: item.id,
+      qty: item.quantity,
+      selling_price: item.price,
+      price_type: item.priceType,
+      cost_price_per_unit: item.cost || 0
     }))
-),
-    discount_type: 'amount',
-    discount_value: 0,
-    discount_scope: 'items', // تحديد scope
-    
-    notes: AppState.invoiceNotes,
-    csrf_token: AppState.csrfToken,
-    payments: JSON.stringify(AppState.payments || [])
+  ),
+
+  discount_type: AppState.discount.type,
+  discount_value: AppState.discount.value,
+  notes: AppState.invoiceNotes,
+  csrf_token: AppState.csrfToken,
+
+  // 🔥 الجديد
+  payments: JSON.stringify(AppState.payments || [])
 };
 
                     try {
@@ -4530,7 +4243,7 @@ items: JSON.stringify(
                                 UI.resetInvoice();
                             }, 2000);
 
-                            await ApiManager.loadProducts()
+                            await  ApiManager.loadProducts() 
 
 
                         } else {
@@ -4542,7 +4255,6 @@ items: JSON.stringify(
                     }
                 },
 
-    
                 // دالة التحقق من صحة البيانات قبل الحفظ
                 validateInvoiceBeforeSave() {
                     if (AppState.invoiceItems.length === 0) {
@@ -4569,11 +4281,6 @@ items: JSON.stringify(
                             return false;
                         }
                     }
-    //                  const discountValidation = this.validateItemDiscounts();
-    // if (!discountValidation.isValid) {
-    //     Helpers.showToast(discountValidation.errorMessage, 'error');
-    //     return false;
-    // }
 
                     return true;
                 },
@@ -4656,439 +4363,77 @@ items: JSON.stringify(
                 },
 
                 // توليد HTML للإيصال
-                // generateReceiptHTML(data) {
-                //     let itemsHTML = '';
-                //     data.items.forEach((item, index) => {
-                //         itemsHTML += `
-                //         <tr>
-                //             <td>${item.name}</td>
-                //             <td class="text-center">${item.quantity}</td>
-                //             <td class="text-right">${item.price.toFixed(2)}</td>
-                //             <td class="text-right">${(item.price * item.quantity).toFixed(2)}</td>
-                //         </tr>
-                //     `;
-                //     });
+                generateReceiptHTML(data) {
+                    let itemsHTML = '';
+                    data.items.forEach((item, index) => {
+                        itemsHTML += `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td class="text-center">${item.quantity}</td>
+                            <td class="text-right">${item.price.toFixed(2)}</td>
+                            <td class="text-right">${(item.price * item.quantity).toFixed(2)}</td>
+                        </tr>
+                    `;
+                    });
 
-                //     return `
-                //     <div class="header">
-                //         <div class="store-name">متجرنا</div>
-                //         <div>إيصال بيع</div>
-                //     </div>
+                    return `
+                    <div class="header">
+                        <div class="store-name">متجرنا</div>
+                        <div>إيصال بيع</div>
+                    </div>
                     
-                //     <div class="receipt-info">
-                //     الحاله: ${data.paymentStatus === 'paid' ? 'مدفوع بالكامل' : data.paymentStatus === 'partial' ? 'مدفوع جزئياً' : 'مؤجل'}<br>
-                //         <div>التاريخ: ${data.date}</div>
-                //         <div>الفاتورة: ${data.invoiceId}</div>
-                //         <div>العميل: ${data.customer ? data.customer.name : 'نقدي'}</div>
-                //     </div>
+                    <div class="receipt-info">
+                    الحاله: ${data.paymentStatus === 'paid' ? 'مدفوع بالكامل' : data.paymentStatus === 'partial' ? 'مدفوع جزئياً' : 'مؤجل'}<br>
+                        <div>التاريخ: ${data.date}</div>
+                        <div>الفاتورة: ${data.invoiceId}</div>
+                        <div>العميل: ${data.customer ? data.customer.name : 'نقدي'}</div>
+                    </div>
                     
-                //     <table class="items-table">
-                //         <thead>
-                //             <tr>
-                //                 <th class="text-left">الصنف</th>
-                //                 <th class="text-center">الكمية</th>
-                //                 <th class="text-right">السعر</th>
-                //                 <th class="text-right">الإجمالي</th>
-                //             </tr>
-                //         </thead>
-                //         <tbody>
-                //             ${itemsHTML}
-                //         </tbody>
-                //     </table>
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th class="text-left">الصنف</th>
+                                <th class="text-center">الكمية</th>
+                                <th class="text-right">السعر</th>
+                                <th class="text-right">الإجمالي</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHTML}
+                        </tbody>
+                    </table>
                     
-                //     <div class="total-section">
-                //         <div style="display: flex; justify-content: space-between;">
-                //             <span>الإجمالي:</span>
-                //             <span>${data.subtotal.toFixed(2)} ج.م</span>
-                //         </div>
-                //         <div style="display: flex; justify-content: space-between;">
-                //             <span>الخصم:</span>
-                //             <span>-${data.discount.toFixed(2)} ج.م</span>
-                //         </div>
-                //         <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                //             <span>المبلغ المستحق:</span>
-                //             <span>${data.total.toFixed(2)} ج.م</span>
-                //         </div>
-                //         ${data.paymentStatus === 'partial' ? `
-                //             <div style="display: flex; justify-content: space-between;">
-                //                 <span>المدفوع:</span>
-                //                 <span>${data.paidAmount.toFixed(2)} ج.م</span>
-                //             </div>
-                //             <div style="display: flex; justify-content: space-between;">
-                //                 <span>المتبقي:</span>
-                //                 <span>${data.remainingAmount.toFixed(2)} ج.م</span>
-                //             </div>
-                //         ` : ''}
-                //     </div>
+                    <div class="total-section">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>الإجمالي:</span>
+                            <span>${data.subtotal.toFixed(2)} ج.م</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>الخصم:</span>
+                            <span>-${data.discount.toFixed(2)} ج.م</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                            <span>المبلغ المستحق:</span>
+                            <span>${data.total.toFixed(2)} ج.م</span>
+                        </div>
+                        ${data.paymentStatus === 'partial' ? `
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>المدفوع:</span>
+                                <span>${data.paidAmount.toFixed(2)} ج.م</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>المتبقي:</span>
+                                <span>${data.remainingAmount.toFixed(2)} ج.م</span>
+                            </div>
+                        ` : ''}
+                    </div>
                     
-                //     <div class="footer">
-                //         <div>شكراً لزيارتكم</div>
-                //         <div>للاستفسار: 0123456789</div>
-                //     </div>
-                // `;
-                // },
-
-                    // توليد HTML للإيصال
-generateReceiptHTML(data) {
-    // حساب الخصم الإجمالي من البنود
-    let totalDiscount = 0;
-    let itemsHTML = '';
-    
-    data.items.forEach((item, index) => {
-        const itemTotalBefore = item.quantity * item.price;
-        const itemDiscount = item.discount_amount || 0;
-        const itemNet = itemTotalBefore - itemDiscount;
-        totalDiscount += itemDiscount;
-        
-        itemsHTML += `
-            <tr>
-                <td style="width:10%; text-align:center;">
-                    ${index + 1}
-                </td>
-                <td style="width:40%; text-align:right; padding-right:5px;">
-                    ${item.name}
-                </td>
-                <td style="width:15%; text-align:center;">
-                    ${item.quantity.toFixed(2)}
-                </td>
-                <td style="width:15%; text-align:left; padding-left:5px;">
-                    ${item.price.toFixed(2)}
-                </td>
-                <td style="width:20%; text-align:left; padding-left:5px;">
-                    ${itemNet.toFixed(2)}
-                </td>
-            </tr>
-          
-        `;
-    });
-
-    const beforeDiscount = data.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    const afterDiscount = beforeDiscount - totalDiscount;
-    
-    // التحقق إذا كانت الفاتورة تابعة لشغلانة
-    const workOrderInfo = AppState.currentWorkOrder ? `
-        <div style="background: #e7f3ff; padding: 8px; border-radius: 4px; margin-bottom: 10px; border-right: 3px solid #007bff;">
-            <div style="font-weight: 900; color: #007bff; text-align: center; margin-bottom: 3px;">
-                <i class="fas fa-tasks"></i> الفاتورة تابعة لشغلانة
-            </div>
-            <div style="display: flex; justify-content: space-between; font-weight: 700;">
-                <span>رقم الشغلانة: #${AppState.currentWorkOrder.id}</span>
-                <span>${AppState.currentWorkOrder.title}</span>
-            </div>
-            <div style="font-size: 10px; color: #555; margin-top: 3px;">
-                ${AppState.currentWorkOrder.description ? AppState.currentWorkOrder.description.substring(0, 50) + '...' : 'بدون وصف'}
-            </div>
-        </div>
-    ` : '';
-    
-    return `
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>فاتورة ${data.invoiceId}</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            
-            body {
-                padding: 10px;
-                background: white;
-                color: #000;
-                font-size: 12px;
-            }
-            
-            .invoice {
-                width: 280px;
-                margin: 0 auto;
-                padding: 10px;
-                border: 1px solid #000;
-            }
-            
-            .header {
-                text-align: center;
-                padding-bottom: 10px;
-                margin-bottom: 10px;
-                border-bottom: 2px dashed #000;
-            }
-            
-            .store-name {
-                font-weight: 900;
-                font-size: 16px;
-                margin-bottom: 5px;
-                color: #000;
-            }
-            
-            .store-info {
-                font-weight: 700;
-                font-size: 10px;
-                margin-bottom: 2px;
-                color: #555;
-            }
-            
-            .invoice-info {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 10px;
-                font-weight: 700;
-                font-size: 10px;
-            }
-            
-            .customer-info {
-                margin-bottom: 10px;
-                padding: 8px;
-                background: #f8f9fa;
-                border-radius: 4px;
-                font-weight: 700;
-                font-size: 10px;
-            }
-            
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 10px;
-                font-weight: 700;
-                font-size: 10px;
-            }
-            
-            th, td {
-                padding: 6px 2px;
-                text-align: center;
-                border-bottom: 1px dashed #ddd;
-            }
-            
-            th {
-                background: #f1f8ff;
-                font-weight: 900;
-            }
-            
-            .totals {
-                margin-top: 10px;
-                font-size: 11px;
-            }
-            
-            .total-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 4px 0;
-            }
-            
-            .total-final {
-                border-top: 2px dashed #000;
-                margin-top: 5px;
-                padding-top: 8px;
-                font-weight: 900;
-            }
-            
-            .payment-info {
-                margin: 10px 0;
-                padding: 8px;
-                background: #f8f9fa;
-                border-radius: 4px;
-                font-weight: 700;
-                font-size: 10px;
-            }
-            
-            .payment-details {
-                margin-top: 5px;
-            }
-            
-            .payment-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 2px 0;
-            }
-            
-            .footer {
-                text-align: center;
-                margin-top: 15px;
-                padding-top: 10px;
-                border-top: 2px dashed #000;
-                font-weight: 700;
-                font-size: 9px;
-                color: #555;
-            }
-            
-            .barcode {
-                text-align: center;
-                margin: 10px 0;
-                font-family: monospace;
-                font-size: 16px;
-                letter-spacing: 3px;
-                font-weight: 900;
-            }
-            
-            .status {
-                display: inline-block;
-                padding: 2px 8px;
-                border-radius: 3px;
-                font-size: 10px;
-                font-weight: 700;
-                margin-top: 5px;
-            }
-            
-            .status-pending { background: #fff3cd; color: #856404; }
-            .status-partial { background: #d1ecf1; color: #0c5460; }
-            .status-paid { background: #d4edda; color: #155724; }
-            
-            /* تصميم الخصم */
-            .discount-section {
-                margin: 10px 0;
-                padding: 8px;
-                background: #fff3cd;
-                border-radius: 4px;
-                border: 1px dashed #856404;
-            }
-            
-            .discount-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 3px 0;
-            }
-            
-            .original-price {
-                text-decoration: line-through;
-                color: #6c757d;
-            }
-            
-            .work-order-badge {
-                background: #007bff;
-                color: white;
-                padding: 3px 8px;
-                border-radius: 12px;
-                font-size: 10px;
-                font-weight: bold;
-                display: inline-block;
-                margin-bottom: 5px;
-            }
-            
-            @media print {
-                body {
-                    padding: 0;
-                    margin: 0;
-                }
-                
-                .invoice {
-                    border: none;
-                    width: 100%;
-                    max-width: 280px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="invoice">
-            <div class="header">
-                <div class="store-name">نظام الفواتير الإلكتروني</div>
-                <div class="store-info">السجل التجاري: 1234567890</div>
-                <div class="store-info">الهاتف: 01234567890</div>
-            </div>
-            
-            ${workOrderInfo}
-            
-            <div class="invoice-info">
-                <div>
-                    <div>رقم الفاتورة: ${data.invoiceId}</div>
-                    <div>التاريخ: ${new Date().toLocaleDateString('ar-EG')}</div>
-                </div>
-                <div>
-                    <div>الوقت: ${new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}</div>
-                    <div>الكاشير: ${'<?php echo $created_by_name_js; ?>' || 'مدير النظام'}</div>
-                </div>
-            </div>
-            
-            <div class="customer-info">
-                <div>العميل: ${data.customer ? data.customer.name : 'نقدي'}</div>
-                <div>الهاتف: ${data.customer ? data.customer.mobile : '---'}</div>
-                <div class="status status-${data.paymentStatus}">
-                    حالة الفاتورة:
-                    ${data.paymentStatus === 'pending' ? 'مؤجل' :
-                      data.paymentStatus === 'partial' ? 'جزئي' :
-                      data.paymentStatus === 'paid' ? 'مسلم' : '---'}
-                </div>
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>المنتج</th>
-                        <th>الكمية</th>
-                        <th>السعر</th>
-                        <th>الإجمالي</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHTML}
-                </tbody>
-            </table>
-            
-            <!-- قسم الخصم إذا كان موجودًا -->
-            ${totalDiscount > 0 ? `
-            <div class="discount-section">
-                <div style="text-align: center; font-weight: 900; margin-bottom: 5px; color: #856404;">
-                    <i class="fas fa-tag"></i> تفاصيل الخصم
-                </div>
-                <div class="discount-row">
-                    <span>الإجمالي قبل الخصم:</span>
-                    <span class="original-price">${beforeDiscount.toFixed(2)} ج.م</span>
-                </div>
-                <div class="discount-row">
-                    <span>قيمة الخصم:</span>
-                    <span style="color: #dc3545;">-${totalDiscount.toFixed(2)} ج.م</span>
-                </div>
-                <div class="discount-row" style="border-top: 1px dashed #856404; padding-top: 5px;">
-                    <span>الإجمالي بعد الخصم:</span>
-                    <span style="font-weight: bold;">${afterDiscount.toFixed(2)} ج.م</span>
-                </div>
-            </div>
-            ` : ''}
-            
-            <div class="totals">
-                <div class="total-row">
-                    <span>المدفوع:</span>
-                    <span>${data.paidAmount.toFixed(2)} ج.م</span>
-                </div>
-                
-                <div class="total-row">
-                    <span>المتبقي:</span>
-                    <span>${data.remainingAmount.toFixed(2)} ج.م</span>
-                </div>
-                
-                <div class="total-row total-final">
-                    <span>صافي المبلغ:</span>
-                    <span>${data.remainingAmount.toFixed(2)} ج.م</span>
-                </div>
-            </div>
-            
-
-            <div class="barcode">*${data.invoiceId}*</div>
-            
-            <div class="footer">
-                <div>شكراً لتعاملكم معنا</div>
-                <div>للاستفسار: 01234567890</div>
-                <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-        </div>
-        
-        <script>
-            // طباعة تلقائية بعد تحميل الصفحة
-            window.onload = function() {
-                setTimeout(() => {
-                    window.print();
-                }, 300);
-            };
-        <\/script>
-    </body>
-    </html>
-    `;
-},
-                
+                    <div class="footer">
+                        <div>شكراً لزيارتكم</div>
+                        <div>للاستفسار: 0123456789</div>
+                    </div>
+                `;
+                },
 
                 // دالة الطباعة فقط بدون حفظ
                 printOnly() {
@@ -5127,8 +4472,6 @@ generateReceiptHTML(data) {
                     this.setupSuccessModalEvents();
                     this.setupCreateWorkOrderEvents()
                     this.setupKeyboardShortcuts();
-                
-
 
                 },
 
@@ -5581,7 +4924,6 @@ generateReceiptHTML(data) {
                         });
                     }
 
-                 
                     // اختيار منتج من النافذة
                     document.addEventListener('click', (e) => {
                         if (e.target.classList.contains('select-product')) {
@@ -5883,32 +5225,32 @@ generateReceiptHTML(data) {
                 // },
 
                 async selectCustomer(customerId) {
-                    const result = await ApiManager.selectCustomerApi(customerId);
-                    if (result.ok) {
-                        AppState.currentCustomer = result.customer;
+    const result = await ApiManager.selectCustomerApi(customerId);
+    if (result.ok) {
+        AppState.currentCustomer = result.customer;
 
-                        // تحميل الشغلات فقط إذا كان العميل ليس نقدي
+        // تحميل الشغلات فقط إذا كان العميل ليس نقدي
 
+        
+        if ( customerId !== 8) {
+            await this.loadWorkOrdersForCurrentCustomer();
+            UI.updateWalletBalance()
 
-                        if (customerId !== 8) {
-                            await this.loadWorkOrdersForCurrentCustomer();
-                            UI.updateWalletBalance()
+        
+    } else {
 
+            // إخفاء قسم الشغلات للعميل النقدي
+            AppState.availableWorkOrders = [];
+            AppState.currentWorkOrder = null;
+            UI.updateWorkOrderSection();
+        }
 
-                        } else {
-
-                            // إخفاء قسم الشغلات للعميل النقدي
-                            AppState.availableWorkOrders = [];
-                            AppState.currentWorkOrder = null;
-                            UI.updateWorkOrderSection();
-                        }
-
-                        UI.updateCustomerUI();
-                        Helpers.showToast(`تم اختيار العميل ${AppState.currentCustomer.name}`, 'success');
-                    } else {
-                        Helpers.showToast(result.error || 'فشل في اختيار العميل', 'error');
-                    }
-                },
+        UI.updateCustomerUI();
+        Helpers.showToast(`تم اختيار العميل ${AppState.currentCustomer.name}`, 'success');
+    } else {
+        Helpers.showToast(result.error || 'فشل في اختيار العميل', 'error');
+    }
+},
                 async loadWorkOrdersForCurrentCustomer() {
                     if (AppState.currentCustomer) {
                         AppState.availableWorkOrders = await ApiManager.loadWorkOrders(AppState.currentCustomer.id);
