@@ -41,7 +41,8 @@ if (!$start_ok || !$end_ok) {
                     (SELECT IFNULL(SUM(ioi.total_price),0) FROM invoice_out_items ioi WHERE ioi.invoice_out_id = io.id) as invoice_total
                 FROM invoices_out io
                 LEFT JOIN customers c ON io.customer_id = c.id
-                WHERE io.delivered = 'yes'
+                WHERE io.delivered NOT IN ('reverted', 'canceled')
+
                   AND io.created_at BETWEEN ? AND ?
                 ORDER BY io.created_at DESC";
 

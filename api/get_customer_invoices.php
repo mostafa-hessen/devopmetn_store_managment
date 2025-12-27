@@ -101,6 +101,7 @@ $itemStmt = $conn->prepare("
         i.total_before_discount,
         i.returned_quantity,
         i.return_flag,
+        i.unit_price_after_discount,
         i.available_for_return,
         i.price_type,
         i.cost_price_per_unit,
@@ -127,6 +128,8 @@ while ($item = $itemsRes->fetch_assoc()) {
     $item['cost_price_per_unit'] = floatval($item['cost_price_per_unit']);
     $item['return_flag'] = boolval($item['return_flag']);
     $item['available_for_return'] = floatval($item['available_for_return']);
+    $item['unit_price_after_discount'] = floatval($item['unit_price_after_discount']);
+
     $items[] = $item;
 }
 

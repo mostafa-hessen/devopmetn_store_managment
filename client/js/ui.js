@@ -116,8 +116,11 @@ import PrintManager from "./print.js";
             .addEventListener("show.bs.modal", () => {
               this.setupStatementModal();
             });
-        },
 
+            document.getElementById("printReturnBtn").addEventListener("click", () => {
+              PrintManager.printReturn(AppData.currentReturn);
+            });
+        },
         applyFilters() {
           // تحديث الفلاتر النشطة
           this.updateFilterTags();

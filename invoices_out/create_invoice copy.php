@@ -1900,7 +1900,7 @@
 
 
                 async saveInvoice(invoiceData) {
-                    console.log('Saving invoice with data:', invoiceData);
+                    'Saving invoice with data:', invoiceData);
 
                     // const result = await this.request(apisForInvoices.saveInvoice, invoiceData, true);
 
@@ -2859,7 +2859,7 @@ calculateItemDiscount(item) {
             </td>
         `;
 
-        console.log(row);
+        row);
         
         DOM.invoiceItems.appendChild(row);
     });

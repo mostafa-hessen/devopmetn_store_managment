@@ -260,7 +260,7 @@ const PrintManager = {
     //             <div class="header">
     //                 <div class="store-name">نظام الفواتير الإلكتروني</div>
     //                 <div class="store-info">السجل التجاري: 1234567890</div>
-    //                 <div class="store-info">الهاتف: 01234567890</div>
+    //                 <div class="store-info">الهاتف: 01096590768</div>
     //             </div>
                 
     //             <div class="invoice-info">
@@ -327,7 +327,7 @@ const PrintManager = {
                 
     //             <div class="footer">
     //                 <div>شكراً لتعاملكم معنا</div>
-    //                 <div>للاستفسار: 01234567890</div>
+    //                 <div>للاستفسار: 01096590768</div>
     //                 <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
     //             </div>
     //         </div>
@@ -358,11 +358,13 @@ const PrintManager = {
     const remaining = invoice.remaining || 0;
     const status = invoice.status;
     
+
+    
     // حساب بيانات الخصم
     const discountAmount = parseFloat(invoice.discount_amount || 0);
     const discountValue = parseFloat(invoice.discount_value || 0);
     const discountType = invoice.discount_type || 'percent';
-    const beforeDiscount = parseFloat(invoice.total_before_discount || invoice.total || 0);
+    let beforeDiscount =0;
     const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
 
     // إنشاء بنود الفاتورة
@@ -370,11 +372,12 @@ const PrintManager = {
     let subtotal = 0;
 
     invoice.items.forEach((item) => {
+        
         if (!item.fullyReturned) {
-            const remainingQuantity = item.quantity - (item.returnedQuantity || 0);
+            const remainingQuantity = (item.available_for_return|| 0);
             if (remainingQuantity > 0) {
                 const itemTotal = remainingQuantity * item.selling_price;
-                subtotal += itemTotal;
+                beforeDiscount += itemTotal;
 
                 itemsHTML += `
             <tr>
@@ -609,7 +612,7 @@ const PrintManager = {
             <div class="header">
                 <div class="store-name">نظام الفواتير الإلكتروني</div>
                 <div class="store-info">السجل التجاري: 1234567890</div>
-                <div class="store-info">الهاتف: 01234567890</div>
+                <div class="store-info">الهاتف: 01096590768</div>
             </div>
             
             <div class="invoice-info">
@@ -695,7 +698,7 @@ const PrintManager = {
             
             <div class="footer">
                 <div>شكراً لتعاملكم معنا</div>
-                <div>للاستفسار: 01234567890</div>
+                <div>للاستفسار: 01096590768</div>
                 <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
         </div>
@@ -1056,7 +1059,7 @@ printStatement(dateFrom, dateTo) {
             invoice.items.forEach((item) => {
                 if (!item.fullyReturned) {
                     const remainingQuantity =
-                        item.quantity - (item.returnedQuantity || 0);
+                        item.quantity - (item.returned_quantity || 0);
                     if (remainingQuantity > 0) {
                         // البحث عن المنتج إذا كان موجودًا بالفعل
                         const existingItem = report.items.find(
@@ -1472,7 +1475,11 @@ printStatement(dateFrom, dateTo) {
             return;
         }
 
-        const relatedInvoices =        AppData.invoices.filter(inv => inv.work_order_id === workOrderId);
+        const relatedInvoices =        AppData.invoices.filter(inv =>{
+            console.log(inv.status);
+            
+            return inv.work_order_id === workOrderId && inv.status !== 'returned';
+        });
 
 
         
@@ -1722,7 +1729,155 @@ printStatement(dateFrom, dateTo) {
         </body>
         </html>
     `;
+    },
+
+
+
+
+// في PrintManager:
+printReturn(returnData) {
+    if (!returnData) {
+        Swal.fire('خطأ', 'بيانات المرتجع غير متوفرة', 'error');
+        return;
     }
+
+    // إنشاء محتوى الطباعة للمرتجع
+    const printContent = this.generateReturnPrintContent(returnData);
+
+    // فتح نافذة طباعة جديدة
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) {
+        Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
+        return;
+    }
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+
+    // الانتظار قليلاً ثم الطباعة
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
+},
+
+ generateReturnPrintContent(returnData) {
+    const returnInfo = returnData.return || {};
+    const items = returnData.items || [];
+    const today = new Date().toLocaleDateString('ar-SA');
+
+    // تنسيق تاريخ المرتجع
+    const date = returnInfo.return_date ? new Date(returnInfo.return_date) : null;
+    const formattedDate = date ? date.toLocaleDateString('ar-SA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'غير محدد';
+
+    // إنشاء قائمة البنود
+    let itemsHTML = '';
+    let subtotal = 0;
+    items.forEach((item, index) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const returnPrice = parseFloat(item.return_price) || 0;
+        const itemTotal = quantity * returnPrice;
+        subtotal += itemTotal;
+
+        itemsHTML += `
+            <tr>
+                <td style="width:10%; text-align:center;">${index + 1}</td>
+                <td style="width:40%; text-align:right; padding-right:5px;">${item.product_name}</td>
+                <td style="width:15%; text-align:center;">${quantity.toFixed(2)}</td>
+                <td style="width:15%; text-align:left; padding-left:5px;">${returnPrice.toFixed(2)}</td>
+                <td style="width:20%; text-align:left; padding-left:5px;">${itemTotal.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    // حالة المرتجع
+    const statusText = returnInfo.status === 'completed' ? 'مكتمل' :
+                       returnInfo.status === 'pending' ? 'معلق' :
+                       returnInfo.status === 'rejected' ? 'مرفوض' : 'معتمد جزئي';
+
+    // نوع المرتجع
+    const returnTypeText = returnInfo.return_type === 'full' ? 'مرتجع كامل' :
+                           returnInfo.return_type === 'partial' ? 'مرتجع جزئي' :
+                           returnInfo.return_type === 'exchange' ? 'استبدال' : 'مرتجع';
+
+    // إجمالي المرتجع
+    const totalAmount = parseFloat(returnInfo.total_amount) || subtotal;
+
+    // بناء HTML كامل للطباعة
+    return `
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>مرتجع ${returnInfo.return_id || ''}</title>
+        <style>
+            * { margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+            body { padding: 10px; font-size: 12px; background: white; color: #000; }
+            .invoice { width: 280px; margin: 0 auto; padding: 10px; border: 1px solid #000; }
+            .header { text-align:center; padding-bottom:10px; margin-bottom:10px; border-bottom:2px dashed #000; }
+            .store-name { font-weight:900; font-size:16px; margin-bottom:5px; }
+            .info-box { margin-bottom:10px; padding:8px; background:#f8f9fa; border-radius:4px; font-weight:700; font-size:10px; }
+            table { width:100%; border-collapse:collapse; margin-bottom:10px; font-weight:700; font-size:10px; }
+            th, td { padding:6px 2px; border-bottom:1px dashed #ddd; text-align:center; }
+            th { background:#f1f8ff; font-weight:900; }
+            .totals { font-weight:900; margin-top:5px; text-align:right; }
+            .reason-box { background:#fff3cd; padding:5px; margin-top:5px; border:1px dashed #856404; font-size:10px; }
+            .footer { text-align:center; margin-top:10px; font-size:9px; color:#555; border-top:2px dashed #000; padding-top:5px; }
+            @media print { body { padding:0; margin:0; } .invoice { border:none; width:100%; max-width:280px; } }
+        </style>
+    </head>
+    <body>
+        <div class="invoice">
+            <div class="header">
+                <div class="store-name">نظام الفواتير الإلكتروني</div>
+                <div>تاريخ الطباعة: ${today}</div>
+                <div>                 فاتورة مرتجع
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div>رقم المرتجع: ${returnInfo.return_id || ''}</div>
+                <div>اسم العميل: ${returnInfo.customer_name || 'غير محدد'}</div>
+                <div>أنشأ بواسطة: ${returnInfo.created_by_name || 'غير محدد'}</div>
+                <div> رقم الفاتورة المرتبطه  : ${returnInfo.invoice_id || 'غير محدد'}</div>
+                <div>التاريخ: ${formattedDate}</div>
+                <div>نوع المرتجع: ${returnTypeText}</div>
+            </div>
+
+            ${returnInfo.reason ? `<div class="reason-box">سبب المرتجع: ${returnInfo.reason}</div>` : ''}
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>سعر المرتجع</th>
+                        <th>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHTML}
+                </tbody>
+            </table>
+
+            <div class="totals">إجمالي المرتجع: ${totalAmount.toFixed(2)} ج.م</div>
+
+            <div class="footer">
+                تم الطباعة من نظام إدارة الفواتير
+            </div>
+        </div>
+
+        <script>
+            window.onload = function() {
+                setTimeout(() => window.print(), 300);
+            };
+        </script>
+    </body>
+    </html>
+    `;
+}
+
 
 };
 

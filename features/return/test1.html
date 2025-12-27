@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الفواتير والمرتجعات</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .sidebar {
+            background: linear-gradient(135deg, var(--primary) 0%, #1a2530 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255,255,255,.8);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255,255,255,.1);
+            color: white;
+        }
+
+        .main-content {
+            padding: 20px;
+        }
+
+        .stat-card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .invoice-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .batch-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #e8f4fc;
+            color: #2980b9;
+        }
+
+        .return-item {
+            border-right: 4px solid var(--warning);
+            background: #fffaf0;
+        }
+
+        .fully-returned {
+            opacity: 0.7;
+            background: #f8f9fa;
+        }
+
+        .discount-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+        }
+
+        .amount-with-discount .amount-original {
+            font-size: 14px;
+        }
+
+        .amount-with-discount .amount-final {
+            font-size: 18px;
+            color: var(--success);
+        }
+
+        .wallet-balance {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .modal-xl {
+            max-width: 1200px;
+        }
+
+        /* تخصيصات للـ RTL */
+        .table th {
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .btn-group > .btn {
+            border-radius: 6px !important;
+            margin-left: 2px;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- الشريط الجانبي -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse" id="sidebarMenu">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4><i class="fas fa-chart-line"></i> نظام الفواتير</h4>
+                        <p class="text-muted">محاكاة نظام ERP كامل</p>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" id="navDashboard">
+                                <i class="fas fa-tachometer-alt me-2"></i>لوحة التحكم
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="navInvoices">
+                                <i class="fas fa-file-invoice me-2"></i>الفواتير
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="navReturns">
+                                <i class="fas fa-undo me-2"></i>المرتجعات
+                                <span class="badge bg-warning float-start" id="returnsCount">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="navCustomers">
+                                <i class="fas fa-users me-2"></i>العملاء
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="navInventory">
+                                <i class="fas fa-boxes me-2"></i>المخزون
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="mt-5 p-3 wallet-balance">
+                        <h6><i class="fas fa-wallet me-2"></i>محفظة العميل</h6>
+                        <h3 id="walletBalance">0.00 ج.م</h3>
+                        <small>الرصيد الحالي: <span id="customerBalance">0.00 ج.م</span></small>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- المحتوى الرئيسي -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
+                <!-- شريط التنقل العلوي -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2" id="pageTitle">لوحة التحكم</h1>
+                    <div class="btn-toolbar">
+                        <button class="btn btn-primary me-2" id="btnNewInvoice">
+                            <i class="fas fa-plus-circle me-1"></i>فاتورة جديدة
+                        </button>
+                        <button class="btn btn-outline-secondary" id="btnRefresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- محتوى الصفحات -->
+                <div id="dashboardPage" class="page-content">
+                    <div class="row">
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card border-primary">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="text-muted">إجمالي الفواتير</h6>
+                                            <h3 id="totalInvoices">0</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-file-invoice fa-2x text-primary"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card border-success">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="text-muted">المبيعات النشطة</h6>
+                                            <h3 id="activeSales">0.00 ج.م</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-chart-line fa-2x text-success"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card border-warning">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="text-muted">المستحق تحصيله</h6>
+                                            <h3 id="pendingAmount">0.00 ج.م</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-clock fa-2x text-warning"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card border-danger">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="text-muted">المرتجعات</h6>
+                                            <h3 id="totalReturns">0.00 ج.م</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-undo fa-2x text-danger"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الفواتير الأخيرة -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-history me-2"></i>آخر الفواتير</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="recentInvoicesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>رقم الفاتورة</th>
+                                            <th>التاريخ</th>
+                                            <th>العميل</th>
+                                            <th>الإجمالي</th>
+                                            <th>المدفوع</th>
+                                            <th>المتبقي</th>
+                                            <th>الحالة</th>
+                                            <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentInvoicesBody">
+                                        <!-- سيتم تعبئته بالجافاسكريبت -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صفحة الفواتير -->
+                <div id="invoicesPage" class="page-content" style="display: none;">
+                    <div class="row mb-4">
+                        <div class="col-md-9">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="بحث في الفواتير..." id="invoiceSearch">
+                                <button class="btn btn-outline-secondary" type="button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="invoiceStatusFilter">
+                                <option value="">جميع الحالات</option>
+                                <option value="pending">مؤجل</option>
+                                <option value="partial">جزئي</option>
+                                <option value="paid">مدفوع</option>
+                                <option value="returned">مرتجع</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">قائمة الفواتير</h5>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" id="btnSelectAll">
+                                    <i class="fas fa-check-square"></i> تحديد الكل
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" id="btnPrintSelected">
+                                    <i class="fas fa-print"></i> طباعة المحدد
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th width="50"><input type="checkbox" id="checkAll"></th>
+                                            <th>رقم الفاتورة</th>
+                                            <th>التاريخ</th>
+                                            <th>العميل</th>
+                                            <th>البنود</th>
+                                            <th>الإجمالي</th>
+                                            <th>الخصم</th>
+                                            <th>المدفوع</th>
+                                            <th>المتبقي</th>
+                                            <th>الحالة</th>
+                                            <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="invoicesTableBody">
+                                        <!-- سيتم تعبئته بالجافاسكريبت -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صفحة المرتجعات -->
+                <div id="returnsPage" class="page-content" style="display: none;">
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary active" id="btnPendingReturns">
+                                    <i class="fas fa-clock"></i> قيد المعالجة
+                                </button>
+                                <button class="btn btn-outline-success" id="btnCompletedReturns">
+                                    <i class="fas fa-check-circle"></i> المكتملة
+                                </button>
+                                <button class="btn btn-outline-warning" id="btnPartialReturns">
+                                    <i class="fas fa-exchange-alt"></i> الجزئية
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-danger" id="btnNewReturn">
+                                <i class="fas fa-undo me-1"></i>إضافة مرتجع
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">سجل المرتجعات</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>رقم المرتجع</th>
+                                            <th>رقم الفاتورة</th>
+                                            <th>التاريخ</th>
+                                            <th>قيمة المرتجع</th>
+                                            <th>طريقة الرد</th>
+                                            <th>الحالة</th>
+                                            <th>الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="returnsTableBody">
+                                        <!-- سيتم تعبئته بالجافاسكريبت -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صفحة العملاء -->
+                <div id="customersPage" class="page-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">بيانات العميل</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <h5>المعلومات الشخصية</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">اسم العميل</label>
+                                                <input type="text" class="form-control" id="customerName" value="أحمد محمد">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">رقم الهاتف</label>
+                                                <input type="text" class="form-control" id="customerPhone" value="01234567890">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5>البيانات المالية</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">الرصيد الحالي</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="currentBalance" readonly value="0.00">
+                                                    <span class="input-group-text">ج.م</span>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">رصيد المحفظة</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" id="currentWallet" readonly value="0.00">
+                                                    <span class="input-group-text">ج.م</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صفحة المخزون -->
+                <div id="inventoryPage" class="page-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">دفعات المخزون (FIFO)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>رقم الدفعة</th>
+                                            <th>المنتج</th>
+                                            <th>الكمية الأصلية</th>
+                                            <th>المتبقي</th>
+                                            <th>سعر التكلفة</th>
+                                            <th>تاريخ الاستلام</th>
+                                            <th>الحالة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventoryTableBody">
+                                        <!-- سيتم تعبئته بالجافاسكريبت -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- مودال عرض الفاتورة -->
+    <div class="modal fade" id="invoiceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">تفاصيل الفاتورة <span id="modalInvoiceNumber"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>معلومات الفاتورة</h6>
+                                    <p><strong>التاريخ:</strong> <span id="modalInvoiceDate"></span></p>
+                                    <p><strong>الحالة:</strong> <span id="modalInvoiceStatus"></span></p>
+                                    <p><strong>ملاحظات:</strong> <span id="modalInvoiceNotes"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>المبالغ</h6>
+                                    <p><strong>الإجمالي:</strong> <span id="modalInvoiceTotal"></span></p>
+                                    <p><strong>الخصم:</strong> <span id="modalInvoiceDiscount"></span></p>
+                                    <p><strong>المدفوع:</strong> <span id="modalInvoicePaid"></span></p>
+                                    <p><strong>المتبقي:</strong> <span id="modalInvoiceRemaining"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4" id="discountDetailsSection" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0">تفاصيل الخصم</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="modalDiscountDetails"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">بنود الفاتورة</h6>
+                            <button class="btn btn-sm btn-warning" id="btnInitiateReturn">
+                                <i class="fas fa-undo me-1"></i>بدء مرتجع
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>المنتج</th>
+                                            <th>الكمية</th>
+                                            <th>السعر</th>
+                                            <th>الإجمالي</th>
+                                            <th>المرتجع</th>
+                                            <th>التكلفة</th>
+                                            <th>الربح</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="modalInvoiceItems">
+                                        <!-- سيتم تعبئته بالجافاسكريبت -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="button" class="btn btn-primary" id="btnPrintInvoice">
+                        <i class="fas fa-print me-1"></i>طباعة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال المرتجع -->
+    <div class="modal fade" id="returnModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">تسجيل مرتجع</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>الفاتورة الأصلية: <span id="returnOriginalInvoice"></span></h6>
+                                    <p><strong>حالة الدفع:</strong> <span id="returnPaymentStatus"></span></p>
+                                    <p><strong>المبلغ المدفوع:</strong> <span id="returnPaidAmount"></span></p>
+                                    <p><strong>المبلغ المتبقي:</strong> <span id="returnRemainingAmount"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="text-center">قيمة المرتجع</h6>
+                                    <h2 class="text-center text-danger" id="returnTotalAmount">0.00 ج.م</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- اختيار طريقة الرد -->
+                    <div class="card mb-4" id="refundMethodSection" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0">طريقة رد المبلغ</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span id="refundMethodMessage"></span>
+                            </div>
+                            <div class="row" id="refundOptions">
+                                <!-- سيتم تعبئته بالجافاسكريبت -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- البنود المراد إرجاعها -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">اختيار البنود المراد إرجاعها</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>المنتج</th>
+                                            <th>الكمية المباعة</th>
+                                            <th>المرتجع السابق</th>
+                                            <th>المتاح للإرجاع</th>
+                                            <th>الكمية المرتجعة</th>
+                                            <th>السعر</th>
+                                            <th>الإجمالي</th>
+                                            <th>الخصم</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="returnItemsTable">
+                                        <!-- سيتم تعبئته بالجافاسكريبت -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الملخص النهائي -->
+                    <div class="card mt-4 bg-light">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>التأثير على البيانات المالية</h6>
+                                    <p><strong>التأثير على الرصيد:</strong> <span id="balanceEffect">0.00 ج.م</span></p>
+                                    <p><strong>التأثير على المحفظة:</strong> <span id="walletEffect">0.00 ج.م</span></p>
+                                    <p><strong>المبلغ النقدي المردود:</strong> <span id="cashEffect">0.00 ج.م</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>بعد الإرجاع</h6>
+                                    <p><strong>المتبقي على العميل:</strong> <span id="newRemaining">0.00 ج.م</span></p>
+                                    <p><strong>رصيد المحفظة الجديد:</strong> <span id="newWallet">0.00 ج.م</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmReturn">
+                        <i class="fas fa-check me-1"></i>تأكيد المرتجع
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- النظام الأساسي -->
+    <script>
+        // ================================
+        // هياكل البيانات المحلية (Local Database)
+        // ================================
+
+        // الدُفعات (FIFO Inventory)
+        const batches = [
+            {
+                id: 1,
+                product_id: 1,
+                product_name: "سكر 1 كجم",
+                initial_qty: 100,
+                remaining_qty: 80,
+                unit_cost: 15.00,
+                received_at: "2024-01-15",
+                status: "active"
+            },
+            {
+                id: 2,
+                product_id: 1,
+                product_name: "سكر 1 كجم",
+                initial_qty: 200,
+                remaining_qty: 200,
+                unit_cost: 14.50,
+                received_at: "2024-02-01",
+                status: "active"
+            },
+            {
+                id: 3,
+                product_id: 2,
+                product_name: "أرز 5 كجم",
+                initial_qty: 50,
+                remaining_qty: 30,
+                unit_cost: 85.00,
+                received_at: "2024-01-20",
+                status: "active"
+            }
+        ];
+
+        // توزيع البنود على الدُفعات (FIFO Allocations)
+        const itemAllocations = [
+            {
+                id: 1,
+                invoice_item_id: 1,
+                batch_id: 1,
+                quantity: 10,
+                cost: 150.00 // 10 * 15.00
+            },
+            {
+                id: 2,
+                invoice_item_id: 2,
+                batch_id: 3,
+                quantity: 5,
+                cost: 425.00 // 5 * 85.00
+            }
+        ];
+
+        // الفواتير
+        const invoices = [
+            {
+                id: 1,
+                invoice_number: "INV-2024-001",
+                customer_id: 1,
+                customer_name: "أحمد محمد",
+                date: "2024-03-01",
+                time: "10:30",
+                status: "paid", // pending, partial, paid, returned
+                total_before_discount: 1000.00,
+                discount_type: "percent", // percent, amount
+                discount_value: 10, // 10%
+                discount_amount: 100.00,
+                discount_scope: "invoice", // invoice, items, mixed
+                total_after_discount: 900.00,
+                paid_amount: 900.00,
+                remaining_amount: 0.00,
+                total_cost: 700.00,
+                profit_amount: 200.00,
+                notes: "فاتورة أولى"
+            },
+            {
+                id: 2,
+                invoice_number: "INV-2024-002",
+                customer_id: 1,
+                customer_name: "أحمد محمد",
+                date: "2024-03-05",
+                time: "14:45",
+                status: "partial",
+                total_before_discount: 2000.00,
+                discount_type: "items",
+                discount_value: 0,
+                discount_amount: 150.00,
+                discount_scope: "items",
+                total_after_discount: 1850.00,
+                paid_amount: 1000.00,
+                remaining_amount: 850.00,
+                total_cost: 1400.00,
+                profit_amount: 450.00,
+                notes: "فاتورة مع خصم على البنود"
+            },
+            {
+                id: 3,
+                invoice_number: "INV-2024-003",
+                customer_id: 1,
+                customer_name: "أحمد محمد",
+                date: "2024-03-10",
+                time: "09:15",
+                status: "pending",
+                total_before_discount: 1500.00,
+                discount_type: "amount",
+                discount_value: 200.00,
+                discount_amount: 200.00,
+                discount_scope: "invoice",
+                total_after_discount: 1300.00,
+                paid_amount: 0.00,
+                remaining_amount: 1300.00,
+                total_cost: 900.00,
+                profit_amount: 400.00,
+                notes: "فاتورة مؤجلة"
+            }
+        ];
+
+        // بنود الفواتير
+        const invoiceItems = [
+            // فاتورة 1
+            {
+                id: 1,
+                invoice_id: 1,
+                product_id: 1,
+                product_name: "سكر 1 كجم",
+                quantity: 10,
+                returned_quantity: 0,
+                current_quantity: 10,
+                unit_price: 25.00,
+                total_before_discount: 250.00,
+                discount_type: null,
+                discount_value: 0,
+                discount_amount: 0,
+                total_after_discount: 250.00,
+                cost_price: 15.00,
+                total_cost: 150.00,
+                profit: 100.00,
+                fully_returned: false
+            },
+            {
+                id: 2,
+                invoice_id: 1,
+                product_id: 2,
+                product_name: "أرز 5 كجم",
+                quantity: 5,
+                returned_quantity: 0,
+                current_quantity: 5,
+                unit_price: 150.00,
+                total_before_discount: 750.00,
+                discount_type: null,
+                discount_value: 0,
+                discount_amount: 0,
+                total_after_discount: 750.00,
+                cost_price: 85.00,
+                total_cost: 425.00,
+                profit: 325.00,
+                fully_returned: false
+            },
+            // فاتورة 2 (مع خصم على البنود)
+            {
+                id: 3,
+                invoice_id: 2,
+                product_id: 1,
+                product_name: "سكر 1 كجم",
+                quantity: 20,
+                returned_quantity: 0,
+                current_quantity: 20,
+                unit_price: 25.00,
+                total_before_discount: 500.00,
+                discount_type: "amount",
+                discount_value: 50.00,
+                discount_amount: 50.00,
+                total_after_discount: 450.00,
+                cost_price: 15.00,
+                total_cost: 300.00,
+                profit: 150.00,
+                fully_returned: false
+            },
+            {
+                id: 4,
+                invoice_id: 2,
+                product_id: 2,
+                product_name: "أرز 5 كجم",
+                quantity: 10,
+                returned_quantity: 0,
+                current_quantity: 10,
+                unit_price: 150.00,
+                total_before_discount: 1500.00,
+                discount_type: "percent",
+                discount_value: 10, // 10%
+                discount_amount: 100.00,
+                total_after_discount: 1400.00,
+                cost_price: 85.00,
+                total_cost: 850.00,
+                profit: 550.00,
+                fully_returned: false
+            }
+        ];
+
+        // المرتجعات
+        const returns = [];
+
+        // العميل
+        const customer = {
+            id: 1,
+            name: "أحمد محمد",
+            phone: "01234567890",
+            balance: 1300.00, // المتبقي عليه (الفواتير المؤجلة والجزئية)
+            wallet: 0.00,     // رصيد المحفظة
+            total_purchases: 4050.00,
+            total_returns: 0.00
+        };
+
+        // المعاملات
+        const transactions = [
+            {
+                id: 1,
+                customer_id: 1,
+                type: "invoice",
+                invoice_id: 1,
+                amount: 900.00,
+                date: "2024-03-01",
+                description: "فاتورة INV-2024-001"
+            },
+            {
+                id: 2,
+                customer_id: 1,
+                type: "payment",
+                invoice_id: 2,
+                amount: 1000.00,
+                date: "2024-03-05",
+                description: "دفعة على فاتورة INV-2024-002"
+            }
+        ];
+
+        // ================================
+        // دوال النظام الأساسية
+        // ================================
+
+        const InvoiceSystem = {
+            currentInvoiceId: null,
+            currentReturnItems: [],
+            selectedRefundMethod: null,
+
+            // تهيئة النظام
+            init() {
+                this.loadDashboard();
+                this.setupEventListeners();
+                this.updateCustomerDisplay();
+                this.updateReturnsCount();
+            },
+
+            // تحميل لوحة التحكم
+            loadDashboard() {
+                // تحديث الإحصائيات
+                document.getElementById('totalInvoices').textContent = invoices.length;
+                document.getElementById('activeSales').textContent = this.formatCurrency(
+                    invoices.filter(inv => inv.status !== 'returned')
+                           .reduce((sum, inv) => sum + inv.total_after_discount, 0)
+                );
+                document.getElementById('pendingAmount').textContent = this.formatCurrency(
+                    invoices.reduce((sum, inv) => sum + inv.remaining_amount, 0)
+                );
+                document.getElementById('totalReturns').textContent = this.formatCurrency(
+                    returns.reduce((sum, ret) => sum + ret.total_amount, 0)
+                );
+
+                // تحميل الفواتير الأخيرة
+                this.loadRecentInvoices();
+            },
+
+            // تحميل الفواتير الأخيرة
+            loadRecentInvoices() {
+                const tbody = document.getElementById('recentInvoicesBody');
+                tbody.innerHTML = '';
+
+                invoices.slice(0, 5).forEach(invoice => {
+                    const statusBadge = this.getStatusBadge(invoice.status);
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${invoice.invoice_number}</td>
+                        <td>${invoice.date}<br><small>${invoice.time}</small></td>
+                        <td>${invoice.customer_name}</td>
+                        <td>${this.formatCurrency(invoice.total_after_discount)}</td>
+                        <td>${this.formatCurrency(invoice.paid_amount)}</td>
+                        <td class="${invoice.remaining_amount > 0 ? 'text-danger' : 'text-success'}">
+                            ${this.formatCurrency(invoice.remaining_amount)}
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary view-invoice-btn" 
+                                    data-id="${invoice.id}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // إضافة Event Listeners
+                document.querySelectorAll('.view-invoice-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const invoiceId = parseInt(e.target.closest('button').dataset.id);
+                        this.viewInvoice(invoiceId);
+                    });
+                });
+            },
+
+            // عرض صفحة الفواتير
+            loadInvoicesPage() {
+                const tbody = document.getElementById('invoicesTableBody');
+                tbody.innerHTML = '';
+
+                invoices.forEach(invoice => {
+                    const items = invoiceItems.filter(item => item.invoice_id === invoice.id);
+                    const returnedItems = items.filter(item => item.returned_quantity > 0);
+                    
+                    const statusBadge = this.getStatusBadge(invoice.status);
+                    const discountBadge = invoice.discount_amount > 0 ? 
+                        `<span class="badge ${invoice.discount_scope === 'items' ? 'bg-info' : 'bg-secondary'} discount-badge">
+                            <i class="fas ${invoice.discount_scope === 'items' ? 'fa-tag' : 'fa-file-invoice'} me-1"></i>
+                            ${invoice.discount_type === 'percent' ? invoice.discount_value + '%' : this.formatCurrency(invoice.discount_value)}
+                        </span>` : '';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="invoice-checkbox" data-id="${invoice.id}"></td>
+                        <td>
+                            <strong>${invoice.invoice_number}</strong>
+                            ${returnedItems.length > 0 ? '<br><small class="text-warning">(يوجد مرتجعات)</small>' : ''}
+                        </td>
+                        <td>${invoice.date}<br><small>${invoice.time}</small></td>
+                        <td>${invoice.customer_name}</td>
+                        <td>${items.length} بند</td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                ${invoice.discount_amount > 0 ? 
+                                    `<small class="text-muted text-decoration-line-through">${this.formatCurrency(invoice.total_before_discount)}</small>` : ''}
+                                <strong>${this.formatCurrency(invoice.total_after_discount)}</strong>
+                            </div>
+                        </td>
+                        <td>${discountBadge}</td>
+                        <td>${this.formatCurrency(invoice.paid_amount)}</td>
+                        <td class="${invoice.remaining_amount > 0 ? 'text-danger fw-bold' : 'text-success'}">
+                            ${this.formatCurrency(invoice.remaining_amount)}
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary view-invoice-btn" data-id="${invoice.id}">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                ${invoice.status !== 'paid' && invoice.status !== 'returned' ? `
+                                <button class="btn btn-outline-success pay-invoice-btn" data-id="${invoice.id}">
+                                    <i class="fas fa-money-bill"></i>
+                                </button>
+                                ` : ''}
+                                <button class="btn btn-outline-warning return-invoice-btn" data-id="${invoice.id}">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // إضافة Event Listeners
+                this.attachInvoiceEventListeners();
+            },
+
+            // عرض صفحة المرتجعات
+            loadReturnsPage() {
+                const tbody = document.getElementById('returnsTableBody');
+                tbody.innerHTML = '';
+
+                returns.forEach(ret => {
+                    const statusBadge = ret.status === 'completed' ? 
+                        '<span class="badge bg-success">مكتمل</span>' : 
+                        '<span class="badge bg-warning">قيد المعالجة</span>';
+
+                    const refundMethod = ret.refund_method ? 
+                        (ret.refund_method === 'cash' ? 'نقدي' : 
+                         ret.refund_method === 'wallet' ? 'محفظة' : 
+                         ret.refund_method === 'balance' ? 'رصيد' : 'غير محدد') : 
+                        'غير محدد';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>RTN-${ret.id.toString().padStart(3, '0')}</td>
+                        <td>${ret.invoice_number}</td>
+                        <td>${ret.date}<br><small>${ret.time}</small></td>
+                        <td class="text-danger fw-bold">${this.formatCurrency(ret.total_amount)}</td>
+                        <td>${refundMethod}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary view-return-btn" data-id="${ret.id}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            },
+
+            // عرض صفحة المخزون
+            loadInventoryPage() {
+                const tbody = document.getElementById('inventoryTableBody');
+                tbody.innerHTML = '';
+
+                batches.forEach(batch => {
+                    const statusBadge = batch.status === 'active' ? 
+                        '<span class="badge bg-success">نشط</span>' : 
+                        '<span class="badge bg-secondary">مستهلك</span>';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>BATCH-${batch.id.toString().padStart(3, '0')}</td>
+                        <td>${batch.product_name}</td>
+                        <td>${batch.initial_qty}</td>
+                        <td>
+                            <span class="${batch.remaining_qty < batch.initial_qty * 0.2 ? 'text-danger' : 'text-success'}">
+                                ${batch.remaining_qty}
+                            </span>
+                        </td>
+                        <td>${this.formatCurrency(batch.unit_cost)}</td>
+                        <td>${batch.received_at}</td>
+                        <td>${statusBadge}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            },
+
+            // عرض فاتورة
+            viewInvoice(invoiceId) {
+                const invoice = invoices.find(inv => inv.id === invoiceId);
+                if (!invoice) return;
+
+                this.currentInvoiceId = invoiceId;
+                const items = invoiceItems.filter(item => item.invoice_id === invoiceId);
+
+                // تعبئة البيانات الأساسية
+                document.getElementById('modalInvoiceNumber').textContent = invoice.invoice_number;
+                document.getElementById('modalInvoiceDate').textContent = `${invoice.date} - ${invoice.time}`;
+                document.getElementById('modalInvoiceStatus').textContent = this.getStatusText(invoice.status);
+                document.getElementById('modalInvoiceNotes').textContent = invoice.notes || 'لا يوجد';
+
+                // تعبئة المبالغ
+                document.getElementById('modalInvoiceTotal').textContent = this.formatCurrency(invoice.total_after_discount);
+                document.getElementById('modalInvoiceDiscount').textContent = invoice.discount_amount > 0 ? 
+                    `${this.formatCurrency(invoice.discount_amount)} (${invoice.discount_type === 'percent' ? invoice.discount_value + '%' : 'مبلغ ثابت'})` : 
+                    'لا يوجد';
+                document.getElementById('modalInvoicePaid').textContent = this.formatCurrency(invoice.paid_amount);
+                document.getElementById('modalInvoiceRemaining').textContent = this.formatCurrency(invoice.remaining_amount);
+
+                // تفاصيل الخصم
+                if (invoice.discount_amount > 0) {
+                    document.getElementById('discountDetailsSection').style.display = 'block';
+                    let details = `
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>نوع الخصم:</strong><br>
+                                ${invoice.discount_scope === 'items' ? 'على مستوى البنود' : 'على مستوى الفاتورة'}
+                            </div>
+                            <div class="col-md-4">
+                                <strong>قيمة الخصم:</strong><br>
+                                ${this.formatCurrency(invoice.discount_amount)}
+                            </div>
+                            <div class="col-md-4">
+                                <strong>الإجمالي قبل الخصم:</strong><br>
+                                ${this.formatCurrency(invoice.total_before_discount)}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('modalDiscountDetails').innerHTML = details;
+                } else {
+                    document.getElementById('discountDetailsSection').style.display = 'none';
+                }
+
+                // تعبئة البنود
+                const tbody = document.getElementById('modalInvoiceItems');
+                tbody.innerHTML = '';
+
+                items.forEach(item => {
+                    const returnedBadge = item.returned_quantity > 0 ? 
+                        `<span class="badge bg-warning">مرتجع: ${item.returned_quantity}</span>` : '';
+                    
+                    const row = document.createElement('tr');
+                    row.className = item.returned_quantity > 0 ? 'return-item' : '';
+                    row.innerHTML = `
+                        <td>
+                            ${item.product_name}
+                            ${returnedBadge}
+                            ${item.fully_returned ? '<br><small class="text-danger">(مرتجع كلي)</small>' : ''}
+                        </td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                <small class="text-muted">أصلي: ${item.quantity}</small>
+                                <strong>حالي: ${item.current_quantity}</strong>
+                            </div>
+                        </td>
+                        <td>${this.formatCurrency(item.unit_price)}</td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                ${item.discount_amount > 0 ? 
+                                    `<small class="text-muted text-decoration-line-through">${this.formatCurrency(item.total_before_discount)}</small>` : ''}
+                                <strong>${this.formatCurrency(item.total_after_discount)}</strong>
+                            </div>
+                        </td>
+                        <td>${item.returned_quantity}</td>
+                        <td>${this.formatCurrency(item.total_cost)}</td>
+                        <td class="text-success fw-bold">${this.formatCurrency(item.profit)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // إظهار المودال
+                const modal = new bootstrap.Modal(document.getElementById('invoiceModal'));
+                modal.show();
+            },
+
+            // فتح مودال المرتجع
+            openReturnModal(invoiceId) {
+                const invoice = invoices.find(inv => inv.id === invoiceId);
+                if (!invoice) return;
+
+                this.currentInvoiceId = invoiceId;
+                this.currentReturnItems = [];
+                this.selectedRefundMethod = null;
+
+                const items = invoiceItems.filter(item => item.invoice_id === invoiceId && !item.fully_returned);
+
+                // تعبئة بيانات الفاتورة
+                document.getElementById('returnOriginalInvoice').textContent = invoice.invoice_number;
+                document.getElementById('returnPaymentStatus').textContent = this.getStatusText(invoice.status);
+                document.getElementById('returnPaidAmount').textContent = this.formatCurrency(invoice.paid_amount);
+                document.getElementById('returnRemainingAmount').textContent = this.formatCurrency(invoice.remaining_amount);
+
+                // إعداد خيارات الرد حسب حالة الدفع
+                this.setupRefundOptions(invoice);
+
+                // تعبئة جدول البنود
+                const tbody = document.getElementById('returnItemsTable');
+                tbody.innerHTML = '';
+
+                items.forEach(item => {
+                    const availableQty = item.current_quantity;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.product_name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.returned_quantity}</td>
+                        <td>${availableQty}</td>
+                        <td>
+                            <input type="number" 
+                                   class="form-control form-control-sm return-qty" 
+                                   data-item-id="${item.id}"
+                                   min="0" 
+                                   max="${availableQty}" 
+                                   value="0"
+                                   style="width: 80px;">
+                        </td>
+                        <td>${this.formatCurrency(item.unit_price)}</td>
+                        <td class="item-total">0.00 ج.م</td>
+                        <td>
+                            ${item.discount_amount > 0 ? 
+                                `<small class="text-danger">خصم: ${this.formatCurrency(item.discount_amount)}</small>` : 
+                                'لا يوجد'}
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // إضافة Event Listeners للكميات
+                document.querySelectorAll('.return-qty').forEach(input => {
+                    input.addEventListener('input', () => this.calculateReturnTotal());
+                });
+
+                // حساب القيمة الأولية
+                this.calculateReturnTotal();
+
+                // إظهار المودال
+                const modal = new bootstrap.Modal(document.getElementById('returnModal'));
+                modal.show();
+            },
+
+            // إعداد خيارات رد المبلغ حسب حالة الدفع
+            setupRefundOptions(invoice) {
+                const methodSection = document.getElementById('refundMethodSection');
+                const optionsDiv = document.getElementById('refundOptions');
+                const messageDiv = document.getElementById('refundMethodMessage');
+
+                // الحالة 1: فاتورة مؤجلة (غير مدفوعة)
+                if (invoice.status === 'pending') {
+                    methodSection.style.display = 'block';
+                    messageDiv.textContent = 'الفاتورة مؤجلة (غير مدفوعة) - المرتجع سيقلل من رصيد العميل فقط';
+                    
+                    optionsDiv.innerHTML = `
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input refund-method" type="radio" name="refundMethod" 
+                                       id="methodBalance" value="balance" checked>
+                                <label class="form-check-label" for="methodBalance">
+                                    <i class="fas fa-balance-scale me-2"></i>
+                                    خصم من الرصيد
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                }
+                // الحالة 2: فاتورة مدفوعة كليًا
+                else if (invoice.status === 'paid') {
+                    methodSection.style.display = 'block';
+                    messageDiv.textContent = 'الفاتورة مدفوعة بالكامل - يمكنك اختيار طريقة رد المبلغ';
+                    
+                    optionsDiv.innerHTML = `
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input refund-method" type="radio" name="refundMethod" 
+                                       id="methodCash" value="cash">
+                                <label class="form-check-label" for="methodCash">
+                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                    رد نقدي
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input refund-method" type="radio" name="refundMethod" 
+                                       id="methodWallet" value="wallet" checked>
+                                <label class="form-check-label" for="methodWallet">
+                                    <i class="fas fa-wallet me-2"></i>
+                                    إضافة للمحفظة
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                }
+                // الحالة 3: فاتورة مدفوعة جزئيًا
+                else if (invoice.status === 'partial') {
+                    methodSection.style.display = 'block';
+                    messageDiv.textContent = 'الفاتورة مدفوعة جزئيًا - سيتم توزيع المرتجع بين خصم الرصيد ورد المبلغ';
+                    
+                    optionsDiv.innerHTML = `
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input refund-method" type="radio" name="refundMethod" 
+                                       id="methodMixed" value="mixed" checked>
+                                <label class="form-check-label" for="methodMixed">
+                                    <i class="fas fa-exchange-alt me-2"></i>
+                                    توزيع تلقائي
+                                </label>
+                                <small class="form-text text-muted d-block">
+                                    سيتم خصم الرصيد أولاً، ثم رد الباقي
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input refund-method" type="radio" name="refundMethod" 
+                                       id="methodWalletPartial" value="wallet">
+                                <label class="form-check-label" for="methodWalletPartial">
+                                    <i class="fas fa-wallet me-2"></i>
+                                    إضافة كاملة للمحفظة
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                }
+                // فاتورة مرتجعة بالفعل
+                else if (invoice.status === 'returned') {
+                    methodSection.style.display = 'none';
+                    alert('هذه الفاتورة مرتجعة بالكامل بالفعل!');
+                    return;
+                }
+
+                // إضافة Event Listeners لخيارات الرد
+                document.querySelectorAll('.refund-method').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        this.selectedRefundMethod = e.target.value;
+                        this.calculateReturnTotal();
+                    });
+                });
+
+                // تحديد الخيار الافتراضي
+                this.selectedRefundMethod = document.querySelector('.refund-method:checked')?.value;
+            },
+
+            // حساب إجمالي المرتجع
+            calculateReturnTotal() {
+                let totalAmount = 0;
+                this.currentReturnItems = [];
+
+                // جمع البنود المحددة
+                document.querySelectorAll('.return-qty').forEach(input => {
+                    const qty = parseInt(input.value) || 0;
+                    if (qty > 0) {
+                        const itemId = parseInt(input.dataset.itemId);
+                        const item = invoiceItems.find(i => i.id === itemId);
+                        if (item) {
+                            const itemTotal = qty * item.unit_price;
+                            
+                            // تطبيق نسبة الخصم إذا كان الخصم على البنود
+                            const invoice = invoices.find(inv => inv.id === this.currentInvoiceId);
+                            if (invoice && invoice.discount_scope === 'items' && item.discount_amount > 0) {
+                                const discountRatio = item.discount_amount / item.total_before_discount;
+                                const itemDiscount = itemTotal * discountRatio;
+                                totalAmount += (itemTotal - itemDiscount);
+                            } else {
+                                totalAmount += itemTotal;
+                            }
+
+                            // حفظ البند في القائمة الحالية
+                            this.currentReturnItems.push({
+                                itemId: item.id,
+                                quantity: qty,
+                                unitPrice: item.unit_price,
+                                discountAmount: item.discount_amount,
+                                totalBeforeDiscount: item.total_before_discount
+                            });
+
+                            // تحديث الإجمالي في الصف
+                            const row = input.closest('tr');
+                            row.querySelector('.item-total').textContent = this.formatCurrency(itemTotal);
+                        }
+                    }
+                });
+
+                // تطبيق خصم الفاتورة إذا كان على مستوى الفاتورة
+                const invoice = invoices.find(inv => inv.id === this.currentInvoiceId);
+                if (invoice && invoice.discount_scope === 'invoice' && invoice.discount_amount > 0) {
+                    const discountRatio = invoice.discount_amount / invoice.total_before_discount;
+                    totalAmount = totalAmount * (1 - discountRatio);
+                }
+
+                // تحديث إجمالي المرتجع
+                document.getElementById('returnTotalAmount').textContent = this.formatCurrency(totalAmount);
+
+                // حساب التأثيرات المالية
+                this.calculateFinancialEffects(totalAmount, invoice);
+            },
+
+            // حساب التأثيرات المالية
+            calculateFinancialEffects(returnAmount, invoice) {
+                let balanceEffect = 0;
+                let walletEffect = 0;
+                let cashEffect = 0;
+
+                // الحالة 1: فاتورة مؤجلة
+                if (invoice.status === 'pending') {
+                    balanceEffect = -returnAmount; // خصم من الرصيد
+                }
+                // الحالة 2: فاتورة مدفوعة كليًا
+                else if (invoice.status === 'paid') {
+                    if (this.selectedRefundMethod === 'cash') {
+                        cashEffect = returnAmount; // رد نقدي
+                    } else if (this.selectedRefundMethod === 'wallet') {
+                        walletEffect = returnAmount; // إضافة للمحفظة
+                    }
+                }
+                // الحالة 3: فاتورة مدفوعة جزئيًا
+                else if (invoice.status === 'partial') {
+                    if (this.selectedRefundMethod === 'mixed') {
+                        // توزيع تلقائي: خصم الرصيد أولاً، ثم رد الباقي
+                        if (returnAmount <= invoice.remaining_amount) {
+                            balanceEffect = -returnAmount;
+                        } else {
+                            balanceEffect = -invoice.remaining_amount;
+                            walletEffect = returnAmount - invoice.remaining_amount;
+                        }
+                    } else if (this.selectedRefundMethod === 'wallet') {
+                        walletEffect = returnAmount; // كلها للمحفظة
+                    }
+                }
+
+                // تحديث العرض
+                document.getElementById('balanceEffect').textContent = this.formatCurrency(balanceEffect);
+                document.getElementById('walletEffect').textContent = this.formatCurrency(walletEffect);
+                document.getElementById('cashEffect').textContent = this.formatCurrency(cashEffect);
+
+                // حساب القيم الجديدة
+                const newRemaining = Math.max(0, invoice.remaining_amount + balanceEffect);
+                const newWallet = customer.wallet + walletEffect;
+
+                document.getElementById('newRemaining').textContent = this.formatCurrency(newRemaining);
+                document.getElementById('newWallet').textContent = this.formatCurrency(newWallet);
+            },
+
+            // تأكيد المرتجع
+            confirmReturn() {
+                const invoice = invoices.find(inv => inv.id === this.currentInvoiceId);
+                if (!invoice || this.currentReturnItems.length === 0) {
+                    alert('يرجى تحديد بنود للارجاع');
+                    return;
+                }
+
+                const returnAmount = parseFloat(
+                    document.getElementById('returnTotalAmount').textContent.replace('ج.م', '').trim()
+                );
+
+                // 1. تحديث بنود الفاتورة
+                this.currentReturnItems.forEach(returnItem => {
+                    const item = invoiceItems.find(i => i.id === returnItem.itemId);
+                    if (item) {
+                        item.returned_quantity += returnItem.quantity;
+                        item.current_quantity -= returnItem.quantity;
+                        
+                        if (item.current_quantity === 0) {
+                            item.fully_returned = true;
+                        }
+
+                        // تحديث المخزون (FIFO reversal)
+                        this.updateInventory(item.product_id, returnItem.quantity);
+                    }
+                });
+
+                // 2. تحديث بيانات المرتجع
+                const newReturn = {
+                    id: returns.length + 1,
+                    invoice_id: invoice.id,
+                    invoice_number: invoice.invoice_number,
+                    date: new Date().toISOString().split('T')[0],
+                    time: new Date().toLocaleTimeString('ar-EG', {hour12: false}),
+                    items: [...this.currentReturnItems],
+                    total_amount: returnAmount,
+                    refund_method: this.selectedRefundMethod,
+                    status: 'completed'
+                };
+                returns.push(newReturn);
+
+                // 3. تحديث بيانات العميل
+                const balanceEffect = parseFloat(
+                    document.getElementById('balanceEffect').textContent.replace('ج.م', '').trim()
+                );
+                const walletEffect = parseFloat(
+                    document.getElementById('walletEffect').textContent.replace('ج.م', '').trim()
+                );
+
+                customer.balance += balanceEffect;
+                customer.wallet += walletEffect;
+                customer.total_returns += returnAmount;
+
+                // 4. تحديث الفاتورة
+                const returnedAmount = invoice.paid_amount > 0 ? 
+                    Math.min(returnAmount, invoice.paid_amount) : 0;
+                
+                invoice.paid_amount -= returnedAmount;
+                invoice.remaining_amount += balanceEffect; // balanceEffect سالب
+                
+                // إذا تم إرجاع كل البنود
+                const allItems = invoiceItems.filter(item => item.invoice_id === invoice.id);
+                if (allItems.every(item => item.fully_returned)) {
+                    invoice.status = 'returned';
+                }
+
+                // 5. إضافة معاملة
+                transactions.push({
+                    id: transactions.length + 1,
+                    customer_id: customer.id,
+                    type: 'return',
+                    invoice_id: invoice.id,
+                    amount: -returnAmount,
+                    date: new Date().toISOString().split('T')[0],
+                    description: `مرتجع على فاتورة ${invoice.invoice_number}`
+                });
+
+                // 6. تحديث العرض
+                this.updateCustomerDisplay();
+                this.updateReturnsCount();
+                this.loadDashboard();
+
+                // 7. إغلاق المودال وإظهار رسالة نجاح
+                bootstrap.Modal.getInstance(document.getElementById('returnModal')).hide();
+                alert('تم تسجيل المرتجع بنجاح!');
+
+                // 8. إعادة فتح فاتورة محدثة
+                this.viewInvoice(invoice.id);
+            },
+
+            // تحديث المخزون (FIFO reversal)
+            updateInventory(productId, quantity) {
+                let remainingQty = quantity;
+                
+                // البحث عن allocations لهذا المنتج
+                const allocations = itemAllocations.filter(
+                    alloc => batches.find(b => b.id === alloc.batch_id)?.product_id === productId
+                );
+
+                // الترتيب العكسي للـ FIFO (الأحدث أولاً)
+                allocations.sort((a, b) => b.id - a.id);
+
+                for (const alloc of allocations) {
+                    if (remainingQty <= 0) break;
+                    
+                    const batch = batches.find(b => b.id === alloc.batch_id);
+                    if (batch && batch.remaining_qty < batch.initial_qty) {
+                        const canReturn = Math.min(
+                            alloc.quantity - (batch.initial_qty - batch.remaining_qty),
+                            remainingQty
+                        );
+                        
+                        if (canReturn > 0) {
+                            batch.remaining_qty += canReturn;
+                            remainingQty -= canReturn;
+                        }
+                    }
+                }
+            },
+
+            // ================================
+            // دوال مساعدة
+            // ================================
+
+            // تنسيق العملة
+            formatCurrency(amount) {
+                return parseFloat(amount).toFixed(2) + ' ج.م';
+            },
+
+            // بادج الحالة
+            getStatusBadge(status) {
+                const badges = {
+                    pending: '<span class="badge bg-secondary">مؤجل</span>',
+                    partial: '<span class="badge bg-warning">جزئي</span>',
+                    paid: '<span class="badge bg-success">مسلم</span>',
+                    returned: '<span class="badge bg-danger">مرتجع</span>'
+                };
+                return badges[status] || '<span class="badge bg-light text-dark">' + status + '</span>';
+            },
+
+            // نص الحالة
+            getStatusText(status) {
+                const texts = {
+                    pending: 'مؤجل',
+                    partial: 'جزئي',
+                    paid: 'مسلم',
+                    returned: 'مرتجع'
+                };
+                return texts[status] || status;
+            },
+
+            // تحديث عرض بيانات العميل
+            updateCustomerDisplay() {
+                document.getElementById('walletBalance').textContent = this.formatCurrency(customer.wallet);
+                document.getElementById('customerBalance').textContent = this.formatCurrency(customer.balance);
+                document.getElementById('currentBalance').value = customer.balance.toFixed(2);
+                document.getElementById('currentWallet').value = customer.wallet.toFixed(2);
+            },
+
+            // تحديث عدد المرتجعات
+            updateReturnsCount() {
+                document.getElementById('returnsCount').textContent = returns.length;
+            },
+
+            // إضافة Event Listeners للفواتير
+            attachInvoiceEventListeners() {
+                document.querySelectorAll('.view-invoice-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const invoiceId = parseInt(e.target.closest('button').dataset.id);
+                        this.viewInvoice(invoiceId);
+                    });
+                });
+
+                document.querySelectorAll('.return-invoice-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const invoiceId = parseInt(e.target.closest('button').dataset.id);
+                        this.openReturnModal(invoiceId);
+                    });
+                });
+
+                document.querySelectorAll('.pay-invoice-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const invoiceId = parseInt(e.target.closest('button').dataset.id);
+                        this.processPayment(invoiceId);
+                    });
+                });
+
+                // تحديد/إلغاء تحديد الكل
+                document.getElementById('checkAll').addEventListener('change', (e) => {
+                    document.querySelectorAll('.invoice-checkbox').forEach(cb => {
+                        cb.checked = e.target.checked;
+                    });
+                });
+            },
+
+            // معالجة الدفع
+            processPayment(invoiceId) {
+                const invoice = invoices.find(inv => inv.id === invoiceId);
+                if (!invoice) return;
+
+                const amount = parseFloat(prompt(`المبلغ المتبقي: ${this.formatCurrency(invoice.remaining_amount)}\nادخل المبلغ المدفوع:`));
+                
+                if (amount && amount > 0) {
+                    invoice.paid_amount += amount;
+                    invoice.remaining_amount -= amount;
+                    
+                    if (invoice.remaining_amount <= 0) {
+                        invoice.status = 'paid';
+                        invoice.remaining_amount = 0;
+                    } else {
+                        invoice.status = 'partial';
+                    }
+
+                    // تحديث رصيد العميل
+                    customer.balance -= amount;
+
+                    // إضافة معاملة
+                    transactions.push({
+                        id: transactions.length + 1,
+                        customer_id: customer.id,
+                        type: 'payment',
+                        invoice_id: invoice.id,
+                        amount: amount,
+                        date: new Date().toISOString().split('T')[0],
+                        description: `دفعة على فاتورة ${invoice.invoice_number}`
+                    });
+
+                    // تحديث العرض
+                    this.updateCustomerDisplay();
+                    this.loadDashboard();
+                    
+                    if (document.getElementById('invoicesPage').style.display !== 'none') {
+                        this.loadInvoicesPage();
+                    }
+
+                    alert('تم تسجيل الدفع بنجاح!');
+                }
+            },
+
+            // إعداد Event Listeners للنظام
+            setupEventListeners() {
+                // التنقل بين الصفحات
+                document.getElementById('navDashboard').addEventListener('click', () => this.showPage('dashboardPage'));
+                document.getElementById('navInvoices').addEventListener('click', () => {
+                    this.showPage('invoicesPage');
+                    this.loadInvoicesPage();
+                });
+                document.getElementById('navReturns').addEventListener('click', () => {
+                    this.showPage('returnsPage');
+                    this.loadReturnsPage();
+                });
+                document.getElementById('navCustomers').addEventListener('click', () => this.showPage('customersPage'));
+                document.getElementById('navInventory').addEventListener('click', () => {
+                    this.showPage('inventoryPage');
+                    this.loadInventoryPage();
+                });
+
+                // الأزرار
+                document.getElementById('btnNewInvoice').addEventListener('click', () => {
+                    alert('في النظام الكامل، هنا سيتم فتح نموذج فاتورة جديدة');
+                });
+
+                document.getElementById('btnNewReturn').addEventListener('click', () => {
+                    // فتح قائمة الفواتير للاختيار منها
+                    let invoiceList = 'اختر فاتورة للمراجعة:\n\n';
+                    invoices.forEach(inv => {
+                        if (inv.status !== 'returned') {
+                            invoiceList += `${inv.id}. ${inv.invoice_number} - ${this.formatCurrency(inv.total_after_discount)} - ${this.getStatusText(inv.status)}\n`;
+                        }
+                    });
+                    
+                    const choice = prompt(invoiceList + '\nادخل رقم الفاتورة:');
+                    const invoiceId = parseInt(choice);
+                    
+                    if (invoiceId && invoices.find(inv => inv.id === invoiceId)) {
+                        this.openReturnModal(invoiceId);
+                    }
+                });
+
+                document.getElementById('btnRefresh').addEventListener('click', () => {
+                    this.loadDashboard();
+                });
+
+                document.getElementById('btnSelectAll').addEventListener('click', () => {
+                    document.querySelectorAll('.invoice-checkbox').forEach(cb => cb.checked = true);
+                });
+
+                document.getElementById('btnPrintSelected').addEventListener('click', () => {
+                    const selected = document.querySelectorAll('.invoice-checkbox:checked');
+                    alert(`سيتم طباعة ${selected.length} فاتورة`);
+                });
+
+                // أزرار المرتجعات
+                document.getElementById('btnPendingReturns').addEventListener('click', () => {
+                    document.getElementById('btnPendingReturns').classList.add('active');
+                    document.getElementById('btnCompletedReturns').classList.remove('active');
+                    document.getElementById('btnPartialReturns').classList.remove('active');
+                });
+
+                document.getElementById('btnCompletedReturns').addEventListener('click', () => {
+                    document.getElementById('btnPendingReturns').classList.remove('active');
+                    document.getElementById('btnCompletedReturns').classList.add('active');
+                    document.getElementById('btnPartialReturns').classList.remove('active');
+                });
+
+                document.getElementById('btnPartialReturns').addEventListener('click', () => {
+                    document.getElementById('btnPendingReturns').classList.remove('active');
+                    document.getElementById('btnCompletedReturns').classList.remove('active');
+                    document.getElementById('btnPartialReturns').classList.add('active');
+                });
+
+                // زر تأكيد المرتجع
+                document.getElementById('btnConfirmReturn').addEventListener('click', () => this.confirmReturn());
+
+                // زر بدء مرتجع من مودال الفاتورة
+                document.getElementById('btnInitiateReturn').addEventListener('click', () => {
+                    bootstrap.Modal.getInstance(document.getElementById('invoiceModal')).hide();
+                    this.openReturnModal(this.currentInvoiceId);
+                });
+
+                // زر طباعة الفاتورة
+                document.getElementById('btnPrintInvoice').addEventListener('click', () => {
+                    const invoice = invoices.find(inv => inv.id === this.currentInvoiceId);
+                    alert(`طباعة فاتورة ${invoice.invoice_number}`);
+                });
+
+                // تحديث بيانات العميل
+                document.getElementById('customerName').addEventListener('change', (e) => {
+                    customer.name = e.target.value;
+                    this.updateCustomerDisplay();
+                });
+
+                document.getElementById('customerPhone').addEventListener('change', (e) => {
+                    customer.phone = e.target.value;
+                });
+            },
+
+            // عرض صفحة معينة
+            showPage(pageId) {
+                document.querySelectorAll('.page-content').forEach(page => {
+                    page.style.display = 'none';
+                });
+                document.getElementById(pageId).style.display = 'block';
+                document.getElementById('pageTitle').textContent = document.getElementById(pageId).previousElementSibling.querySelector('h1').textContent;
+            }
+        };
+
+        // تهيئة النظام عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            InvoiceSystem.init();
+        });
+    </script>
+</body>
+</html>

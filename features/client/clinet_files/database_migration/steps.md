@@ -454,10 +454,60 @@ ALTER TABLE invoice_out_items
 ADD discount_type ENUM('percent','amount') DEFAULT NULL,
 ADD discount_value DECIMAL(10,2) DEFAULT 0.00,
 ADD discount_amount DECIMAL(12,2) DEFAULT 0.00,
-ADD total_after_discount DECIMAL(12,2) DEFAULT 0.00;
+ADD total_after_discount DECIMAL(12,2) DEFAULT 0.00;  --> لازم تظبطه يبقي يساوي قبل 
 
 ALTER TABLE invoices_out
 ADD discount_scope ENUM('invoice','items','mixed')
 DEFAULT 'invoice'
 COMMENT 'مكان تطبيق الخصم';
 
+
+
+CREATE TABLE `returns` (
+  `id` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `invoice_id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `return_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `return_type` ENUM('full','partial','exchange') DEFAULT 'partial',
+  `status` ENUM('pending','approved','completed','rejected') DEFAULT 'pending',
+  `reason` TEXT,
+  `approved_by` int(11) NULL,
+  `approved_at` DATETIME NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `notes` TEXT
+);
+
+CREATE TABLE `return_items` (
+  `id` int(11) PRIMARY KEY AUTO_INCREMENT,
+  `return_id` int(11) NOT NULL,
+  `invoice_item_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `quantity` DECIMAL(10,2) NOT NULL,
+  `return_price` DECIMAL(10,2) NOT NULL, -- السعر وقت الإرجاع
+  `total_amount` DECIMAL(10,2) NOT NULL,
+  `batch_allocations` JSON, -- لتتبع أي دفعات تم إرجاعها
+  `status` ENUM('pending','restocked','discarded') DEFAULT 'pending',
+  `restocked_qty` DECIMAL(10,2) DEFAULT 0.00,
+  `restocked_at` DATETIME NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+ALTER TABLE sale_item_allocations 
+ADD COLUMN return_id INT NULL,
+ADD COLUMN is_return BOOLEAN DEFAULT FALSE;
+
+
+
+UPDATE invoice_out_items
+SET total_after_discount = total_before_discount
+WHERE discount_amount <= 0;
+
+
+ALTER TABLE invoice_out_items
+ADD unit_price_after_discount
+DECIMAL(10,2)
+GENERATED ALWAYS AS (total_after_discount / quantity) STORED;

@@ -264,112 +264,177 @@ setupTooltipStyles() {
 
 
 // تحديث دالة buildItemsTooltip لإظهار الخصم
-buildItemsTooltip(invoice) {
+  buildItemsTooltip(invoice) {
     const items = invoice.items || [];
-    
-    // حساب تفاصيل الخصم
+
     const discountAmount = parseFloat(invoice.discount_amount || 0);
     const discountValue = parseFloat(invoice.discount_value || 0);
-    const discountType = invoice.discount_type || 'percent';
-    const discountScope = invoice.discount_scope || 'invoice';
-    const beforeDiscount = parseFloat(invoice.total_before_discount || invoice.total || 0);
-    const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
-    
+    const discountType = invoice.discount_type || "percent";
+    const discountScope = invoice.discount_scope || "invoice";
+    const beforeDiscount = parseFloat(
+      invoice.total_before_discount || invoice.total || 0
+    );
+    const afterDiscount = parseFloat(
+      invoice.total_after_discount || invoice.total || 0
+    );
+
     if (items.length === 0) {
-        return `
-            <div class="tooltip-header">
-                بنود الفاتورة ${invoice.invoice_number || invoice.id}
-            </div>
-            <div class="text-center py-3 text-muted">
-                لا توجد بنود
-            </div>
-        `;
-    }
-    
-    // بناء قائمة البنود مع إظهار الخصم إذا كان على مستوى البنود
-    const itemsList = items
-        .map((item) => {
-            const currentQuantity = item.current_quantity || 
-                                  (item.quantity - (item.returned_quantity || 0));
-            const currentTotal = item.current_total || 
-                               (currentQuantity * (item.selling_price || item.price || 0));
-            
-            // حساب خصم البند إذا كان موجود
-            const itemDiscount = discountScope === 'items' ? 
-                parseFloat(item.discount_amount || 0) : 0;
-            const itemBeforeDiscount = parseFloat(item.total_before_discount || 
-                                                (item.quantity * (item.selling_price || item.price || 0)));
-            
-            let discountHTML = '';
-            if (discountScope === 'items' && itemDiscount > 0) {
-                const itemDiscountPercent = ((itemDiscount / itemBeforeDiscount) * 100).toFixed(1);
-                discountHTML = `
-                    <div class="tooltip-item-discount">
-                        <small class="text-danger">
-                            <i class="fas fa-tag me-1"></i>
-                            خصم: ${itemDiscount.toFixed(2)} ج.م (${itemDiscountPercent}%)
-                        </small>
-                    </div>
-                `;
-            }
-            
-            const returnedText = item.returned_quantity > 0 ? 
-                `<br><small class="text-warning">(مرتجع: ${item.returned_quantity})</small>` : '';
-            
-            return `
-                <div class="tooltip-item">
-                    <div>
-                        <div class="tooltip-item-name">${item.product_name || "منتج"}</div>
-                        <div class="tooltip-item-details">
-                            الكمية: ${currentQuantity} من ${item.quantity}${returnedText}
-                            <br>السعر: ${(item.selling_price || item.price || 0).toFixed(2)} ج.م
-                            ${discountHTML}
-                        </div>
-                    </div>
-                    <div class="fw-bold">${currentTotal.toFixed(2)} ج.م</div>
+      return `
+                <div class="tooltip-header">
+                    بنود الفاتورة ${invoice.invoice_number || invoice.id}
+                </div>
+                <div class="text-center py-3 text-muted">
+                    لا توجد بنود
                 </div>
             `;
-        })
-        .join("");
+    }
 
-    // بناء قسم الخصم في التولتيب
-    let discountSection = '';
-    if (discountAmount > 0) {
-        const discountPercent = discountType === 'percent' ? 
-            discountValue : ((discountAmount / beforeDiscount) * 100);
-        
-        discountSection = `
-            <div class="tooltip-discount-section">
-                <div class="tooltip-discount-row">
-                    <span>الإجمالي قبل الخصم:</span>
-                    <span>${beforeDiscount.toFixed(2)} ج.م</span>
+    let totalReturnedAmount = 0; // جديد: لحساب إجمالي المرتجعات
+
+    const itemsList = items
+      .map((item) => {
+        const returnedQuantity = item.returned_quantity || 0;
+        const currentQuantity = item.quantity - returnedQuantity;
+        const originalTotal =
+          item.total_before_discount ||
+          item.quantity * (item.selling_price || item.price || 0);
+        const discountedUnitPrice =
+          item.unit_price_after_discount ||
+          item.selling_price ||
+          item.price ||
+          0;
+        const currentTotal = currentQuantity * discountedUnitPrice; // جديد: الإجمالي بعد الخصم والمرتجع
+
+        // حساب إجمالي المرتجع
+        if (returnedQuantity > 0) {
+          totalReturnedAmount += returnedQuantity * discountedUnitPrice;
+        }
+
+        const itemDiscount =
+          discountScope === "items" ? parseFloat(item.discount_amount || 0) : 0;
+        const hasDiscount = itemDiscount > 0;
+
+        let discountHTML = "";
+        if (hasDiscount) {
+          const itemDiscountPercent = (
+            (itemDiscount / originalTotal) *
+            100
+          ).toFixed(1);
+          discountHTML = `
+                        <div class="tooltip-item-discount">
+                            <small class="text-danger">
+                                <i class="fas fa-tag me-1"></i>
+                                خصم: ${itemDiscount.toFixed(
+                                  2
+                                )} ج.م (${itemDiscountPercent}%)
+                            </small>
+                        </div>
+                    `;
+        }
+
+        const returnedText =
+          returnedQuantity > 0
+            ? `<br><small class="text-warning">(مرتجع: ${returnedQuantity})</small>`
+            : "";
+
+        return `
+                    <div class="tooltip-item">
+                        <div>
+                            <div class="tooltip-item-name">${
+                              item.product_name || "منتج"
+                            }</div>
+                            <div class="tooltip-item-details">
+                                الكمية: ${currentQuantity} من ${
+          item.quantity
+        }${returnedText}
+                                <br>
+                                السعر: <span style="${
+                                  hasDiscount
+                                    ? "text-decoration: line-through;"
+                                    : ""
+                                }">${(
+          item.selling_price ||
+          item.price ||
+          0
+        ).toFixed(2)}</span>
+                                ${
+                                  hasDiscount
+                                    ? ` → ${discountedUnitPrice.toFixed(2)} ج.م`
+                                    : ""
+                                }
+                                ${discountHTML}
+                            </div>
+                        </div>
+                        <div class="fw-bold">
+                            ${currentTotal.toFixed(2)} ج.م
+                        </div>
+                    </div>
+                `;
+      })
+      .join("");
+
+    // بناء قسم الخصم + المرتجعات
+    let discountSection = "";
+    if (discountAmount > 0 || totalReturnedAmount > 0) {
+      const discountPercent =
+        discountType === "percent"
+          ? discountValue
+          : (discountAmount / beforeDiscount) * 100;
+
+      discountSection = `
+                <div class="tooltip-discount-section">
+                    <div class="tooltip-discount-row">
+                        <span>الإجمالي قبل الخصم:</span>
+                        <span>${beforeDiscount.toFixed(2)} ج.م</span>
+                    </div>
+                    ${
+                      discountAmount > 0
+                        ? `
+                    <div class="tooltip-discount-row text-danger">
+                        <span>قيمة الخصم:</span>
+                        <span>-${discountAmount.toFixed(2)} ج.م</span>
+                    </div>`
+                        : ""
+                    }
+                    ${
+                      totalReturnedAmount > 0
+                        ? `
+                    <div class="tooltip-discount-row text-warning">
+                        <span>إجمالي المرتجع:</span>
+                        <span>- ${totalReturnedAmount.toFixed(2)} ج.م</span>
+                    </div>`
+                        : ""
+                    }
+                    ${
+                      discountAmount > 0
+                        ? `
+                    <div class="tooltip-discount-row">
+                        <small class="text-muted">
+                            نوع الخصم: ${
+                              discountScope === "items"
+                                ? "على البنود"
+                                : "على الفاتورة"
+                            } (${discountPercent.toFixed(1)}%)
+                        </small>
+                    </div>`
+                        : ""
+                    }
                 </div>
-                <div class="tooltip-discount-row text-danger">
-                    <span>قيمة الخصم:</span>
-                    <span>-${discountAmount.toFixed(2)} ج.م</span>
-                </div>
-                <div class="tooltip-discount-row">
-                    <small class="text-muted">
-                        نوع الخصم: ${discountScope === 'items' ? 'على البنود' : 'على الفاتورة'}
-                        (${discountPercent.toFixed(1)}%)
-                    </small>
-                </div>
-            </div>
-        `;
+            `;
     }
 
     return `
-        <div class="tooltip-header">
-            بنود الفاتورة ${invoice.invoice_number || invoice.id}
-        </div>
-        ${itemsList}
-        ${discountSection}
-        <div class="tooltip-total">
-            <span>الإجمالي النهائي:</span>
-            <span class="fw-bold">${afterDiscount.toFixed(2)} ج.م</span>
-        </div>
-    `;
-},
+            <div class="tooltip-header">
+                بنود الفاتورة ${invoice.invoice_number || invoice.id}
+            </div>
+            ${itemsList}
+            ${discountSection}
+            <div class="tooltip-total">
+                <span>الإجمالي النهائي:</span>
+                <span class="fw-bold">${afterDiscount.toFixed(2)} ج.م</span>
+            </div>
+        `;
+  },
 
 // تحديث CSS للـ Tooltip
 setupTooltipStyles() {
@@ -874,33 +939,11 @@ setupTooltipHover(row, invoiceId) {
     const tooltipContainer = this.createTooltipContainer(invoice);
     
     
+    console.log(invoice);
+    
     
 
-                    // if (invoice.items && invoice.items.length > 0) {
-                    //     const itemsList = invoice.items.map((item) => {
-                    //         const itemTotal = (item.quantity || 0) * (item.price || 0);
-                    //         return `
-                    //             <div class="tooltip-item">
-                    //                 <div>
-                    //                     <div class="tooltip-item-name">${item.product_name || 'منتج'}</div>
-                    //                     <div class="tooltip-item-details">الكمية: ${item.quantity || 0} | السعر: ${(item.price || 0).toFixed(2)} ج.م</div>
-                    //                 </div>
-                    //                 <div class="fw-bold">${itemTotal?.toFixed(2)} ج.م</div>
-                    //             </div>
-                    //         `;
-                    //     }).join("");
-
-                    //     itemsTooltip = `
-                    //         <div class="invoice-items-tooltip tooltip-item" >
-                    //             <div class="tooltip-header" style="font-weight: bold; border-bottom: 1px solid #dee2e6; padding-bottom: 5px; margin-bottom: 10px;">بنود الفاتورة ${invoice.invoice_number}</div>
-                    //             ${itemsList}
-                    //             <div class="tooltip-total" style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #dee2e6; padding-top: 10px; margin-top: 10px;">
-                    //                 <span>الإجمالي:</span>
-                    //                 <span>${invoice.total?.toFixed(2)} ج.م</span>
-                    //             </div>
-                    //         </div>
-                    //     `;
-                    // }
+                 
 
                     // تحديد لون المبلغ المتبقي
                     let remainingColor = "text-danger";
@@ -920,6 +963,7 @@ setupTooltipHover(row, invoiceId) {
                             </div>
                         </td>
                         <td>${invoice.created_at}</td>
+                   
                     <td>  ${totalCellHTML||0} </td>
                         <td>${invoice.paid?.toFixed(2)} ج.م</td>
                         <td><span class="${remainingColor} fw-bold">${invoice.remaining?.toFixed(2)} ج.م</span></td>

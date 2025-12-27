@@ -1073,3 +1073,246 @@ input[type="number"]::-webkit-outer-spin-button {
 
 
 
+.impact-card {
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    padding: 1rem;
+    border-left: 4px solid var(--primary);
+    transition: all var(--fast);
+}
+
+.impact-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-1);
+}
+
+.impact-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--grad-1);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.impact-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.impact-after {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.scenario-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.badge-deferred {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.badge-fully-paid {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.badge-partially-paid {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+/* سأنشئ ملف modal-styles.css جديد */
+.return-system {
+    font-family: 'Segoe UI', 'Cairo', sans-serif;
+}
+
+/* شريط التوزيع المتقدم */
+.distribution-chart {
+    display: flex;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.distribution-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    transition: all 0.3s ease;
+    padding: 10px;
+    min-width: 120px;
+}
+
+.distribution-item:hover {
+    transform: scale(1.02);
+    box-shadow: inset 0 0 20px rgba(255,255,255,0.2);
+}
+
+#deductFromRemainingBar {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+#refundToCustomerBar {
+    background: linear-gradient(135deg, #10b981, #0ea5e9);
+}
+
+/* كروت المنتجات المحسنة */
+.return-item-card {
+    background: var(--surface-1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.return-item-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+.quantity-input-group {
+    position: relative;
+}
+
+.quantity-input-group .form-control {
+    padding-right: 50px;
+    text-align: center;
+    font-weight: 600;
+    border: 2px solid #e5e7eb;
+    transition: all 0.3s;
+}
+
+.quantity-input-group .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.input-label {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+/* تحذيرات الكمية */
+.validation-alert {
+    animation: shake 0.5s;
+    border-left: 4px solid #ef4444;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* إخفاء/إظهار سلس */
+[style*="display: none"] {
+    display: none !important;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+[style*="display: block"] {
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+/* أزرار مختصرة */
+.compact-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.compact-buttons .btn {
+    flex: 1;
+    min-width: 120px;
+}
+
+/* مؤشر التحميل */
+.return-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: 12px;
+}
+
+/* رسومات مالية */
+.financial-impact-card {
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    border: none;
+    border-radius: 12px;
+}
+
+.impact-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+}
+
+.impact-deduct .impact-icon {
+    background: linear-gradient(135deg, #f59e0b20, #f9731620);
+    color: #f59e0b;
+}
+
+.impact-refund .impact-icon {
+    background: linear-gradient(135deg, #10b98120, #0ea5e920);
+    color: #10b981;
+}
+
+/* تحسين العرض على الجوال */
+@media (max-width: 768px) {
+    .distribution-chart {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .distribution-item {
+        width: 100% !important;
+        height: 60px;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 0 20px;
+    }
+    
+    .compact-buttons .btn {
+        min-width: 100%;
+    }
+}
+   .bg-gradient-1 { background: linear-gradient(135deg, var(--primary), var(--teal)) !important; color: white; }
+            .bg-gradient-2 { background: linear-gradient(135deg, var(--teal), #0ea5e9) !important; color: white; }
+            .bg-gradient-3 { background: linear-gradient(135deg, var(--amber), #f97316) !important; color: white; }
+            .bg-gradient-4 { background: linear-gradient(135deg, var(--rose), #ec4899) !important; color: white; }

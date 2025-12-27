@@ -842,7 +842,7 @@
 
                     // ---------- (استبدال) جلب بنود الفاتورة مع total_price و selling_price وقفلها ----------
                     $sql = "SELECT id, product_id, `quantity` AS qty, COALESCE(total_price,0) AS total_price, COALESCE(selling_price,0) AS selling_price
-                FROM invoice_out_items WHERE invoice_out_id = ? FOR UPDATE";
+                     FROM invoice_out_items WHERE invoice_out_id = ? FOR UPDATE";
                     $stmt = $conn->prepare($sql);
                     if ($stmt === false) throw new Exception("prepare failed: " . $conn->error);
                     $stmt->bind_param('i', $invoiceId);
@@ -1901,7 +1901,6 @@
 
 
                 async saveInvoice(invoiceData) {
-                    console.log('Saving invoice with data:', invoiceData);
 
                     const result = await this.request(apisForInvoices.saveInvoice, invoiceData, true);
 

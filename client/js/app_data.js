@@ -12,7 +12,8 @@ const AppData = {
     workOrders: [],
     activeFilters: {},
     walletTransactions: [],
-    
+    currentReturn : {},
+
     // المستخدم الحالي
     currentUser: "مدير النظام",
     

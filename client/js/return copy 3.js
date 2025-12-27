@@ -1,16 +1,10 @@
-// ReturnManager.js - النسخة المحسنة
+// ReturnManager.js
 import AppData from "./app_data.js";
 import InvoiceManager from "./invoices.js";
 import PrintManager from "./print.js";
-import WalletManager from "./wallet.js";
+import WalletManager from "./transaction.js";
 import apiService from "./constant/api_service.js";
 import apis from "./constant/api_links.js";
-import CustomerManager from "./customer.js";
-import CustomerTransactionManager from "./transaction.js";
-import WorkOrderManager from "./work_order.js";
-import UIManager from "./ui.js";
-import { updateInvoiceStats } from "./helper.js";
-
 
     const ReturnManager = {
         async init() {
@@ -20,28 +14,6 @@ import { updateInvoiceStats } from "./helper.js";
 
         },
 
-
-        async refreshDataAfterPayment(customerId) {
-        try {
-            // // تحديث بيانات العميل
-
-
-            await CustomerManager.init();
-            InvoiceManager.init();
-            CustomerTransactionManager.init();
-            WorkOrderManager.init();
-            await WalletManager.init();
-            UIManager.init();
-
-
-            // تحديث الإحصائيات
-            updateInvoiceStats();
-        } catch (error) {
-            console.error('Error refreshing data:', error);
-            // يمكن إعادة تحميل الصفحة كحل بديل
-            // window.location.reload();
-        }
-    },
 
         // في دالة loadReturnsData
         async loadReturnsData() {
@@ -382,15 +354,18 @@ import { updateInvoiceStats } from "./helper.js";
         /**
      * استخراج طريقة الاسترداد من بنود المرتجع (نسخة مبسطة)
      */
-        getRefundMethodFromItems(returnItem) {
-           
-
-      
-            if (!returnItem.refund_preference) {
+        getRefundMethodFromItems(items) {
+            if (!items || !Array.isArray(items) || items.length === 0) {
                 return "credit_adjustment";
             }
 
-            const method = returnItem.refund_preference.toLowerCase();
+            // أخذ طريقة الاسترداد من أول بند
+            const firstItem = items[0];
+            if (!firstItem.refund_preference) {
+                return "credit_adjustment";
+            }
+
+            const method = firstItem.refund_preference.toLowerCase();
 
             if (method.includes('wallet') || method.includes('محفظة')) {
                 return "wallet";
@@ -446,14 +421,13 @@ import { updateInvoiceStats } from "./helper.js";
                 }
 
                 // تحديد طريقة الاسترداد (من البنود)
-                let refundMethod = this.getRefundMethodFromItems(returnItem);
+                let refundMethod = this.getRefundMethodFromItems(returnItem.items);
                 let methodBadge = "";
                 if (refundMethod === "wallet") {
                     methodBadge = '<span class="badge-return badge-method-wallet">محفظة</span>';
                 } else if (refundMethod === "cash") {
                     methodBadge = '<span class="badge-return badge-method-cash">نقدي</span>';
-                } 
-                else if (refundMethod === "credit_adjustment" || refundMethod === "خصم من المتبقي") {
+                } else if (refundMethod === "credit_adjustment" || refundMethod === "خصم من المتبقي") {
                     methodBadge = '<span class="badge-return badge-method-credit">تعديل آجل</span>';
                 } else {
                     methodBadge = '<span class="badge-return badge-method-credit">غير محدد</span>';
@@ -529,6 +503,7 @@ import { updateInvoiceStats } from "./helper.js";
                         <small class="text-muted">${typeBadge}</small>
                     </div>
                 </td>
+                <td>${methodBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <div class="small text-muted">${dateToDisplay}</div>
@@ -624,7 +599,7 @@ import { updateInvoiceStats } from "./helper.js";
 
                     // AppData.returns.unshift(newReturn);
                     // this.updateReturnsTable();
-this.refreshDataAfterPayment(AppData.currentCustomer.id);
+
                     return {
                         success: true,
                         return_id: response.return_id,
@@ -643,26 +618,27 @@ this.refreshDataAfterPayment(AppData.currentCustomer.id);
         }
     };
 
-
 const CustomReturnManager = {
     currentInvoiceId: null,
     returnItems: [],
     currentInvoiceData: null,
     customerData: null,
 
-
-
     async openReturnModal(invoiceId) {
-        
         this.currentInvoiceId = invoiceId;
         this.returnItems = [];
 
         try {
+            // جلب بيانات الفاتورة من الباك إند
             const response = await apiService.getInvoiceForReturn(invoiceId);
             if (response) {
                 this.currentInvoiceData = response;
+                // this.customerData = response.customer;
+
+                // this.setupModalStyles();
                 this.populateModalData();
-                
+
+                // فتح المودال
                 const modal = new bootstrap.Modal(document.getElementById("customReturnModal"));
                 modal.show();
             } else {
@@ -689,63 +665,76 @@ const CustomReturnManager = {
 
     populateModalData() {
         const invoice = this.currentInvoiceData;
-        
+        // const customer = this.customerData;
+
+
         // تعبئة معلومات الفاتورة
         document.getElementById("returnInvoiceNumber").textContent = `#${invoice.id}`;
-        document.getElementById("returnInvoiceDate").textContent = invoice.date ? 
-            new Date(invoice.date).toLocaleDateString('ar-EG') : '';
-        document.getElementById("returnInvoiceTotal").textContent = 
-            parseFloat(invoice.total || 0).toFixed(2) + " ج.م";
-        
-        // تعبئة حالة الدفع
-        document.getElementById("paymentStatus").innerHTML = this.getPaymentStatusHtml(invoice);
-        document.getElementById("invoicePaidAmount").textContent = 
-            parseFloat(invoice.paid || 0).toFixed(2) + " ج.م";
-        document.getElementById("invoiceRemainingAmount").textContent = 
-            parseFloat(invoice.remaining || 0).toFixed(2) + " ج.م";
+        document.getElementById("returnInvoiceDate").textContent = new Date(invoice.date).toLocaleDateString('ar-EG');
+        document.getElementById("returnInvoiceTotal").textContent = invoice.total?.toFixed(2) + " ج.م";
+
+        // تعبئة معلومات الدفع
+        // document.getElementById("originalPaymentMethod").innerHTML = `
+        //     <span class="badge ${this.getPaymentMethodBadge(invoice.payment_method)}">
+        //         ${this.getPaymentMethodText(invoice.payment_method)}
+        //     </span>
+        // `;
+
+        document.getElementById("paymentStatus").innerHTML = `
+            <span class="badge ${this.getPaymentStatusBadge(invoice)}">
+                ${this.getPaymentStatusText(invoice)}
+            </span>
+        `;
+
+        document.getElementById("invoicePaidAmount").textContent = invoice.paid?.toFixed(2) + " ج.م";
+        document.getElementById("invoiceRemainingAmount").textContent = invoice.remaining?.toFixed(2) + " ج.م";
 
         // تعبئة بنود الفاتورة
         this.populateReturnItems(invoice.items || []);
 
-        // إضافة مستمعي الأحداث
+        // إضافة مستمعي الأحداث للأزرار
         document.getElementById("returnAllBtn").onclick = () => this.returnAllItems();
         document.getElementById("returnPartialBtn").onclick = () => this.returnPartialItems();
         document.getElementById("processCustomReturnBtn").onclick = () => this.processReturn();
     },
 
-    getPaymentStatusHtml(invoice) {
-        
-        const paidAmount = parseFloat(invoice.paid) || 0;
-        const totalAmount = parseFloat(invoice.total) || 0;
-        const remainingAmount = parseFloat(invoice.remaining_amount) || 0;
-        
-        let statusText = "";
-        let statusClass = "";
-        let statusIcon = "";
-        
-        if (paidAmount === 0) {
-            // فاتورة مؤجلة
-            statusText = "فاتورة مؤجلة";
-            statusClass = "bg-gradient-3";
-            statusIcon = "fas fa-clock";
-        } else if (remainingAmount === 0 && paidAmount === totalAmount) {
-            // فاتورة مدفوعة كلياً
-            statusText = "مدفوعة كلياً";
-            statusClass = "bg-gradient-2";
-            statusIcon = "fas fa-check-circle";
+    getPaymentMethodText(method) {
+        const methods = {
+            "credit": "آجل",
+            "wallet": "محفظة",
+            "cash": "نقدي"
+        };
+        return methods[method] || method;
+    },
+
+    getPaymentMethodBadge(method) {
+        const badges = {
+            "credit": "badge-method-credit",
+            "wallet": "badge-method-wallet",
+            "cash": "badge-method-cash"
+        };
+        return badges[method] || "badge-method-cash";
+    },
+
+    getPaymentStatusText(invoice) {
+        if (invoice.paid_amount === 0 || invoice.status === 'pending') {
+            return "لم يدفع";
+        } else if (invoice.paid_amount >= invoice.total_after_discount || invoice.status === 'paid') {
+            return "مدفوع بالكامل";
         } else {
-            // فاتورة مدفوعة جزئياً
-            statusText = "مدفوعة جزئياً";
-            statusClass = "bg-gradient-1";
-            statusIcon = "fas fa-percentage";
+            return "مدفوع جزئياً";
         }
-        
-        return `
-            <span class="badge ${statusClass}">
-                <i class="${statusIcon} me-1"></i>
-                ${statusText}
-            </span>
-        `;
+    },
+
+    getPaymentStatusBadge(invoice) {
+        if (invoice.paid_amount === 0 || invoice.status === 'pending') {
+
+            return "bg-gradient-3";
+        } else if (invoice.paid_amount >= invoice.total_after_discount || invoice.status === 'paid') {
+            return "bg-gradient-2";
+        } else {
+            return "bg-gradient-1";
+        }
     },
 
     populateReturnItems(items) {
@@ -754,17 +743,21 @@ const CustomReturnManager = {
 
         items.forEach((item, index) => {
             const availableQuantity = item.quantity - (item.returned_quantity || 0);
-            
+
             if (availableQuantity > 0) {
-                const unitPriceAfterDiscount = item.unit_price_after_discount;
                 const itemElement = document.createElement("div");
                 itemElement.className = "return-modal-card";
                 itemElement.setAttribute("data-item-index", index);
 
+                const unitPriceAfterDiscount = item.total_after_discount / item.quantity;
+
+
+
+
                 itemElement.innerHTML = `
                     <div class="return-item-header">
                         <div>
-                            <h6 class="mb-1 text-primary">${item.product_name || `المنتج ${item.product_id}`}</h6>
+                            <h6 class="mb-1">${item.product_name || `المنتج ${item.product_id}`}</h6>
                             <div class="small text-muted">
                                 <span class="me-3">السعر: ${unitPriceAfterDiscount?.toFixed(2)} ج.م</span>
                                 <span>متاح للإرجاع: <strong>${availableQuantity}</strong></span>
@@ -776,7 +769,7 @@ const CustomReturnManager = {
                         <div class="col-md-3">
                             <div class="quantity-input-group">
                                 <label class="form-label small text-muted">الكمية الأصلية</label>
-                                <input type="number" class="form-control " value="${item.quantity}" readonly>
+                                <input type="number" class="form-control bg-light" value="${item.quantity}" readonly>
                                 <span class="input-label">وحدة</span>
                             </div>
                         </div>
@@ -830,7 +823,6 @@ const CustomReturnManager = {
                         </div>
                     </div>
                 `;
-                
                 container.appendChild(itemElement);
 
                 // إضافة مستمعي الأحداث
@@ -851,21 +843,19 @@ const CustomReturnManager = {
         const validationMessage = document.getElementById(`validation-${itemIndex}`);
 
         if (value > max) {
-            validationMessage.innerHTML = `
-                <div class="alert alert-danger alert-sm mb-0">
-                    <i class="fas fa-exclamation-circle me-1"></i>
-                    خطأ: لا يمكن إرجاع أكثر من ${max}
-                </div>`;
+            validationMessage.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                خطأ: لا يمكن إرجاع أكثر من ${max}
+            </div>`;
             inputElement.classList.add("is-invalid");
             inputElement.value = max;
             this.updateReturnItem(itemIndex);
             return false;
         } else if (value < 0) {
-            validationMessage.innerHTML = `
-                <div class="alert alert-danger alert-sm mb-0">
-                    <i class="fas fa-exclamation-circle me-1"></i>
-                    خطأ: القيمة يجب أن تكون موجبة
-                </div>`;
+            validationMessage.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                خطأ: القيمة يجب أن تكون موجبة
+            </div>`;
             inputElement.classList.add("is-invalid");
             inputElement.value = 0;
             this.updateReturnItem(itemIndex);
@@ -884,103 +874,11 @@ const CustomReturnManager = {
         const quantity = parseFloat(quantityInput.value) || 0;
         const unitPrice = parseFloat(quantityInput.getAttribute("data-unit-price"));
 
-        const total = quantity * unitPrice;
-        totalInput.textContent = total.toFixed(2);
+        const total = quantity * +unitPrice;
+        totalInput.textContent = total?.toFixed(2);
 
         this.updateReturnTotal();
     },
-
-    calculateReturnImpact(totalReturnAmount) {
-        const invoice = this.currentInvoiceData;
-        const paidAmount = parseFloat(invoice.paid) || 0;
-        const remainingAmount = parseFloat(invoice.remaining) || 0;
-        const totalAfterDiscount = parseFloat(invoice.total) || 0;
-        
-        let amountFromRemaining = 0;
-        let amountFromPaid = 0;
-        let showRefundOptions = false;
-        let paymentStatus = '';
-        let logicDescription = '';
-        
-        // تحديد حالة الفاتورة بدقة
-        if (paidAmount === 0) {
-            // حالة 1: فاتورة مؤجلة (لم يدفع أي شيء)
-            paymentStatus = 'فاتورة مؤجلة';
-            amountFromRemaining = totalReturnAmount;
-            showRefundOptions = false;
-            
-            logicDescription = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-clock me-2"></i>
-                    <strong>فاتورة مؤجلة - لم يدفع العميل</strong>
-                    <br>سيتم خصم ${totalReturnAmount.toFixed(2)} ج.م من المتبقي فقط
-                    <br><small>❌ لا يتم رد أي مبلغ للعميل (لا نقدي، لا محفظة)</small>
-                </div>
-            `;
-            
-        } else if (remainingAmount === 0 && paidAmount === totalAfterDiscount) {
-            // حالة 2: فاتورة مدفوعة كلياً
-            paymentStatus = 'فاتورة مدفوعة كلياً';
-            amountFromPaid = totalReturnAmount;
-            showRefundOptions = true;
-            
-            logicDescription = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle me-2"></i>
-                    <strong>فاتورة مدفوعة كلياً</strong>
-                    <br>سيتم رد ${totalReturnAmount.toFixed(2)} ج.م للعميل
-                    <br><small>✅ يمكنك اختيار طريقة الرد: نقدي أو محفظة</small>
-                </div>
-            `;
-            
-        } else {
-            // حالة 3: فاتورة مدفوعة جزئياً
-         
-            
-        paymentStatus = 'فاتورة مدفوعة جزئياً';
-        
-        // 👇 **هنا التصحيح المهم** 👇
-        // أولاً: نأخذ من المتبقي قدر المستطاع
-        amountFromRemaining = Math.min(totalReturnAmount, remainingAmount);
-        
-        // ثانياً: الباقي يأتي من المدفوع
-        const remainingFromPaid = totalReturnAmount - amountFromRemaining;
-        if (remainingFromPaid > 0) {
-            amountFromPaid = Math.min(remainingFromPaid, paidAmount);
-            showRefundOptions = true; // ✅ إذا كان هناك جزء من المدفوع
-        }
-        
-        // 📝 بناء وصف تفصيلي
-        let descriptionParts = [];
-        
-        if (amountFromRemaining > 0) {
-            descriptionParts.push(`يتم خصم ${amountFromRemaining.toFixed(2)} ج.م من المتبقي`);
-        }
-        
-        if (amountFromPaid > 0) {
-            descriptionParts.push(`يتم رد ${amountFromPaid.toFixed(2)} ج.م للعميل`);
-        } else if (amountFromRemaining === totalReturnAmount) {
-            descriptionParts.push(`❌ لا يوجد مبلغ للرد (كل المبلغ من المتبقي)`);
-        }
-        
-        logicDescription = `
-            <div class="alert alert-info">
-                <i class="fas fa-calculator me-2"></i>
-                <strong>فاتورة مدفوعة جزئياً</strong>
-                ${descriptionParts.map(part => `<br>${part}`).join('')}
-            </div>
-        `;
-    }
-    
-    return {
-        amountFromRemaining,
-        amountFromPaid,
-        showRefundOptions,
-        paymentStatus,
-        logicDescription,
-        totalReturnAmount
-    };
-},
 
     updateReturnTotal() {
         let totalAmount = 0;
@@ -1005,10 +903,10 @@ const CustomReturnManager = {
 
             if (value > 0) {
                 returnItemsData.push({
-                    invoice_item_id: parseInt(invoiceItemId),
-                    product_id: parseInt(productId),
+                    invoice_item_id: invoiceItemId,
+                    product_id: productId,
                     quantity: value,
-                    unit_price_after_discount: unitPrice,
+                    unit_price: unitPrice,
                     total: value * unitPrice
                 });
             }
@@ -1018,15 +916,15 @@ const CustomReturnManager = {
         this.returnItems = returnItemsData;
 
         const totalElement = document.getElementById("customReturnTotalAmount");
-        totalElement.textContent = totalAmount.toFixed(2) + " ج.م";
+        totalElement.textContent = totalAmount?.toFixed(2) + " ج.م";
 
         if (totalAmount > 0 && !hasErrors) {
             totalElement.className = "fw-bold text-success fs-4";
-            
+
             // حساب التأثير المالي
             const impact = this.calculateReturnImpact(totalAmount);
             this.displayImpactDetails(impact);
-            
+
             // تفعيل زر المعالجة
             document.getElementById("processCustomReturnBtn").disabled = false;
         } else {
@@ -1036,78 +934,83 @@ const CustomReturnManager = {
         }
     },
 
+    calculateReturnImpact(totalReturnAmount) {
+        const invoice = this.currentInvoiceData;
+        let amountFromRemaining = 0;
+        let amountFromPaid = 0;
+        let refundMethod = "credit_adjustment";
+
+        if (invoice.paid_amount === 0) {
+            // فاتورة مؤجلة
+            amountFromRemaining = Math.min(totalReturnAmount, invoice.remaining_amount);
+            refundMethod = "خصم من المتبقي";
+        } else if (invoice.paid_amount >= invoice.total_after_discount) {
+            // فاتورة مدفوعة كلياً
+            amountFromPaid = Math.min(totalReturnAmount, invoice.paid_amount);
+            refundMethod = "pending_choice";
+        } else {
+            // فاتورة مدفوعة جزئياً
+            amountFromRemaining = Math.min(totalReturnAmount, invoice.remaining_amount);
+            const remainingAfterDeduction = totalReturnAmount - amountFromRemaining;
+            if (remainingAfterDeduction > 0) {
+                amountFromPaid = Math.min(remainingAfterDeduction, invoice.paid_amount);
+                refundMethod = "pending_choice";
+            }
+        }
+
+        return {
+            amountFromRemaining,
+            amountFromPaid,
+            refundMethod,
+            totalReturnAmount
+        };
+    },
+
     displayImpactDetails(impact) {
         const detailsContainer = document.getElementById("impactDetails");
         detailsContainer.style.display = "block";
-        
+
         let detailsHTML = `
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light">
-                    <i class="fas fa-calculator me-2"></i>
-                    <strong>تفاصيل التأثير المالي</strong>
-                    <span class="badge ${impact.paymentStatus === 'فاتورة مؤجلة' ? 'bg-gradient-3' : 
-                                        impact.paymentStatus === 'فاتورة مدفوعة كلياً' ? 'bg-gradient-2' : 
-                                        'bg-gradient-1'} float-end">
-                        ${impact.paymentStatus}
-                    </span>
-                </div>
-                <div class="card-body">
-                    ${impact.logicDescription}
-                    
-                    <div class="row mt-3">
+        <div class="impact-card">
+            <div class="impact-header">
+                <i class="fas fa-calculator"></i>
+                <strong class="text_muted">تفاصيل التأثير المالي</strong>
+            </div>
         `;
-        
-        // عرض المبلغ المخصوم من المتبقي
+
         if (impact.amountFromRemaining > 0) {
             detailsHTML += `
-                <div class="col-md-6">
-                    <div class="alert alert-warning mb-2">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-minus-circle text-amber me-2 fs-5"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-bold">يخصم من المتبقي (الدين)</div>
-                                <div class="text-amber fw-bold fs-5">
-                                    ${impact.amountFromRemaining.toFixed(2)} ج.م
-                                </div>
-                                <small class="text-muted">سيتم تخفيض دين العميل بهذا المبلغ</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // عرض المبلغ الذي سيتم رده
-        if (impact.amountFromPaid > 0) {
-            detailsHTML += `
-                <div class="col-md-6">
-                    <div class="alert alert-success mb-2">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-undo text-teal me-2 fs-5"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-bold">يُرد للعميل</div>
-                                <div class="text-teal fw-bold fs-5">
-                                    ${impact.amountFromPaid.toFixed(2)} ج.م
-                                </div>
-                                <small class="text-muted">سيتم اختيار طريقة الرد أدناه</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        detailsHTML += `
+            <div class="alert alert-warning mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-minus-circle text-amber me-2 fs-5"></i>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">يخصم من المتبقي</div>
+                        <div class="text-amber fw-bold fs-5">${impact.amountFromRemaining?.toFixed(2)} ج.م</div>
                     </div>
                 </div>
             </div>
-        `;
-        
+            `;
+        }
+
+        if (impact.amountFromPaid > 0) {
+            detailsHTML += `
+            <div class="alert alert-success mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-undo text-teal me-2 fs-5"></i>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">يُرد للعميل</div>
+                        <div class="text-teal fw-bold fs-5">${impact.amountFromPaid?.toFixed(2)} ج.م</div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
         detailsContainer.innerHTML = detailsHTML;
 
-        // التحكم في عرض قسم اختيار طريقة الرد
+        // عرض قسم اختيار طريقة الرد إذا كان هناك مبلغ يرد
         const refundMethodSection = document.getElementById("refundMethodSection");
-        if (impact.showRefundOptions && impact.amountFromPaid > 0) {
+        if (impact.amountFromPaid > 0) {
             refundMethodSection.style.display = "block";
             this.setupRefundOptions(impact);
         } else {
@@ -1117,75 +1020,11 @@ const CustomReturnManager = {
 
     setupRefundOptions(impact) {
         const refundOptions = document.getElementById("refundOptions");
-        
-        // بناء وصف حسب نوع الفاتورة
-        let description = '';
-        if (impact.paymentStatus === 'فاتورة مدفوعة كلياً') {
-            description = `
-                <div class="alert alert-warning mb-3">
-                    <div class="d-flex">
-                        <i class="fas fa-info-circle me-3 text-info fa-lg mt-1"></i>
-                        <div>
-                            <strong class="text-info">فاتورة مدفوعة كلياً</strong>
-                            <div class="mt-2">
-                                سيتم رد المبلغ (<span class="fw-bold">${impact.amountFromPaid.toFixed(2)} ج.م</span>) للعميل
-                                <br><br>
-                                <strong class="text-success">✔ اختر طريقة الرد:</strong>
-                                <div class="mt-2 ps-3">
-                                    <div class="mb-2">
-                                        <i class="fas fa-money-bill-wave text-success me-2"></i>
-                                        <strong>نقدي:</strong> إعطاء العميل المبلغ نقداً
-                                    </div>
-                                    <div>
-                                        <i class="fas fa-wallet text-primary me-2"></i>
-                                        <strong>محفظة:</strong> إضافة المبلغ لمحفظة العميل
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (impact.paymentStatus === 'فاتورة مدفوعة جزئياً') {
-            description = `
-                <div class="alert alert-warning mb-3">
-                    <div class="d-flex">
-                        <i class="fas fa-info-circle me-3 text-warning fa-lg mt-1"></i>
-                        <div>
-                            <strong class="text-warning">فاتورة مدفوعة جزئياً</strong>
-                            <div class="mt-2">
-                                <div class="mb-2">
-                                    <i class="fas fa-minus-circle text-amber me-2"></i>
-                                    <strong>تم خصم:</strong> ${impact.amountFromRemaining.toFixed(2)} ج.م من المتبقي
-                                </div>
-                                <div class="mb-2">
-                                    <i class="fas fa-undo text-teal me-2"></i>
-                                    <strong>يتم رد:</strong> ${impact.amountFromPaid.toFixed(2)} ج.م للعميل
-                                </div>
-                                <br>
-                                <strong class="text-success">✔ اختر طريقة رد المبلغ:</strong>
-                                <div class="mt-2 ps-3">
-                                    <div class="mb-2">
-                                        <i class="fas fa-money-bill-wave text-success me-2"></i>
-                                        <strong>نقدي:</strong> إعطاء العميل المبلغ نقداً
-                                    </div>
-                                    <div>
-                                        <i class="fas fa-wallet text-primary me-2"></i>
-                                        <strong>محفظة:</strong> إضافة المبلغ لمحفظة العميل
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        refundOptions.innerHTML = description + `
+        refundOptions.innerHTML = `
             <div class="form-group">
                 <label class="form-label fw-bold mb-3">
                     <i class="fas fa-money-bill-wave me-2"></i>
-                    اختر طريقة رد المبلغ (${impact.amountFromPaid.toFixed(2)} ج.م)
+                    اختر طريقة رد المبلغ (${impact.amountFromPaid?.toFixed(2)} ج.م)
                 </label>
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -1198,7 +1037,7 @@ const CustomReturnManager = {
                                         <i class="fas fa-money-bill-wave fa-2x text-success"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 text-muted">استرجاع نقدي</h6>
+                                        <h6 class="mb-1">استرجاع نقدي</h6>
                                         <p class="small text-muted mb-0">سيتم رد المبلغ نقداً للعميل</p>
                                     </div>
                                 </div>
@@ -1215,7 +1054,7 @@ const CustomReturnManager = {
                                         <i class="fas fa-wallet fa-2x text-primary"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 text_muted">إضافة للمحفظة</h6>
+                                        <h6 class="mb-1">إضافة للمحفظة</h6>
                                         <p class="small text-muted mb-0">سيتم إضافة المبلغ لمحفظة العميل</p>
                                     </div>
                                 </div>
@@ -1225,20 +1064,6 @@ const CustomReturnManager = {
                 </div>
             </div>
         `;
-        
-        // إضافة مستمعي الأحداث للخيارات
-        document.querySelectorAll('.refund-option-card').forEach(card => {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.refund-option-card').forEach(c => {
-                    c.classList.remove('selected');
-                });
-                card.classList.add('selected');
-                const radio = card.querySelector('input[type="radio"]');
-                if (radio) {
-                    radio.checked = true;
-                }
-            });
-        });
     },
 
     returnAllItems() {
@@ -1249,7 +1074,7 @@ const CustomReturnManager = {
             this.validateReturnItem(itemIndex, input);
             this.updateReturnItem(itemIndex);
         });
-        
+
         Swal.fire({
             title: "تم تحديد الكل",
             text: "تم تحديد جميع الكميات المتاحة للإرجاع",
@@ -1272,47 +1097,6 @@ const CustomReturnManager = {
         // التحقق من صحة البيانات المدخلة
         let hasErrors = false;
         const errorMessages = [];
-
-            this.getCurrentReturnQtyForItem = function(invoiceItemId) {
-        const input = document.querySelector(`.custom-return-quantity[data-invoice-item-id="${invoiceItemId}"]`);
-        return parseFloat(input?.value || 0);
-    };
-
-         const determineReturnType = () => {
-        // 1. حساب الكمية الأصلية الكلية
-        let avilableForReturn = 0;
-        // 2. حساب الكمية المرتجعة الكلية بعد هذا الإرجاع
-        let totalReturnedAfterThis = 0;
-     
-
-        // حساب لكل بند في الفاتورة
-        this.currentInvoiceData.items.forEach(invoiceItem => {
-       
-            // الكمية الأصلية للبند
-            const avilableForReturnItem = parseFloat(invoiceItem.available_for_return) || 0;
-            avilableForReturn += avilableForReturnItem;
-
-            // الكمية التي سيتم إرجاعها في هذه العملية
-            const currentReturnQty = this.getCurrentReturnQtyForItem(invoiceItem.id);
-            totalReturnedAfterThis += currentReturnQty;
-            
-            
-        
-
-
-        });
-
-
-        console.log(totalReturnedAfterThis, avilableForReturn);
-        
-        
-        // ✅ لو كل الكميات أصبحت مرتجعة = full
-        // نستخدم tolerance صغير لتفادي مشاكل التقريب
-        const tolerance = 0.01;
-        const isFullyReturned = Math.abs(totalReturnedAfterThis - avilableForReturn) < tolerance;
-        
-        return isFullyReturned ? "full" : "partial";
-    };
 
         document.querySelectorAll(".custom-return-quantity").forEach((input) => {
             const itemIndex = input.getAttribute("data-item-index");
@@ -1346,90 +1130,72 @@ const CustomReturnManager = {
             return;
         }
 
-        // حساب التأثير المالي
-        const totalReturnAmount = this.returnItems.reduce((sum, item) => sum + item.total, 0);
-        const impact = this.calculateReturnImpact(totalReturnAmount);
-        
-        // تحديد طريقة الاسترداد بناءً على الحالة المالية
-        let refundPreference = "credit_adjustment";
-        
-        if (impact.amountFromPaid > 0) {
-            const refundMethodInput = document.querySelector('input[name="refundMethodChoice"]:checked');
-            refundPreference = refundMethodInput ? refundMethodInput.value : "cash";
-        } else if (impact.paymentStatus === 'فاتورة مؤجلة') {
-            refundPreference = "credit_adjustment";
+        // تحديد طريقة الاسترداد
+        let refundPreference = "خصم من المتبقي";
+        const refundMethodInput = document.querySelector('input[name="refundMethodChoice"]:checked');
+        if (refundMethodInput) {
+            refundPreference = refundMethodInput.value;
         }
 
+        // حساب إجمالي المبلغ
+        const totalReturnAmount = this.returnItems.reduce((sum, item) => sum + item.total, 0);
 
-const returnType = determineReturnType();
+        // التحقق إذا كان الإرجاع كاملاً
+        const allItemsReturned = this.returnItems.every(item => {
+            const input = document.querySelector(`.custom-return-quantity[data-invoice-item-id="${item.invoice_item_id}"]`);
+            const max = parseFloat(input?.getAttribute("data-max") || 0);
+            return item.quantity === max;
+        });
 
+        const returnType = allItemsReturned ? "full" : "partial";
 
-
-        // إعداد بيانات الإرجاع للـ API
+        // إعداد بيانات الإرجاع
         const returnData = {
-            invoice_id: parseInt(this.currentInvoiceId),
-            customer_id: AppData.currentCustomer?.id ? parseInt(AppData.currentCustomer.id) : 0,
+            invoice_id: this.currentInvoiceId,
+            customer_id: AppData.currentCustomer?.id,
             return_type: returnType,
-            reason: returnReason,
-            refund_preference: refundPreference,
+            reason: document.getElementById("customReturnReason").value,
             items: this.returnItems.map(item => ({
                 invoice_item_id: item.invoice_item_id,
                 product_id: item.product_id,
-                return_qty: item.quantity,
-                unit_price_after_discount: item.unit_price_after_discount,
+                quantity: item.quantity,
+                reason: document.getElementById("customReturnReason").value,
+                refund_preference: refundPreference
             }))
         };
 
-        // عرض تأكيد مع تفاصيل التأثير المالي
+
+        // عرض تأكيد
         const confirmResult = await Swal.fire({
             title: "تأكيد عملية الإرجاع",
             html: `
                 <div class="text-start">
-                    <p class="mb-3">هل أنت متأكد من تنفيذ عملية الإرجاع؟</p>
-                    
-                    <div class="alert ${impact.paymentStatus === 'فاتورة مؤجلة' ? 'alert-warning' : 
-                                         impact.paymentStatus === 'فاتورة مدفوعة كلياً' ? 'alert-success' : 
-                                         'alert-info'} mb-3">
-                        <strong>${impact.paymentStatus}</strong>
+                    <p>هل أنت متأكد من تنفيذ عملية الإرجاع؟</p>
+                    <div class="alert alert-info">
+                        <strong>تفاصيل الإرجاع:</strong>
                         <div class="mt-2">
-                            <div><strong>المبلغ الإجمالي:</strong> ${totalReturnAmount.toFixed(2)} ج.م</div>
-                            ${impact.amountFromRemaining > 0 ? 
-                                `<div><strong>يخصم من المتبقي:</strong> ${impact.amountFromRemaining.toFixed(2)} ج.م</div>` : ''}
-                            ${impact.amountFromPaid > 0 ? 
-                                `<div><strong>يتم رد للعميل:</strong> ${impact.amountFromPaid.toFixed(2)} ج.م</div>` : ''}
-                            <div><strong>طريقة الاسترداد:</strong> 
-                                ${refundPreference === 'cash' ? 'نقدي' : 
-                                 refundPreference === 'wallet' ? 'محفظة' : 
-                                 'تعديل رصيد'}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-secondary">
-                        <strong>التفاصيل:</strong>
-                        <div class="mt-1">
                             <div>نوع الإرجاع: <strong>${returnType === 'full' ? 'كامل' : 'جزئي'}</strong></div>
+                            <div>المبلغ الإجمالي: <strong class="text-success">${totalReturnAmount?.toFixed(2)} ج.م</strong></div>
                             <div>عدد المنتجات: <strong>${this.returnItems.length}</strong></div>
-                            <div>السبب: <strong>${returnReason}</strong></div>
+                            <div>طريقة الاسترداد: <strong>${refundPreference}</strong></div>
                         </div>
                     </div>
                 </div>
             `,
             icon: "question",
             showCancelButton: true,
-            confirmButtonText: "نعم، تأكيد الإرجاع",
+            confirmButtonText: "نعم، تأكيد",
             cancelButtonText: "إلغاء",
             confirmButtonColor: "var(--primary)",
             cancelButtonColor: "var(--rose)",
             background: "var(--surface)",
-            color: "var(--text)",
-            width: "600px"
+            color: "var(--text)"
         });
 
         if (confirmResult.isConfirmed) {
             // إرسال البيانات إلى الباك إند
             const loadingSwal = Swal.fire({
-                title: "جاري معالجة الإرجاع...",
+                title: "جاري المعالجة...",
                 text: "يرجى الانتظار قليلاً",
                 allowOutsideClick: false,
                 showConfirmButton: false,
@@ -1439,22 +1205,21 @@ const returnType = determineReturnType();
             });
 
             try {
+
                 const response = await ReturnManager.addReturn(returnData);
+
                 await loadingSwal.close();
-                
+
+                console.log(response);
+
+                console.log(response.ok);
+                console.log(response.success);
+
                 if (response.success) {
+
                     Swal.fire({
                         title: "تم بنجاح",
-                        html: `
-                            <div class="text-start">
-                                <p>تم إنشاء الإرجاع بنجاح</p>
-                                <div class="alert alert-success">
-                                    <strong>رقم المرتجع:</strong> #RET-${response.return_id}<br>
-                                    <strong>المبلغ:</strong> ${totalReturnAmount.toFixed(2)} ج.م<br>
-                                    <strong>الحالة:</strong> ${response.status === 'pending' ? 'بانتظار الموافقة' : 'معتمد'}
-                                </div>
-                            </div>
-                        `,
+                        text: `تم إنشاء الإرجاع برقم #RET-${response.return_id}`,
                         icon: "success",
                         confirmButtonColor: "var(--primary)",
                         background: "var(--surface)",
@@ -1467,17 +1232,14 @@ const returnType = determineReturnType();
                         modal.hide();
                     }
 
-                    // تحديث البيانات
-                    await ReturnManager.loadReturnsData();
-                    
                     // تحديث صفحة الفاتورة إذا كانت مفتوحة
-                    if (typeof InvoiceManager !== 'undefined' && InvoiceManager.refreshCurrentInvoice) {
-                        InvoiceManager.refreshCurrentInvoice();
-                    }
+                    // if (typeof InvoiceManager !== 'undefined') {
+                    //     InvoiceManager?.refreshCurrentInvoice();
+                    // }
                 } else {
                     Swal.fire({
                         title: "خطأ",
-                        text: response.message || "حدث خطأ أثناء إنشاء الإرجاع",
+                        text: response.message,
                         icon: "error",
                         confirmButtonColor: "var(--primary)",
                         background: "var(--surface)",
@@ -1488,7 +1250,7 @@ const returnType = determineReturnType();
                 await loadingSwal.close();
                 Swal.fire({
                     title: "خطأ",
-                    text: "حدث خطأ أثناء معالجة الإرجاع: " + error.message,
+                    text: "حدث خطأ أثناء معالجة الإرجاع",
                     icon: "error",
                     confirmButtonColor: "var(--primary)",
                     background: "var(--surface)",

@@ -5,6 +5,7 @@ import CustomerManager from "./customer.js";
 import PrintManager from "./print.js";
 import { setupNumberInputPrevention, escapeHtml, toggleSection } from "./helper.js";
 import { ReturnManager, CustomReturnManager } from "./return.js";
+
 import InvoiceManager from "./invoices.js";
 import { updateInvoiceStats } from "./helper.js";
 import WorkOrderManager from "./work_order.js";

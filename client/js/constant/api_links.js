@@ -4,6 +4,7 @@ const BASE = "http://localhost/store_v1/api/";
 const apis = {
     getCustomerInfo:        BASE + "get_customer_info.php?customer_id=",
     getCustomerInvoices:    BASE + "get_customer_invoices.php?customer_id=",
+    getReturns:             BASE + "get_customer_returns.php",
     getInvoiceDetails:      BASE + "get_invoice_detailes.php?invoice_id=",
     getCustomerWorkOrders:  BASE + "get_customer_work_orders.php?customer_id=",
     getWorkOrderDetails:    BASE + "get_customer_work_order_detailes.php?work_order_id=",
@@ -15,6 +16,8 @@ const apis = {
   
 
     processPayment: BASE + "create_payment.php",           // سداد فاتورة/دفعة
+    processReturn: BASE + "create_return.php",  
+    getReturnItems : BASE + "get_customer_return_detailes.php",        // إرجاع فاتورة/دفعة
 
 };
 

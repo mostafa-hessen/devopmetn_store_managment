@@ -1,9 +1,8 @@
 <?php
 // reports/profit_report_invoices_summary.responsive.php
-// نسخة محسّنة: إضافة زر 'تفاصيل' لكل بند لعرض sale_item_allocations ومصدر متوسط التكلفة
-$page_title = "تقرير الربح - ملخص الفواتير";
+$page_title = "تقرير الربح - ملخص الفواتير (محدث)";
 require_once dirname(__DIR__) . '/config.php';
-require_once BASE_DIR . 'partials/session_admin.php'; // صلاحيات المدير فقط
+require_once BASE_DIR . 'partials/session_admin.php';
 
 if (!isset($conn) || !$conn) { echo "DB connection error"; exit; }
 function e($s){ return htmlspecialchars($s ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
@@ -15,25 +14,58 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_invoice_items' && isset($
     if ($inv_id <= 0) { echo json_encode(['ok'=>false,'msg'=>'معرف فاتورة غير صالح']); exit; }
 
     $sql_items = "
-        SELECT ioi.id, ioi.product_id, COALESCE(p.name,'') AS product_name, ioi.quantity,
-               ioi.selling_price, ioi.total_price, COALESCE(ioi.cost_price_per_unit, p.cost_price, 0) AS cost_price_per_unit
+        SELECT 
+            ioi.id,
+            ioi.product_id,
+            COALESCE(p.name,'') AS product_name,
+            ioi.quantity,
+            ioi.returned_quantity,
+            ioi.available_for_return,
+            ioi.return_flag,
+            ioi.selling_price,
+            ioi.total_before_discount,
+            ioi.cost_price_per_unit,
+            ioi.discount_type,
+            ioi.discount_value,
+            ioi.discount_amount,
+            ioi.total_after_discount,
+            CASE 
+                WHEN ioi.discount_type = 'percent' 
+                THEN CONCAT(ioi.discount_value, '%')
+                WHEN ioi.discount_type = 'amount' 
+                THEN CONCAT(ioi.discount_value, ' ج.م')
+                ELSE 'لا يوجد'
+            END AS discount_display,
+            ROUND(ioi.selling_price * (1 - COALESCE(ioi.discount_value,0)/100), 2) AS price_after_item_discount
         FROM invoice_out_items ioi
         LEFT JOIN products p ON p.id = ioi.product_id
-        WHERE ioi.invoice_out_id = ?
+        WHERE ioi.invoice_out_id = ? 
+        AND ioi.return_flag = 0
         ORDER BY ioi.id ASC
     ";
+    
     if ($stmt = $conn->prepare($sql_items)) {
         $stmt->bind_param("i", $inv_id);
         if ($stmt->execute()) {
             $res = $stmt->get_result();
             $items = [];
             while ($r = $res->fetch_assoc()) {
-                $r['quantity'] = floatval($r['quantity']);
-                $r['selling_price'] = floatval($r['selling_price']);
-                $r['total_price'] = floatval($r['total_price']);
-                $r['cost_price_per_unit'] = floatval($r['cost_price_per_unit']);
-                $r['line_cogs'] = $r['quantity'] * $r['cost_price_per_unit'];
-                $r['line_profit'] = $r['total_price'] - $r['line_cogs'];
+                // تحويل القيم العددية
+                $r['quantity'] = floatval($r['quantity'] ?? 0);
+                $r['returned_quantity'] = floatval($r['returned_quantity'] ?? 0);
+                $r['available_for_return'] = floatval($r['available_for_return'] ?? 0);
+                $r['selling_price'] = floatval($r['selling_price'] ?? 0);
+                $r['total_before_discount'] = floatval($r['total_before_discount'] ?? 0);
+                $r['cost_price_per_unit'] = floatval($r['cost_price_per_unit'] ?? 0);
+                $r['discount_value'] = floatval($r['discount_value'] ?? 0);
+                $r['discount_amount'] = floatval($r['discount_amount'] ?? 0);
+                $r['total_after_discount'] = floatval($r['total_after_discount'] ?? 0);
+                $r['price_after_item_discount'] = floatval($r['price_after_item_discount'] ?? 0);
+                
+                // حساب الأرباح
+                $r['line_cogs'] = $r['available_for_return'] * $r['cost_price_per_unit'];
+                $r['line_profit'] = ($r['total_after_discount'] > 0 ? $r['total_after_discount'] : $r['total_before_discount']) - $r['line_cogs'];
+                
                 $items[] = $r;
             }
             echo json_encode(['ok'=>true,'items'=>$items], JSON_UNESCAPED_UNICODE);
@@ -47,138 +79,25 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_invoice_items' && isset($
     exit;
 }
 
-// === AJAX endpoint: جلب تخصيصات بند (sale_item_allocations) ===
-// if (isset($_GET['action']) && $_GET['action'] === 'get_item_allocations' && isset($_GET['id'])) {
-//     header('Content-Type: application/json; charset=utf-8');
-//     $sale_item_id = intval($_GET['id']);
-//     if ($sale_item_id <= 0) { echo json_encode(['ok'=>false,'msg'=>'معرف بند غير صالح']); exit; }
-
-//     $sql_alloc = "
-//         SELECT sia.qty, sia.unit_cost, sia.line_cost, sia.batch_id,
-//                COALESCE(b.batch_id, CONCAT('batch#',sia.batch_id)) AS batch_code,
-//                COALESCE(b.received_at, sia.created_at, '') AS received_at
-//         FROM sale_item_allocations sia
-//         LEFT JOIN batches b ON b.id = sia.batch_id
-//         WHERE sia.sale_item_id = ?
-//         ORDER BY COALESCE(b.received_at, sia.created_at) ASC, sia.id ASC
-//     ";
-
-//     if ($st = $conn->prepare($sql_alloc)) {
-//         $st->bind_param('i', $sale_item_id);
-//         if ($st->execute()) {
-//             $res = $st->get_result();
-//             $allocs = [];
-//             while ($a = $res->fetch_assoc()) {
-//                 $a['qty'] = floatval($a['qty']);
-//                 $a['unit_cost'] = floatval($a['unit_cost']);
-//                 $a['line_cost'] = floatval($a['line_cost']);
-//                 $allocs[] = $a;
-//             }
-//             echo json_encode(['ok'=>true,'allocations'=>$allocs], JSON_UNESCAPED_UNICODE);
-//         } else {
-//             echo json_encode(['ok'=>false,'msg'=>'فشل تنفيذ استعلام التخصيصات: '.$st->error], JSON_UNESCAPED_UNICODE);
-//         }
-//         $st->close();
-//     } else {
-//         echo json_encode(['ok'=>false,'msg'=>'فشل تحضير استعلام التخصيصات: '.$conn->error], JSON_UNESCAPED_UNICODE);
-//     }
-//     exit;
-// }
-
-// === AJAX endpoint: جلب تخصيصات بند (sale_item_allocations) ===
-if (isset($_GET['action']) && $_GET['action'] === 'get_item_allocations' && isset($_GET['id'])) {
-    header('Content-Type: application/json; charset=utf-8');
-    $sale_item_id = intval($_GET['id']);
-    if ($sale_item_id <= 0) {
-        echo json_encode(['ok' => false, 'msg' => 'معرف بند غير صالح']);
-        exit;
-    }
-
-    // نتحقق سريعًا من وجود جدول batches وأعمدته المتوقعة لتفادي أخطاء SQL في بيئات مختلفة
-    $has_batches = false;
-    $has_batch_code = false;
-    $has_received_at = false;
-    $q = $conn->query("SHOW TABLES LIKE 'batches'");
-    if ($q && $q->num_rows > 0) {
-        $has_batches = true;
-        // تحقق من الأعمدة
-        $cols = $conn->query("SHOW COLUMNS FROM batches");
-        if ($cols) {
-            while ($col = $cols->fetch_assoc()) {
-                $cname = strtolower($col['Field']);
-                if ($cname === 'batch_code') $has_batch_code = true;
-                if ($cname === 'received_at' || $cname === 'received_date' || $cname === 'created_at') $has_received_at = true;
-            }
-            $cols->free();
-        }
-    }
-
-    // بناء الاستعلام بحسب ما هو متاح
-    if ($has_batches) {
-        // if batches exist, try to join and select batch_code/received_at when possible
-        $select_batch_code = $has_batch_code ? "COALESCE(b.batch_code, CONCAT('batch#',sia.batch_id)) AS batch_code" : "CONCAT('batch#',sia.batch_id) AS batch_code";
-        // for received_at prefer b.received_at if present otherwise sia.created_at
-        if ($has_received_at) {
-            // try to use b.received_at; if column name was different (e.g. created_at) SHOW COLUMNS caught it and set $has_received_at
-            $select_received = "COALESCE(b.received_at, sia.created_at) AS received_at";
-        } else {
-            $select_received = "sia.created_at AS received_at";
-        }
-
-        $sql_alloc = "
-            SELECT sia.qty, sia.unit_cost, sia.line_cost, sia.batch_id,
-                   {$select_batch_code},
-                   {$select_received}
-            FROM sale_item_allocations sia
-            LEFT JOIN batches b ON b.id = sia.batch_id
-            WHERE sia.sale_item_id = ?
-            ORDER BY COALESCE(" . ($has_received_at ? "b.received_at" : "sia.created_at") . ", sia.created_at) ASC, sia.id ASC
-        ";
-    } else {
-        // لا يوجد جدول batches: نعرض فقط ما في sale_item_allocations مع batch_id كـ batch_code بديل
-        $sql_alloc = "
-            SELECT sia.qty, sia.unit_cost, sia.line_cost, sia.batch_id,
-                   CONCAT('batch#',sia.batch_id) AS batch_code,
-                   sia.created_at AS received_at
-            FROM sale_item_allocations sia
-            WHERE sia.sale_item_id = ?
-            ORDER BY sia.created_at ASC, sia.id ASC
-        ";
-    }
-
-    if ($st = $conn->prepare($sql_alloc)) {
-        $st->bind_param('i', $sale_item_id);
-        if ($st->execute()) {
-            $res = $st->get_result();
-            $allocs = [];
-            while ($a = $res->fetch_assoc()) {
-                // ضمان نوعية القيم للأمام (JSON)
-                $a['qty'] = isset($a['qty']) ? floatval($a['qty']) : 0.0;
-                $a['unit_cost'] = isset($a['unit_cost']) ? floatval($a['unit_cost']) : 0.0;
-                $a['line_cost'] = isset($a['line_cost']) ? floatval($a['line_cost']) : 0.0;
-                // batch_code و received_at مفترضين كسلاسل
-                $a['batch_code'] = isset($a['batch_code']) ? (string)$a['batch_code'] : ('batch#' . ($a['batch_id'] ?? ''));
-                $a['received_at'] = isset($a['received_at']) ? (string)$a['received_at'] : '';
-                $allocs[] = $a;
-            }
-            echo json_encode(['ok' => true, 'allocations' => $allocs], JSON_UNESCAPED_UNICODE);
-        } else {
-            echo json_encode(['ok' => false, 'msg' => 'فشل تنفيذ استعلام التخصيصات: ' . $st->error], JSON_UNESCAPED_UNICODE);
-        }
-        $st->close();
-    } else {
-        echo json_encode(['ok' => false, 'msg' => 'فشل تحضير استعلام التخصيصات: ' . $conn->error], JSON_UNESCAPED_UNICODE);
-    }
-    exit;
-}
-
 // === Main report ===
 $message = '';
 $summaries = [];
+$invoice_details = [];
 
-// الافتراضي: اليوم (لو المستخدم لم يحدد)
+// فلترة حسب حالة الفاتورة
+$status_filter = isset($_GET['status']) ? $_GET['status'] : '';
+$advanced_filter = isset($_GET['advanced']) ? $_GET['advanced'] : '';
+$customer_filter = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : 0;
+
+// الافتراضي: اليوم
 $start_date_filter = isset($_GET['start_date']) && trim($_GET['start_date']) !== '' ? trim($_GET['start_date']) : date('Y-m-d');
 $end_date_filter   = isset($_GET['end_date']) && trim($_GET['end_date']) !== '' ? trim($_GET['end_date']) : date('Y-m-d');
+
+// زر من أول المدة
+if (isset($_GET['from_beginning']) && $_GET['from_beginning'] == '1') {
+    $start_date_filter = '2022-01-01';
+    $end_date_filter = date('Y-m-d');
+}
 
 $report_generated = false;
 
@@ -192,26 +111,72 @@ if (!empty($start_date_filter) && !empty($end_date_filter)) {
         $start_sql = $start_date_filter . " 00:00:00";
         $end_sql   = $end_date_filter . " 23:59:59";
 
-        // ====== إجماليات البطاقات (مجموع الفترات) ======
+        // ====== بناء شروط WHERE ======
+        $where_conditions = ["io.created_at BETWEEN ? AND ?"];
+        
+        // استبعاد الفواتير الملغاة والمرتجعة
+        $where_conditions[] = "io.delivered NOT IN ('canceled', 'reverted')";
+        
+        // فلتر حسب حالة الدفع
+        if ($status_filter) {
+            switch($status_filter) {
+                case 'paid':
+                    $where_conditions[] = "io.remaining_amount = 0";
+                    break;
+                case 'partial':
+                    $where_conditions[] = "io.paid_amount > 0 AND io.remaining_amount > 0";
+                    break;
+                case 'pending':
+                    $where_conditions[] = "io.paid_amount = 0 AND io.remaining_amount > 0";
+                    break;
+                case 'returned':
+                    $where_conditions[] = "io.delivered = 'reverted'";
+                    break;
+                case 'delivered':
+                    $where_conditions[] = "io.delivered IN ('yes', 'partial')";
+                    break;
+            }
+        }
+        
+        // فلتر حسب العميل
+        if ($customer_filter > 0) {
+            $where_conditions[] = "io.customer_id = " . $customer_filter;
+        }
+        
+        $where_clause = implode(' AND ', $where_conditions);
+
+        // ====== حساب إجماليات البطاقات ======
         $totals_sql = "
             SELECT
-                COALESCE(SUM(ioi.total_price),0) AS total_revenue,
-                COALESCE(SUM(ioi.quantity),0) AS total_quantity,
-                COALESCE(SUM(ioi.quantity * COALESCE(ioi.cost_price_per_unit, p.cost_price, 0)),0) AS total_cost
+                COUNT(DISTINCT io.id) AS invoice_count,
+                COALESCE(SUM(io.total_before_discount),0) AS total_revenue_before_discount,
+                COALESCE(SUM(io.total_after_discount),0) AS total_revenue_after_discount,
+                COALESCE(SUM(io.discount_amount),0) AS total_discount,
+                COALESCE(SUM(io.total_cost),0) AS total_cost,
+                COALESCE(SUM(io.profit_amount),0) AS total_profit,
+                COALESCE(SUM(io.paid_amount),0) AS total_paid,
+                COALESCE(SUM(io.remaining_amount),0) AS total_remaining
             FROM invoices_out io
-            JOIN invoice_out_items ioi ON ioi.invoice_out_id = io.id
-            LEFT JOIN products p ON p.id = ioi.product_id
-              AND io.created_at BETWEEN ? AND ?
+            WHERE {$where_clause}
         ";
+        
         if ($stt = $conn->prepare($totals_sql)) {
             $stt->bind_param("ss", $start_sql, $end_sql);
             if ($stt->execute()) {
                 $r = $stt->get_result()->fetch_assoc();
-                $grand_total_revenue = floatval($r['total_revenue'] ?? 0);
-                $grand_total_quantity = floatval($r['total_quantity'] ?? 0);
-                $grand_total_cost = floatval($r['total_cost'] ?? 0);
-                $grand_total_profit = $grand_total_revenue - $grand_total_cost;
-                $profit_percent = ($grand_total_revenue > 0) ? ($grand_total_profit / $grand_total_revenue) * 100 : 0;
+                $invoice_count = intval($r['invoice_count'] ?? 0);
+                $total_revenue_before_discount = floatval($r['total_revenue_before_discount'] ?? 0);
+                $total_revenue_after_discount = floatval($r['total_revenue_after_discount'] ?? 0);
+                $total_discount = floatval($r['total_discount'] ?? 0);
+                $total_cost = floatval($r['total_cost'] ?? 0);
+                $total_profit = floatval($r['total_profit'] ?? 0);
+                $total_paid = floatval($r['total_paid'] ?? 0);
+                $total_remaining = floatval($r['total_remaining'] ?? 0);
+                
+                // حساب النسب
+                $profit_margin = ($total_revenue_after_discount > 0) ? ($total_profit / $total_revenue_after_discount) * 100 : 0;
+                $discount_percent = ($total_revenue_before_discount > 0) ? ($total_discount / $total_revenue_before_discount) * 100 : 0;
+                
             } else {
                 $message = "<div class='alert alert-danger'>فشل حساب الإجماليات: " . e($stt->error) . "</div>";
             }
@@ -220,22 +185,43 @@ if (!empty($start_date_filter) && !empty($end_date_filter)) {
             $message = "<div class='alert alert-danger'>فشل تحضير استعلام الإجماليات: " . e($conn->error) . "</div>";
         }
 
-        // ====== ملخص كل فاتورة (قائمة) ======
+        // ====== جلب قائمة الفواتير مع التفاصيل ======
         $sql = "
-          SELECT
-            io.id AS invoice_id,
-            io.created_at AS invoice_created_at,
-            COALESCE(c.name, '') AS customer_name,
-            COALESCE(SUM(ioi.total_price),0) AS total_sold,
-            COALESCE(SUM(ioi.quantity * COALESCE(ioi.cost_price_per_unit, p.cost_price, 0)),0) AS total_cost,
-            COALESCE(SUM(ioi.quantity),0) AS total_qty
-          FROM invoices_out io
-          JOIN invoice_out_items ioi ON ioi.invoice_out_id = io.id
-          LEFT JOIN products p ON p.id = ioi.product_id
-          LEFT JOIN customers c ON c.id = io.customer_id
-            AND io.created_at BETWEEN ? AND ?
-          GROUP BY io.id
-          ORDER BY io.created_at DESC, io.id DESC
+            SELECT
+                io.id AS invoice_id,
+                io.created_at AS invoice_created_at,
+                COALESCE(c.name, '') AS customer_name,
+                c.id AS customer_id,
+                io.delivered,
+                io.total_before_discount,
+                io.discount_type,
+                io.discount_value,
+                io.discount_amount,
+                io.total_after_discount,
+                io.total_cost,
+                io.profit_amount,
+                io.paid_amount,
+                io.remaining_amount,
+                io.invoice_group,
+                io.discount_scope,
+                CASE 
+                    WHEN io.delivered = 'reverted' THEN 'returned'
+                    WHEN io.remaining_amount = 0 THEN 'paid'
+                    WHEN io.paid_amount > 0 AND io.remaining_amount > 0 THEN 'partial'
+                    ELSE 'pending'
+                END AS payment_status,
+                CASE 
+                    WHEN io.discount_scope = 'invoice' AND io.discount_amount > 0 THEN 'نعم'
+                    WHEN io.discount_scope = 'items' THEN 'على البنود'
+                    WHEN io.discount_scope = 'mixed' THEN 'مختلط'
+                    ELSE 'لا'
+                END AS has_discount,
+                (SELECT COUNT(*) FROM invoice_out_items ioi WHERE ioi.invoice_out_id = io.id AND ioi.return_flag = 0) AS active_items_count,
+                (SELECT COUNT(*) FROM invoice_out_items ioi WHERE ioi.invoice_out_id = io.id AND ioi.return_flag = 1) AS returned_items_count
+            FROM invoices_out io
+            LEFT JOIN customers c ON c.id = io.customer_id
+            WHERE {$where_clause}
+            ORDER BY io.created_at DESC, io.id DESC
         ";
 
         if ($stmt = $conn->prepare($sql)) {
@@ -243,10 +229,25 @@ if (!empty($start_date_filter) && !empty($end_date_filter)) {
             if ($stmt->execute()) {
                 $res = $stmt->get_result();
                 while ($row = $res->fetch_assoc()) {
-                    $row['total_sold'] = floatval($row['total_sold']);
-                    $row['total_cost'] = floatval($row['total_cost']);
-                    $row['total_qty']  = floatval($row['total_qty']);
-                    $row['profit'] = $row['total_sold'] - $row['total_cost'];
+                    // تحويل القيم العددية
+                    $row['invoice_id'] = intval($row['invoice_id']);
+                    $row['customer_id'] = intval($row['customer_id'] ?? 0);
+                    $row['total_before_discount'] = floatval($row['total_before_discount'] ?? 0);
+                    $row['discount_value'] = floatval($row['discount_value'] ?? 0);
+                    $row['discount_amount'] = floatval($row['discount_amount'] ?? 0);
+                    $row['total_after_discount'] = floatval($row['total_after_discount'] ?? 0);
+                    $row['total_cost'] = floatval($row['total_cost'] ?? 0);
+                    $row['profit_amount'] = floatval($row['profit_amount'] ?? 0);
+                    $row['paid_amount'] = floatval($row['paid_amount'] ?? 0);
+                    $row['remaining_amount'] = floatval($row['remaining_amount'] ?? 0);
+                    $row['active_items_count'] = intval($row['active_items_count'] ?? 0);
+                    $row['returned_items_count'] = intval($row['returned_items_count'] ?? 0);
+                    
+                    // حساب هامش الربح
+                    $row['profit_margin'] = ($row['total_after_discount'] > 0) 
+                        ? round(($row['profit_amount'] / $row['total_after_discount']) * 100, 2)
+                        : 0;
+                    
                     $summaries[] = $row;
                 }
             } else {
@@ -256,27 +257,27 @@ if (!empty($start_date_filter) && !empty($end_date_filter)) {
         } else {
             $message = "<div class='alert alert-danger'>خطأ في تحضير الاستعلام: " . e($conn->error) . "</div>";
         }
-    }
-}
 
-// ====== (إبقاء حساب اليوم كمرجع — لكنه لن يُعرض كـ card منفصلة الآن) ======
-$today_revenue = 0; $today_cost = 0; $today_profit = 0;
-$today_start = date('Y-m-d') . " 00:00:00";
-$today_end   = date('Y-m-d') . " 23:59:59";
-$today_sql = "SELECT COALESCE(SUM(ioi.total_price),0) AS rev, COALESCE(SUM(ioi.quantity * COALESCE(ioi.cost_price_per_unit, p.cost_price, 0)),0) AS cost
-              FROM invoices_out io
-              JOIN invoice_out_items ioi ON ioi.invoice_out_id = io.id
-              LEFT JOIN products p ON p.id = ioi.product_id
-              WHERE io.delivered = 'yes' AND io.created_at BETWEEN ? AND ?";
-if ($tst = $conn->prepare($today_sql)) {
-    $tst->bind_param('ss', $today_start, $today_end);
-    if ($tst->execute()) {
-        $tr = $tst->get_result()->fetch_assoc();
-        $today_revenue = floatval($tr['rev'] ?? 0);
-        $today_cost = floatval($tr['cost'] ?? 0);
-        $today_profit = $today_revenue - $today_cost;
+        // ====== جلب قائمة العملاء للفلتر ======
+        $customers = [];
+        $cust_sql = "
+            SELECT DISTINCT c.id, c.name 
+            FROM invoices_out io
+            JOIN customers c ON c.id = io.customer_id
+            WHERE io.created_at BETWEEN ? AND ?
+            ORDER BY c.name
+        ";
+        if ($cust_stmt = $conn->prepare($cust_sql)) {
+            $cust_stmt->bind_param("ss", $start_sql, $end_sql);
+            if ($cust_stmt->execute()) {
+                $cust_res = $cust_stmt->get_result();
+                while ($cust = $cust_res->fetch_assoc()) {
+                    $customers[] = $cust;
+                }
+            }
+            $cust_stmt->close();
+        }
     }
-    $tst->close();
 }
 
 require_once BASE_DIR . 'partials/header.php';
@@ -286,9 +287,10 @@ require_once BASE_DIR . 'partials/sidebar.php';
 <style>
 :root {
   --primary: #0b84ff;
-  --grad-1: linear-gradient(135deg, #0b84ff, #7c3aed);
-  --grad-2: linear-gradient(135deg, #10b981, #0ea5e9);
-  --grad-3: linear-gradient(135deg, #f59e0b, #ef4444);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
   --surface: #ffffff;
   --surface-2: #f9fbff;
   --text: #0f172a;
@@ -300,512 +302,839 @@ require_once BASE_DIR . 'partials/sidebar.php';
   --shadow-2: 0 12px 28px rgba(11,132,255,0.14);
 }
 
-.container { max-width:1100px; margin:0 auto; padding:18px; }
-.page-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.page-header h3 { margin:0; font-size:1.25rem; color:var(--text); }
-.small-muted { color:var(--text-soft); }
+.container-fluid { padding: 18px; }
+.page-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+.page-header h3 { margin:0; font-size:1.5rem; color:var(--text); font-weight:700; }
+.page-header .subtitle { color:var(--text-soft); font-size:0.95rem; }
 
-.card.filter-card { background:var(--surface); border-radius:12px; padding:12px; margin-bottom:16px; box-shadow:var(--shadow-1); }
-.form-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
-
-.periods { display:flex; gap:8px; align-items:center; margin-right:8px; }
-.periods button { background:transparent; border:1px solid var(--border); padding:8px 10px; border-radius:8px; cursor:pointer; color:var(--text); }
-.periods button.active { background:var(--primary); color:#fff; box-shadow:var(--shadow-2); transform:translateY(-2px); }
-
-.summary-cards { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:20px; }
-.summary-card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding:16px 18px;
-  box-shadow: var(--shadow-1);
-  position:relative;
-  overflow:hidden;
-  transition: transform .18s ease, box-shadow .18s ease;
+/* بطاقات الإحصائيات */
+.stats-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: 16px; 
+    margin-bottom: 24px; 
 }
-.summary-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-2); }
-.summary-card .title { color:var(--muted); font-size:0.95rem; margin-bottom:8px; }
-.summary-card .value { font-size:1.75rem; font-weight:800; color:var(--text); }
-.summary-card .sub { color:var(--text-soft); margin-top:8px; font-size:0.9rem; }
-.summary-card::before { content:''; position:absolute; right:-30px; top:-30px; width:160px; height:160px; opacity:0.12; transform:rotate(20deg); }
-.card-revenue::before { background:var(--grad-1); }
-.card-cost::before { background:var(--grad-2); }
-.card-profit::before { background:var(--grad-3); }
-.currency-badge { display:inline-block; margin-left:8px; font-weight:700; color:var(--muted); font-size:0.85rem; }
+.stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow-1);
+    border-left: 4px solid var(--primary);
+    transition: transform 0.2s ease;
+}
+.stat-card:hover { transform: translateY(-4px); }
+.stat-card.revenue { border-left-color: #10b981; }
+.stat-card.cost { border-left-color: #f59e0b; }
+.stat-card.profit { border-left-color: #8b5cf6; }
+.stat-card.discount { border-left-color: #3b82f6; }
+.stat-card .stat-title { 
+    color: var(--muted); 
+    font-size: 0.9rem; 
+    margin-bottom: 8px; 
+    font-weight: 600; 
+}
+.stat-card .stat-value { 
+    font-size: 1.8rem; 
+    font-weight: 800; 
+    color: var(--text); 
+    margin-bottom: 4px; 
+}
+.stat-card .stat-sub { 
+    color: var(--text-soft); 
+    font-size: 0.85rem; 
+}
+.stat-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
+.badge-positive { background: rgba(16,185,129,0.12); color: #065f46; }
+.badge-negative { background: rgba(239,68,68,0.12); color: #991b1b; }
+.badge-neutral { background: rgba(107,114,128,0.12); color: #374151; }
 
-.badge-profit { font-weight:700; padding:6px 8px; border-radius:6px; display:inline-block; }
-.badge-profit.positive { background:rgba(16,185,129,0.08); color:#075928; border:1px solid rgba(16,185,129,0.12); }
-.badge-profit.negative { background:rgba(239,68,68,0.06); color:#7f1d1d; border:1px solid rgba(239,68,68,0.12); }
+/* بادجات حالة الفاتورة */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+.status-paid { background: rgba(16,185,129,0.12); color: #065f46; border: 1px solid rgba(16,185,129,0.2); }
+.status-partial { background: rgba(245,158,11,0.12); color: #92400e; border: 1px solid rgba(245,158,11,0.2); }
+.status-pending { background: rgba(239,68,68,0.08); color: #991b1b; border: 1px solid rgba(239,68,68,0.15); }
+.status-returned { background: rgba(107,114,128,0.12); color: #374151; border: 1px solid rgba(107,114,128,0.2); }
+.status-delivered { background: rgba(59,130,246,0.12); color: #1e40af; border: 1px solid rgba(59,130,246,0.2); }
 
-.modal-backdrop-lite { position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(2,6,23,0.5); display:none; align-items:center; justify-content:center; z-index:9999; padding:16px; }
-.modal-card { background:var(--surface); border-radius:12px; max-width:980px; width:100%; max-height:85vh; overflow:auto; padding:18px; box-shadow:var(--shadow-2); }
+/* فلاتر */
+.filter-section { 
+    background: var(--surface-2); 
+    border-radius: var(--radius); 
+    padding: 16px; 
+    margin-bottom: 20px; 
+    border: 1px solid var(--border);
+}
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.filter-group { margin-bottom: 12px; }
+.filter-group label { 
+    display: block; 
+    margin-bottom: 6px; 
+    font-weight: 600; 
+    color: var(--text-soft); 
+    font-size: 0.9rem; 
+}
+.filter-select, .filter-input { 
+    width: 100%; 
+    padding: 8px 12px; 
+    border-radius: 8px; 
+    border: 1px solid var(--border); 
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.95rem;
+}
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.btn { 
+    padding: 8px 16px; 
+    border-radius: 8px; 
+    border: none; 
+    font-weight: 600; 
+    cursor: pointer; 
+    font-size: 0.9rem; 
+    transition: all 0.2s ease;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-secondary { background: var(--muted); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-light { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
 
-.alloc-modal-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(2,6,23,0.5); display:none; align-items:center; justify-content:center; z-index:10000; padding:16px; }
+/* الجدول */
+.table-wrapper { 
+    background: var(--surface); 
+    border-radius: var(--radius); 
+    overflow: hidden; 
+    box-shadow: var(--shadow-1);
+    margin-bottom: 24px;
+}
+.table-header { 
+    padding: 16px; 
+    border-bottom: 1px solid var(--border); 
+    background: var(--surface-2);
+}
+.table-header h5 { margin: 0; color: var(--text); }
+.custom-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 0.9rem;
+}
+.custom-table th { 
+    padding: 12px 16px; 
+    text-align: right; 
+    background: var(--surface-2); 
+    color: var(--text-soft); 
+    font-weight: 600; 
+    border-bottom: 2px solid var(--border);
+}
+.custom-table td { 
+    padding: 12px 16px; 
+    border-bottom: 1px solid var(--border); 
+    color: var(--text);
+}
+.custom-table tbody tr:hover { background: var(--surface-2); }
+.text-end { text-align: right; }
+.text-center { text-align: center; }
 
-.table-compact th, .table-compact td{padding:8px 10px;border-bottom:1px solid #eef3fb}
-.text-end{ text-align:right }
-.center{text-align:center}
-.btn{display:inline-block;padding:6px 10px;border-radius:8px;border:1px solid rgba(2,6,23,0.06);cursor:pointer;background:#fff}
-.btn-sm{padding:4px 8px;font-size:13px}
-.btn-outline-primary{border-color:#0b84ff;color:#0b84ff;background:transparent}
+/* المودال */
+.modal-backdrop-lite { 
+    position: fixed; 
+    left: 0; top: 0; 
+    right: 0; bottom: 0; 
+    background: rgba(2,6,23,0.5); 
+    display: none; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 9999; 
+    padding: 16px; 
+}
+.modal-card { 
+    background: var(--surface); 
+    border-radius: 12px; 
+    max-width: 1000px; 
+    width: 100%; 
+    max-height: 85vh; 
+    overflow: auto; 
+    padding: 24px; 
+    box-shadow: var(--shadow-2);
+}
+.modal-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 20px; 
+    padding-bottom: 16px; 
+    border-bottom: 1px solid var(--border);
+}
+.modal-header h5 { margin: 0; color: var(--text); font-size: 1.2rem; }
+.modal-body { padding: 0; }
 
-@media (max-width:900px) { .summary-cards { grid-template-columns: repeat(2, 1fr); } .table { min-width: 700px; } }
-@media (max-width:640px) { .summary-cards { grid-template-columns: 1fr; } .page-header { flex-direction:column; align-items:flex-start; gap:6px; } .table { min-width: 600px; } }
+/* خصومات */
+.discount-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(59,130,246,0.12);
+    color: #1e40af;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 5px;
+}
+
+/* الأدوات */
+.tools-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .filter-grid { grid-template-columns: 1fr; }
+    .custom-table { font-size: 0.85rem; }
+    .custom-table th, .custom-table td { padding: 8px 12px; }
+}
 </style>
 
 <div class="container-fluid">
     <div class="page-header">
-        <h3><i class="fas fa-file-invoice-dollar"></i> تقرير الربح — ملخص الفواتير</h3>
         <div>
-            <div class="small-muted">الأسعار مأخوذة من بنود الفاتورة نفسها</div>
-            <div style="margin-top:6px;text-align:right">
-                <a href="<?php echo htmlspecialchars(BASE_URL . 'user/welcome.php'); ?>" class="btn btn-sm btn-light">← العودة</a>
-                <button id="printBtn" class="btn btn-sm btn-primary">طباعة</button>
-            </div>
+            <h3><i class="fas fa-chart-line me-2"></i> تقرير الربح - ملخص الفواتير</h3>
+            <div class="subtitle">عرض الفواتير المسلّمة مع استبعاد المرتجعة والملغاة | حساب الأرباح من بيانات الفاتورة المخزنة</div>
+        </div>
+        <div class="tools-bar">
+            <a href="<?php echo htmlspecialchars(BASE_URL . 'user/welcome.php'); ?>" class="btn btn-light">
+                <i class="fas fa-arrow-right me-1"></i> العودة
+            </a>
+            <button id="printBtn" class="btn btn-primary">
+                <i class="fas fa-print me-1"></i> طباعة
+            </button>
         </div>
     </div>
 
     <?php echo $message; ?>
 
-    <div class="card filter-card">
-        <div class="card-body p-2">
-            <form id="filterForm" method="get" class="form-row">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div class="periods" role="tablist" aria-label="فترات سريعة">
-                        <button type="button" data-period="day" id="btnDay">يوم</button>
-                        <button type="button" data-period="week" id="btnWeek">أسبوع</button>
-                        <button type="button" data-period="month" id="btnMonth">شهر</button>
-                        <button type="button" data-period="custom" id="btnCustom">مخصص</button>
-                    </div>
-                    <input type="hidden" name="period" id="periodInput" value="<?php echo e($_GET['period'] ?? 'day'); ?>">
+    <!-- فلترة -->
+    <div class="filter-section">
+        <form id="filterForm" method="get" class="filter-form">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label><i class="fas fa-filter me-1"></i> حالة الفاتورة:</label>
+                    <select name="status" class="filter-select">
+                        <option value="">جميع الحالات</option>
+                        <option value="delivered" <?php echo $status_filter == 'delivered' ? 'selected' : ''; ?>>مسلّم</option>
+                        <option value="paid" <?php echo $status_filter == 'paid' ? 'selected' : ''; ?>>مدفوع بالكامل</option>
+                        <option value="partial" <?php echo $status_filter == 'partial' ? 'selected' : ''; ?>>مدفوع جزئي</option>
+                        <option value="pending" <?php echo $status_filter == 'pending' ? 'selected' : ''; ?>>قيد الانتظار</option>
+                    </select>
                 </div>
-
-                <div>
-                    <label class="form-label">من تاريخ</label>
-                    <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo e($start_date_filter); ?>" required>
+                
+                <div class="filter-group">
+                    <label><i class="fas fa-user me-1"></i> العميل:</label>
+                    <select name="customer_id" class="filter-select">
+                        <option value="0">جميع العملاء</option>
+                        <?php foreach ($customers ?? [] as $cust): ?>
+                        <option value="<?php echo $cust['id']; ?>" <?php echo $customer_filter == $cust['id'] ? 'selected' : ''; ?>>
+                            <?php echo e($cust['name']); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
-
-                <div>
-                    <label class="form-label">إلى تاريخ</label>
-                    <input type="date" name="end_date" id="end_date" class="form-control" value="<?php echo e($end_date_filter); ?>" required>
+                
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar me-1"></i> من تاريخ:</label>
+                    <input type="date" name="start_date" class="filter-input" value="<?php echo e($start_date_filter); ?>" required>
                 </div>
-
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <button type="submit" class="btn btn-primary">عرض</button>
-                    <button type="button" id="todayQuick" class="btn btn-outline-secondary">اليوم</button>
+                
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar me-1"></i> إلى تاريخ:</label>
+                    <input type="date" name="end_date" class="filter-input" value="<?php echo e($end_date_filter); ?>" required>
                 </div>
-
-                <div style="margin-left:auto;color:var(--muted);font-size:0.9rem;">
-                    <small>عرض الفواتير المسلمة فقط (delivered = yes)</small>
+            </div>
+            
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i> عرض التقرير
+                </button>
+                
+                <button type="submit" name="from_beginning" value="1" class="btn btn-success">
+                    <i class="fas fa-history me-1"></i> من أول المدة (2022)
+                </button>
+                
+                <a href="<?php echo $_SERVER['PHP_SELF']; ?>" class="btn btn-light">
+                    <i class="fas fa-redo me-1"></i> إعادة تعيين
+                </a>
+                
+                <div style="margin-left: auto; display: flex; gap: 8px;">
+                    <button type="button" id="btnToday" class="btn btn-sm btn-secondary">اليوم</button>
+                    <button type="button" id="btnWeek" class="btn btn-sm btn-secondary">أسبوع</button>
+                    <button type="button" id="btnMonth" class="btn btn-sm btn-secondary">شهر</button>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 
     <?php if ($report_generated): ?>
-        <div class="summary-cards" aria-hidden="<?php echo $report_generated ? 'false' : 'true'; ?>">
-            <div class="summary-card card-revenue">
-                <div class="title">إجمالي الإيرادات</div>
-                <div class="value"><?php echo number_format($grand_total_revenue ?? 0,2); ?> <span class="currency-badge">ج.م</span></div>
-                <div class="sub">مجموع أسعار البيع المسجلة في الفواتير خلال الفترة</div>
+        <!-- إحصائيات رئيسية -->
+        <div class="stats-grid">
+            <div class="stat-card revenue">
+                <div class="stat-title">إجمالي الإيرادات</div>
+                <div class="stat-value"><?php echo number_format($total_revenue_after_discount ?? 0, 2); ?> <small>ج.م</small></div>
+                <div class="stat-sub">
+                    قبل الخصم: <?php echo number_format($total_revenue_before_discount ?? 0, 2); ?> ج.م
+                    <?php if ($total_discount > 0): ?>
+                        <span class="badge-neutral">خصم: <?php echo number_format($total_discount, 2); ?> ج.م (<?php echo round($discount_percent, 2); ?>%)</span>
+                    <?php endif; ?>
+                </div>
             </div>
-
-            <div class="summary-card card-cost">
-                <div class="title">تكلفة البضاعة المباعة</div>
-                <div class="value"><?php echo number_format($grand_total_cost ?? 0,2); ?> <span class="currency-badge">ج.م</span></div>
-                <div class="sub">مجموع (الكمية × سعر التكلفة) كما سجل في البنود</div>
+            
+            <div class="stat-card cost">
+                <div class="stat-title">تكلفة البضاعة المباعة</div>
+                <div class="stat-value"><?php echo number_format($total_cost ?? 0, 2); ?> <small>ج.م</small></div>
+                <div class="stat-sub">من <?php echo $invoice_count ?? 0; ?> فاتورة</div>
             </div>
-
-            <div class="summary-card card-profit">
-                <div class="title">صافي الربح</div>
-                <div class="value"><?php echo number_format($grand_total_profit ?? 0,2); ?> <span class="currency-badge">ج.م</span></div>
-                <div class="sub">نسبة الربح: <span class="profit-percent <?php echo (($grand_total_profit ?? 0) >= 0) ? 'positive' : 'negative'; ?>"><?php echo round($profit_percent ?? 0,2); ?>%</span></div>
+            
+            <div class="stat-card profit">
+                <div class="stat-title">صافي الربح</div>
+                <div class="stat-value">
+                    <?php echo number_format($total_profit ?? 0, 2); ?> <small>ج.م</small>
+                    <span class="stat-badge <?php echo ($total_profit ?? 0) >= 0 ? 'badge-positive' : 'badge-negative'; ?>">
+                        <?php echo round($profit_margin ?? 0, 2); ?>%
+                    </span>
+                </div>
+                <div class="stat-sub">هامش الربح</div>
+            </div>
+            
+            <div class="stat-card discount">
+                <div class="stat-title">المدفوعات</div>
+                <div class="stat-value"><?php echo number_format($total_paid ?? 0, 2); ?> <small>ج.م</small></div>
+                <div class="stat-sub">المتبقي: <?php echo number_format($total_remaining ?? 0, 2); ?> ج.م</div>
             </div>
         </div>
 
-        <?php if (empty($summaries)): ?>
-            <div class="alert alert-info">لا توجد فواتير مسلّمة خلال الفترة المحددة.</div>
-        <?php else: ?>
-            <div class="table-wrapper mb-3">
-                <div class="custom-table-wrapper">
-                    <table class="custom-table mb-0" id="reportTable">
-                        <thead class="center">
+        <!-- جدول الفواتير -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h5><i class="fas fa-file-invoice me-2"></i> قائمة الفواتير (<?php echo count($summaries); ?> فاتورة)</h5>
+            </div>
+            
+            <?php if (empty($summaries)): ?>
+                <div style="padding: 40px; text-align: center; color: var(--muted);">
+                    <i class="fas fa-inbox fa-2x mb-3"></i>
+                    <p>لا توجد فواتير مطابقة للفلاتر المحددة.</p>
+                </div>
+            <?php else: ?>
+                <div style="overflow-x: auto;">
+                    <table class="custom-table" id="reportTable">
+                        <thead>
                             <tr>
-                                <th style="width:90px"># فاتورة</th>
-                                <th style="width:160px">التاريخ</th>
+                                <th style="width: 80px">#</th>
+                                <th style="width: 150px">التاريخ</th>
                                 <th>العميل</th>
-                                <th style="width:130px" class="text-end">إجمالي بيع</th>
-                                <th style="width:140px" class="text-end">إجمالي تكلفة</th>
-                                <th style="width:120px" class="text-end">الربح</th>
-                                <th style="width:140px" class="text-center">تفاصيل / صفحة</th>
+                                <th style="width: 130px" class="text-end">الإيرادات</th>
+                                <th style="width: 120px" class="text-end">التكلفة</th>
+                                <th style="width: 120px" class="text-end">الربح</th>
+                                <th style="width: 100px" class="text-center">هامش</th>
+                                <th style="width: 100px" class="text-center">الحالة</th>
+                                <th style="width: 120px" class="text-end">المدفوع</th>
+                                <th style="width: 100px" class="text-center">الخصم</th>
+                                <th style="width: 100px" class="text-center">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($summaries as $s):
-                                $profit_class = $s['profit'] >= 0 ? 'positive' : 'negative';
+                            <?php foreach ($summaries as $invoice): 
+                                $profit_class = ($invoice['profit_amount'] >= 0) ? 'badge-positive' : 'badge-negative';
+                                $status_class = 'status-' . $invoice['payment_status'];
+                                $status_text = '';
+                                switch($invoice['payment_status']) {
+                                    case 'paid': $status_text = 'مدفوع'; break;
+                                    case 'partial': $status_text = 'جزئي'; break;
+                                    case 'pending': $status_text = 'معلق'; break;
+                                    case 'returned': $status_text = 'مرتجع'; break;
+                                    case 'delivered': $status_text = 'مسلّم'; break;
+                                    default: $status_text = $invoice['payment_status'];
+                                }
                             ?>
-                                <tr class="invoice-row" data-invoice-id="<?php echo intval($s['invoice_id']); ?>">
-                                    <td><strong>#<?php echo intval($s['invoice_id']); ?></strong></td>
-                                    <td><?php echo e($s['invoice_created_at']); ?></td>
-                                    <td><?php echo e($s['customer_name'] ?: 'عميل غير محدد'); ?></td>
-                                    <td class="text-end"><?php echo number_format($s['total_sold'],2); ?> ج.م</td>
-                                    <td class="text-end"><?php echo number_format($s['total_cost'],2); ?> ج.م</td>
-                                    <td class="text-end"><span class="badge-profit <?php echo $profit_class; ?>"><?php echo number_format($s['profit'],2); ?> ج.م</span></td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-primary details-btn" data-invoice-id="<?php echo intval($s['invoice_id']); ?>">عرض</button>
-                                    </td>
-                                </tr>
+                            <tr data-invoice-id="<?php echo $invoice['invoice_id']; ?>">
+                                <td><strong>#<?php echo $invoice['invoice_id']; ?></strong></td>
+                                <td><?php echo date('Y-m-d H:i', strtotime($invoice['invoice_created_at'])); ?></td>
+                                <td>
+                                    <?php echo e($invoice['customer_name']); ?>
+                                    <?php if ($invoice['active_items_count'] > 0): ?>
+                                        <small class="text-muted d-block"><?php echo $invoice['active_items_count']; ?> بند نشط</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end">
+                                    <?php if ($invoice['discount_amount'] > 0): ?>
+                                        <div class="text-decoration-line-through text-muted small">
+                                            <?php echo number_format($invoice['total_before_discount'], 2); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php echo number_format($invoice['total_after_discount'], 2); ?> ج.م
+                                </td>
+                                <td class="text-end"><?php echo number_format($invoice['total_cost'], 2); ?> ج.م</td>
+                                <td class="text-end">
+                                    <span class="<?php echo $profit_class; ?> stat-badge">
+                                        <?php echo number_format($invoice['profit_amount'], 2); ?> ج.م
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="<?php echo $invoice['profit_margin'] >= 0 ? 'badge-positive' : 'badge-negative'; ?> stat-badge">
+                                        <?php echo $invoice['profit_margin']; ?>%
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="status-badge <?php echo $status_class; ?>">
+                                        <?php echo $status_text; ?>
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <?php if ($invoice['paid_amount'] > 0): ?>
+                                        <div><?php echo number_format($invoice['paid_amount'], 2); ?> ج.م</div>
+                                        <?php if ($invoice['remaining_amount'] > 0): ?>
+                                            <small class="text-muted">متبقي: <?php echo number_format($invoice['remaining_amount'], 2); ?></small>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if ($invoice['discount_amount'] > 0): ?>
+                                        <span class="discount-badge">
+                                            <?php if ($invoice['discount_type'] == 'percent'): ?>
+                                                <?php echo $invoice['discount_value']; ?>%
+                                            <?php else: ?>
+                                                <?php echo number_format($invoice['discount_value'], 2); ?> ج.م
+                                            <?php endif; ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-primary details-btn" 
+                                            data-invoice-id="<?php echo $invoice['invoice_id']; ?>"
+                                            title="عرض التفاصيل">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <a href="<?php echo BASE_URL; ?>invoices_out/view_invoice_detaiels.php?id=<?php echo $invoice['invoice_id']; ?>" 
+                                       class="btn btn-sm btn-light" target="_blank" title="فتح الفاتورة">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                </td>
+                            </tr>
                             <?php endforeach; ?>
                         </tbody>
                         <tfoot>
-                            <?php
-                            $grand_sold = 0; $grand_cost = 0; $grand_qty = 0;
-                            foreach ($summaries as $ss) { $grand_sold += $ss['total_sold']; $grand_cost += $ss['total_cost']; $grand_qty += $ss['total_qty']; }
-                            $grand_profit = $grand_sold - $grand_cost;
-                            ?>
                             <tr>
-                                <td colspan="3" class="text-end"><strong>الإجمالي الكلي للفواتير المعروضة:</strong></td>
-                                <td class="text-end"><strong><?php echo number_format($grand_sold,2); ?> ج.م</strong></td>
-                                <td class="text-end"><strong><?php echo number_format($grand_cost,2); ?> ج.م</strong></td>
-                                <td class="text-end"><strong><?php echo number_format($grand_profit,2); ?> ج.م</strong></td>
-                                <td></td>
+                                <td colspan="3" class="text-end"><strong>المجموع:</strong></td>
+                                <td class="text-end"><strong><?php echo number_format(array_sum(array_column($summaries, 'total_after_discount')), 2); ?> ج.م</strong></td>
+                                <td class="text-end"><strong><?php echo number_format(array_sum(array_column($summaries, 'total_cost')), 2); ?> ج.م</strong></td>
+                                <td class="text-end"><strong><?php echo number_format(array_sum(array_column($summaries, 'profit_amount')), 2); ?> ج.م</strong></td>
+                                <td class="text-center">
+                                    <?php 
+                                        $total_rev = array_sum(array_column($summaries, 'total_after_discount'));
+                                        $total_prof = array_sum(array_column($summaries, 'profit_amount'));
+                                        $avg_margin = $total_rev > 0 ? ($total_prof / $total_rev) * 100 : 0;
+                                    ?>
+                                    <strong><?php echo round($avg_margin, 2); ?>%</strong>
+                                </td>
+                                <td colspan="4"></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
 
-        <div class="card" style="box-shadow:var(--shadow-1);border-radius:12px;padding:12px;">
-            <div class="card-body small-muted">
-                <strong>كيف تم الحساب؟</strong>
-                <ul>
-                    <li>الإيرادات = مجموع أسعار البيع كما سُجلت في بنود الفاتورة.</li>
-                    <li>تكلفة البضاعة = مجموع (الكمية × سعر التكلفة المسجل بنفس بند الفاتورة).</li>
-                    <li>الربح = الإيرادات − التكلفة. ونسبة الربح = (الربح ÷ الإيرادات) × 100.</li>
-                    <li>اضغط "عرض" لأي فاتورة لعرض بنودها داخل النافذة، ثم اضغط زر \"تفاصيل\" داخل أي بند لعرض تخصيصات الباتشات والشرح التفصيلي لمصدر المتوسط.</li>
+        <!-- ملاحظات -->
+        <div class="card" style="background: var(--surface-2); border: none; padding: 16px; border-radius: var(--radius);">
+            <div class="card-body">
+                <h6><i class="fas fa-info-circle me-2"></i> معلومات حول التقرير:</h6>
+                <ul style="margin-bottom: 0; color: var(--text-soft); font-size: 0.9rem;">
+                    <li>يتم حساب الأرباح من القيم المخزنة في جدول الفواتير مباشرة (profit_amount).</li>
+                    <li>تم استبعاد البنود المرتجعة بالكامل (return_flag = 1).</li>
+                    <li>الإيرادات المعروضة هي بعد تطبيق جميع الخصومات.</li>
+                    <li>هامش الربح = (الربح ÷ الإيرادات بعد الخصم) × 100.</li>
+                    <li>الكمية الفعالة = الكمية الأصلية - الكمية المرتجعة (available_for_return).</li>
+                    <li>اضغط زر <i class="fas fa-eye"></i> لعرض تفاصيل بنود الفاتورة مع الخصومات.</li>
                 </ul>
             </div>
         </div>
     <?php endif; ?>
-
 </div>
 
-<!-- Modal (فاتورة) -->
+<!-- Modal لعرض تفاصيل الفاتورة -->
 <div id="modalBackdrop" class="modal-backdrop-lite" role="dialog" aria-hidden="true">
     <div class="modal-card" role="document" aria-modal="true">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 id="modalTitle">تفاصيل الفاتورة</h5>
+        <div class="modal-header">
+            <h5 id="modalTitle">تفاصيل فاتورة <span id="invoiceNumber"></span></h5>
             <div>
-                <a id="openInvoicePage" href="#" target="_blank" class="btn btn-sm btn-outline-secondary" style="margin-left:6px;">فتح الصفحة</a>
-                <button id="closeModal" class="btn btn-sm btn-light">✖</button>
+                <button id="closeModal" class="btn btn-light btn-sm">
+                    <i class="fas fa-times"></i> إغلاق
+                </button>
             </div>
         </div>
-        <div id="modalBody">
-            <div class="small-muted mb-2" id="modalInvoiceInfo"></div>
-            <div id="modalContent">جارٍ التحميل...</div>
+        <div class="modal-body">
+            <div class="mb-3" id="modalInvoiceInfo"></div>
+            <div id="modalContent">جارٍ تحميل تفاصيل الفاتورة...</div>
         </div>
     </div>
-</div>
-
-<!-- Modal (تخصيصات البند) -->
-<div id="allocModalBackdrop" class="alloc-modal-backdrop" role="dialog" aria-hidden="true">
-  <div class="modal-card" role="document" aria-modal="true">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h5 id="allocModalTitle">تفاصيل تخصيصات: <span id="allocProductTitle"></span></h5>
-      <div>
-        <button id="closeAllocModal" class="btn btn-sm btn-light">✖ إغلاق</button>
-      </div>
-    </div>
-    <div id="allocModalBody">
-      <div class="small-muted" id="allocSummary"></div>
-      <div style="margin-top:12px;overflow:auto" class="custom-table-wrapper">
-        <table class="custom-table mb-0" id="allocTable">
-          <thead class="center">
-            <tr>
-              <th>باتش / دفعة</th>
-              <th style="width:120px">تاريخ الاستلام</th>
-              <th style="width:120px" class="text-end">الكمية</th>
-              <th style="width:120px" class="text-end">سعر الشراء</th>
-              <th style="width:140px" class="text-end">إجمالي تكلفة</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="2" class="text-end">المجموع</td>
-              <td id="allocTotalQty" class="text-end">0.00</td>
-              <td></td>
-              <td id="allocTotalCost" class="text-end">0.00</td>
-            </tr>
-            <tr>
-              <td colspan="4" class="text-end">متوسط التكلفة لكل وحدة</td>
-              <td id="allocAvg" class="text-end">0.00</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <div id="allocCalcSteps" style="margin-top:12px"></div>
-    </div>
-  </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    // helpers
-    function qs(s){ return document.querySelector(s); }
-    function qsa(s){ return Array.from(document.querySelectorAll(s)); }
-    function escapeHtml(s){ if(!s && s!==0) return ''; return String(s).replace(/[&<>"']/g,function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
-
-    // period buttons behavior (same as قبل)
-    const btnDay = qs('#btnDay'), btnWeek = qs('#btnWeek'), btnMonth = qs('#btnMonth'), btnCustom = qs('#btnCustom');
-    const startIn = qs('#start_date'), endIn = qs('#end_date'), periodInput = qs('#periodInput'), filterForm = qs('#filterForm');
-    const todayQuick = qs('#todayQuick');
-
-    function formatDate(d){ return d.toISOString().slice(0,10); }
-    const now = new Date();
-    if (!startIn.value) startIn.value = formatDate(now);
-    if (!endIn.value) endIn.value = formatDate(now);
-
-    function setPeriod(p, autoSubmit = false){
-        [btnDay,btnWeek,btnMonth,btnCustom].forEach(b=> b.classList.remove('active'));
+    // عناصر DOM
+    const filterForm = document.getElementById('filterForm');
+    const startDate = document.querySelector('input[name="start_date"]');
+    const endDate = document.querySelector('input[name="end_date"]');
+    const btnToday = document.getElementById('btnToday');
+    const btnWeek = document.getElementById('btnWeek');
+    const btnMonth = document.getElementById('btnMonth');
+    const printBtn = document.getElementById('printBtn');
+    
+    // المودال
+    const modal = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalInvoiceInfo = document.getElementById('modalInvoiceInfo');
+    const modalContent = document.getElementById('modalContent');
+    const closeModal = document.getElementById('closeModal');
+    const invoiceNumber = document.getElementById('invoiceNumber');
+    
+    // تاريخ اليوم
+    function getToday() {
         const today = new Date();
-        let s = new Date(), e = new Date();
-        if (p === 'day') {
-            s = new Date(today); e = new Date(today);
-            btnDay.classList.add('active');
-        } else if (p === 'week') {
-            const day = today.getDay() || 7;
-            s = new Date(today); s.setDate(today.getDate() - (day - 1));
-            e = new Date(s); e.setDate(s.getDate() + 6);
-            btnWeek.classList.add('active');
-        } else if (p === 'month') {
-            s = new Date(today.getFullYear(), today.getMonth(), 1);
-            e = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            btnMonth.classList.add('active');
-        } else {
-            btnCustom.classList.add('active');
-            periodInput.value = 'custom';
-            return;
-        }
-        startIn.value = formatDate(s);
-        endIn.value = formatDate(e);
-        periodInput.value = p;
-        if (autoSubmit) { setTimeout(()=> filterForm.submit(), 120); }
+        return today.toISOString().split('T')[0];
     }
-
-    const initialPeriod = '<?php echo e($_GET['period'] ?? 'day'); ?>';
-    setPeriod(initialPeriod || 'day', false);
-
-    btnDay?.addEventListener('click', ()=> setPeriod('day', true));
-    btnWeek?.addEventListener('click', ()=> setPeriod('week', true));
-    btnMonth?.addEventListener('click', ()=> setPeriod('month', true));
-    btnCustom?.addEventListener('click', ()=> setPeriod('custom', false));
-    todayQuick?.addEventListener('click', function(){ setPeriod('day', true); });
-
-    // modal فاتورة
-    const modal = qs('#modalBackdrop');
-    const modalTitle = qs('#modalTitle');
-    const modalContent = qs('#modalContent');
-    const modalInvoiceInfo = qs('#modalInvoiceInfo');
-    const closeModal = qs('#closeModal');
-    const openInvoicePage = qs('#openInvoicePage');
-
-    async function fetchInvoiceItems(id){
-        modalContent.innerHTML = 'جارٍ التحميل...';
-        try {
-            const params = new URLSearchParams({ action: 'get_invoice_items', id: id });
-            const res = await fetch(location.pathname + '?' + params.toString(), { credentials: 'same-origin' });
-            const data = await res.json();
-            if (!data.ok) {
-                modalContent.innerHTML = '<div class="alert alert-danger">خطأ: ' + escapeHtml(data.msg||'فشل التحميل') + '</div>';
-                return;
-            }
-            const items = data.items || [];
-            if (!items.length) {
-                modalContent.innerHTML = '<div class="p-2">لا توجد بنود في هذه الفاتورة.</div>';
-                return;
-            }
-            // Build table with Details button per item
-            let html = '<div class="table-responsive custom-table-wrapper"><table class="custom-table mb-0"><thead class="center"><tr><th>المنتج</th><th style="width:90px">الكمية</th><th style="width:110px">سعر التكلفة</th><th style="width:110px">إجمالي التكلفة</th><th style="width:110px">سعر البيع</th><th style="width:110px">إجمالي البيع</th><th style="width:110px">صافي الربح</th><th style="width:120px">تفاصيل</th></tr></thead><tbody>';
-            let sumSell = 0, sumCost = 0, sumProfit = 0;
-            for (const it of items) {
-                const qty = parseFloat(it.quantity || 0);
-                const selling = parseFloat(it.selling_price || 0);
-                const total = parseFloat(it.total_price || 0);
-                const costu = parseFloat(it.cost_price_per_unit || 0);
-                const lineCogs = +(qty * costu);
-                const lineProfit = +(total - lineCogs);
-                sumSell += total; sumCost += lineCogs; sumProfit += lineProfit;
-                // include a details button that passes sale_item_id (it.id)
-                html += `<tr>
-                    <td>${escapeHtml(it.product_name || ('#'+it.product_id))}</td>
-                    <td class="text-end">${qty.toFixed(2)}</td>
-                    <td class="text-end">${costu.toFixed(2)}</td>
-                    <td class="text-end">${lineCogs.toFixed(2)}</td>
-                    <td class="text-end">${selling.toFixed(2)}</td>
-                    <td class="text-end">${total.toFixed(2)}</td>
-                    <td class="text-end">${lineProfit.toFixed(2)}</td>
-                    <td class="text-center"><button class="btn btn-sm btn-outline-primary alloc-btn" data-sale-item-id="${it.id}" data-product-name="${escapeHtml(it.product_name || '')}">تفاصيل</button></td>
-                </tr>`;
-            }
-            html += `</tbody><tfoot class="table-"><tr>
-                <th>المجموع</th><th></th><th></th><th class="text-end">${sumCost.toFixed(2)}</th>
-                <th></th><th class="text-end">${sumSell.toFixed(2)}</th><th class="text-end">${sumProfit.toFixed(2)}</th><th></th>
-            </tr></tfoot></table></div>`;
-            modalContent.innerHTML = html;
-
-            // bind alloc buttons
-            Array.from(document.querySelectorAll('.alloc-btn')).forEach(b=>{
-                b.addEventListener('click', function(){
-                    const saleItemId = this.dataset.saleItemId;
-                    const productName = this.dataset.productName || '';
-                    openAllocModal(saleItemId, productName);
-                });
-            });
-
-        } catch (err) {
-            console.error(err);
-            modalContent.innerHTML = '<div class="alert alert-danger">خطأ في الاتصال بالخادم.</div>';
-        }
-    }
-
-    function openModal(invoiceId, invoiceCreatedAt) {
-        modalTitle.textContent = 'تفاصيل الفاتورة #' + invoiceId;
-        modalInvoiceInfo.textContent = 'تاريخ الفاتورة: ' + invoiceCreatedAt;
-        openInvoicePage.href = '<?php echo BASE_URL; ?>invoices_out/view_invoice_detaiels.php?id=' + encodeURIComponent(invoiceId);
-        modal.style.display = 'flex';
-        modal.setAttribute('aria-hidden','false');
-        fetchInvoiceItems(invoiceId);
-    }
-    function closeModalFn(){ modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); modalContent.innerHTML = ''; }
-
-    qsa('.details-btn').forEach(btn=>{
-        btn.addEventListener('click', function(){
-            const id = this.dataset.invoiceId;
-            const row = this.closest('tr');
-            const date = row ? row.cells[1].innerText : '';
-            openModal(id, date);
-        });
-    });
-
-    closeModal.addEventListener('click', closeModalFn);
-    modal.addEventListener('click', function(e){ if (e.target === modal) closeModalFn(); });
-
-    // ==== allocations modal functions ====
-    const allocModal = qs('#allocModalBackdrop');
-    const allocTableBody = qs('#allocTable tbody');
-    const allocSummary = qs('#allocSummary');
-    const allocTotalQty = qs('#allocTotalQty');
-    const allocTotalCost = qs('#allocTotalCost');
-    const allocAvg = qs('#allocAvg');
-    const allocCalcSteps = qs('#allocCalcSteps');
-    const allocProductTitle = qs('#allocProductTitle');
-    const closeAllocModal = qs('#closeAllocModal');
-
-    async function fetchAllocations(saleItemId){
-        try {
-            const params = new URLSearchParams({ action: 'get_item_allocations', id: saleItemId });
-            const res = await fetch(location.pathname + '?' + params.toString(), { credentials: 'same-origin' });
-            const data = await res.json();
-            if (!data.ok) { alert('خطأ: ' + (data.msg||'فشل جلب التخصيصات')); return null; }
-            return data.allocations || [];
-        } catch (err) { console.error(err); alert('خطأ في الاتصال'); return null; }
-    }
-
-    async function openAllocModal(saleItemId, productName){
-        allocTableBody.innerHTML = '';
-        allocSummary.textContent = 'جارٍ التحميل...';
-        allocCalcSteps.innerHTML = '';
-        allocProductTitle.textContent = productName ? `${productName} (#${saleItemId})` : `#${saleItemId}`;
-        allocModal.style.display = 'flex'; allocModal.setAttribute('aria-hidden','false');
-
-        const allocs = await fetchAllocations(saleItemId);
-        if (!allocs) {
-            allocSummary.textContent = 'حدث خطأ أثناء جلب التخصيصات.'; return;
-        }
-        if (!allocs.length) {
-            allocSummary.textContent = 'لا توجد تخصيصات مسجلة لهذا البند.'; return;
-        }
-        // build rows
-        let totalQty = 0, totalCost = 0;
-        let steps = [];
-        allocs.forEach(a=>{
-            const qty = parseFloat(a.qty || 0);
-            const unit = parseFloat(a.unit_cost || 0);
-            const line = parseFloat(a.line_cost || (qty * unit) || 0);
-            totalQty += qty; totalCost += line;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${escapeHtml(a.batch_code||a.batch_id||'')}</td><td>${escapeHtml(a.received_at||'')}</td><td class="text-end">${qty.toFixed(2)}</td><td class="text-end">${unit.toFixed(2)}</td><td class="text-end">${line.toFixed(2)}</td>`;
-            allocTableBody.appendChild(tr);
-            steps.push(`${qty.toFixed(2)} × ${unit.toFixed(2)} = ${line.toFixed(2)}`);
-        });
-        allocTotalQty.textContent = totalQty.toFixed(2);
-        allocTotalCost.textContent = totalCost.toFixed(2);
-        allocAvg.textContent = (totalQty ? (totalCost / totalQty).toFixed(2) : '0.00');
-
-        // show steps
-        allocSummary.textContent = `إجمالي كمية: ${Number(totalQty).toLocaleString('ar-EG',{minimumFractionDigits:2})} — إجمالي تكلفة: ${Number(totalCost).toLocaleString('ar-EG',{minimumFractionDigits:2})}`;
-        const ol = document.createElement('ol'); ol.style.paddingLeft = '18px';
-        steps.forEach(s=>{ const li=document.createElement('li'); li.textContent = s; ol.appendChild(li); });
-        const avgLine = document.createElement('div'); avgLine.style.marginTop='8px'; avgLine.style.fontWeight='800';
-        avgLine.textContent = `المتوسط = (Σ الأجزاء) ÷ Σ الكميات = (${totalCost.toFixed(2)}) ÷ ${totalQty.toFixed(2)} = ${(totalQty? (totalCost/totalQty).toFixed(2) : '0.00')}`;
-        allocCalcSteps.appendChild(ol); allocCalcSteps.appendChild(avgLine);
-    }
-
-    closeAllocModal.addEventListener('click', ()=>{ allocModal.style.display='none'; allocModal.setAttribute('aria-hidden','true'); allocTableBody.innerHTML=''; allocCalcSteps.innerHTML=''; });
-    allocModal.addEventListener('click', function(e){ if (e.target === allocModal) { allocModal.style.display='none'; allocModal.setAttribute('aria-hidden','true'); allocTableBody.innerHTML=''; allocCalcSteps.innerHTML=''; } });
-
-    // PRINT: only print period + table + totals
-    qs('#printBtn')?.addEventListener('click', function(){
-        const periodLabel = (qs('.page-header .subtitle') ? qs('.page-header .subtitle').innerText : (startIn.value + ' → ' + endIn.value));
-        const rows = [];
-        let grand = 0;
-        let totalCost = 0
-        let totalProfit = 0
-        qsa('#reportTable tbody tr').forEach(tr=>{
-
+    
+    // تاريخ الأسبوع
+    function getWeekRange() {
+        const today = new Date();
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+        const start = new Date(today.setDate(diff));
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
         
-            const tds = tr.querySelectorAll('td');
-            if (!tds || tds.length < 5) return;
-            const idx = tds[0].innerText.trim();
-            const inv = tds[0] ? tds[0].innerText.trim() : '';
-            const dt = tds[1] ? tds[1].innerText.trim() : '';
-            const cust = tds[2] ? tds[2].innerText.trim() : '';
-            const cost=  tds[4] ? tds[4].innerText.trim() : '';
-            const profit=  tds[5] ? tds[5].innerText.trim() : '';
-            const totalTxt = tds[3] ? tds[3].innerText.replace(/[^\d.,-]/g,'').replace(/,/g,'').trim() : '0';
-            const totalVal = parseFloat(totalTxt) || 0;
-            grand += totalVal;
-            totalCost+=  parseFloat(cost)
-            totalProfit += parseFloat(profit)
-            rows.push([idx, inv, dt, cust, totalVal.toFixed(2),cost, profit,]);
-        });
-
-        let html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طباعة تقرير المبيعات</title>
-            <style>body{font-family:Arial;padding:18px;color:#111} h2{margin:0 0 8px} .meta{color:#555;margin-bottom:12px} table{width:100%;border-collapse:collapse;margin-top:8px} th,td{border:1px solid #ddd;padding:8px;text-align:right} thead th{background:#f6f8fb} tfoot td{font-weight:700}</style>
-            </head><body>`;
-        html += `<h2>تقرير الربح — ملخص الفواتير</h2><div class="meta">الفترة: <strong>${escapeHtml(startIn.value)} → ${escapeHtml(endIn.value)}</strong></div>`;
-        if (rows.length === 0) {
-            html += '<div>لا توجد فواتير لعرضها.</div>';
-        } else {
-            html += `<table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>إجمالي البيع</th><th>إجمالي التكلفه</th><th>إجمالي الربح</th></tr></thead><tbody>`;
-            rows.forEach(r => {
-                html += `<tr><td>${escapeHtml(r[1])}</td><td>${escapeHtml(r[2])}</td><td>${escapeHtml(r[3])}</td><td style="text-align:right">${escapeHtml(r[4])} ج.م</td><td style="text-align:right">${escapeHtml(r[5])} ج.م</td><td style="text-align:right">${escapeHtml(r[6])} ج.م</td></tr>`;
-            });
-            html += `</tbody><tfoot><tr><td colspan="3" style="text-align:right">الإجمالي الكلي:</td><td style="text-align:right">${grand.toFixed(2)} ج.م</td><td style="text-align:right">${totalCost.toFixed(2)} ج.م</td><td style="text-align:right">${totalProfit.toFixed(2)} ج.م</td></tr></tfoot></table>`;
-        }
-        html += `<div style="margin-top:18px;color:#666;font-size:13px">طُبع في: ${new Date().toLocaleString('ar-EG')}</div>`;
-        html += `</body></html>`;
-
-        const w = window.open('', '_blank', 'toolbar=0,location=0,menubar=0');
-        if (!w) { alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة'); return; }
-        w.document.open();
-        w.document.write(html);
-        w.document.close();
-        w.focus();
-        setTimeout(()=> { w.print(); }, 350);
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    }
+    
+    // تاريخ الشهر
+    function getMonthRange() {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    }
+    
+    // أحداث الأزرار
+    btnToday?.addEventListener('click', function() {
+        startDate.value = getToday();
+        endDate.value = getToday();
+        filterForm.submit();
     });
-
+    
+    btnWeek?.addEventListener('click', function() {
+        const range = getWeekRange();
+        startDate.value = range.start;
+        endDate.value = range.end;
+        filterForm.submit();
+    });
+    
+    btnMonth?.addEventListener('click', function() {
+        const range = getMonthRange();
+        startDate.value = range.start;
+        endDate.value = range.end;
+        filterForm.submit();
+    });
+    
+    // طباعة التقرير
+    printBtn?.addEventListener('click', function() {
+        const printWindow = window.open('', '_blank');
+        const title = document.querySelector('.page-header h3').innerText;
+        const period = `${startDate.value} إلى ${endDate.value}`;
+        
+        let html = `
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <title>${title}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .header h1 { margin: 0; color: #333; }
+                    .header .period { color: #666; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { padding: 10px; text-align: right; border: 1px solid #ddd; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    .totals { margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+                    .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                    .positive { color: green; }
+                    .negative { color: red; }
+                    @media print {
+                        body { padding: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>${title}</h1>
+                    <div class="period">الفترة: ${period}</div>
+                    <div class="period">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</div>
+                </div>
+        `;
+        
+        // نسخ بيانات الجدول
+        const table = document.getElementById('reportTable');
+        if (table) {
+            html += table.outerHTML;
+        }
+        
+        // إضافة الإجماليات
+        html += `
+            <div class="totals">
+                <div class="total-row">
+                    <span>عدد الفواتير:</span>
+                    <span>${<?php echo count($summaries); ?>}</span>
+                </div>
+                <div class="total-row">
+                    <span>إجمالي الإيرادات:</span>
+                    <span>${<?php echo number_format($total_revenue_after_discount ?? 0, 2); ?>} ج.م</span>
+                </div>
+                <div class="total-row">
+                    <span>إجمالي التكلفة:</span>
+                    <span>${<?php echo number_format($total_cost ?? 0, 2); ?>} ج.م</span>
+                </div>
+                <div class="total-row">
+                    <span>صافي الربح:</span>
+                    <span class="${($total_profit ?? 0) >= 0 ? 'positive' : 'negative'}">
+                        ${<?php echo number_format($total_profit ?? 0, 2); ?>} ج.م (${<?php echo round($profit_margin ?? 0, 2); ?>}%)
+                    </span>
+                </div>
+                <div class="total-row">
+                    <span>إجمالي الخصم:</span>
+                    <span>${<?php echo number_format($total_discount ?? 0, 2); ?>} ج.م</span>
+                </div>
+            </div>
+        `;
+        
+        html += `
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    });
+    
+    // عرض تفاصيل الفاتورة
+    document.querySelectorAll('.details-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const invoiceId = this.dataset.invoiceId;
+            openInvoiceModal(invoiceId);
+        });
+    });
+    
+    async function openInvoiceModal(invoiceId) {
+        // عرض المودال
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        invoiceNumber.textContent = '#' + invoiceId;
+        
+        // جلب بيانات الفاتورة
+        try {
+            modalContent.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> جارٍ تحميل تفاصيل الفاتورة...</div>';
+            
+            const response = await fetch(`?action=get_invoice_items&id=${invoiceId}`);
+            const data = await response.json();
+            
+            if (!data.ok) {
+                modalContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> ${data.msg || 'حدث خطأ أثناء جلب البيانات'}
+                    </div>
+                `;
+                return;
+            }
+            
+            const items = data.items || [];
+            
+            if (items.length === 0) {
+                modalContent.innerHTML = '<div class="alert alert-info">لا توجد بنود نشطة في هذه الفاتورة.</div>';
+                return;
+            }
+            
+            // بناء جدول البنود
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>المنتج</th>
+                                <th style="width: 100px" class="text-center">الكمية</th>
+                                <th style="width: 100px" class="text-center">المُرجَع</th>
+                                <th style="width: 100px" class="text-center">المتبقي</th>
+                                <th style="width: 120px" class="text-end">سعر الوحدة</th>
+                                <th style="width: 120px" class="text-center">خصم البند</th>
+                                <th style="width: 120px" class="text-end">الإجمالي</th>
+                                <th style="width: 120px" class="text-end">التكلفة</th>
+                                <th style="width: 120px" class="text-end">الربح</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            let totalQuantity = 0;
+            let totalReturned = 0;
+            let totalAvailable = 0;
+            let totalRevenue = 0;
+            let totalCost = 0;
+            let totalProfit = 0;
+            let totalDiscount = 0;
+            
+            items.forEach(item => {
+                const quantity = parseFloat(item.quantity) || 0;
+                const returned = parseFloat(item.returned_quantity) || 0;
+                const available = parseFloat(item.available_for_return) || 0;
+                const sellingPrice = parseFloat(item.selling_price) || 0;
+                const costPrice = parseFloat(item.cost_price_per_unit) || 0;
+                const itemDiscount = parseFloat(item.discount_amount) || 0;
+                const revenue = parseFloat(item.total_after_discount) || parseFloat(item.total_before_discount) || 0;
+                const cost = available * costPrice;
+                const profit = revenue - cost;
+                
+                totalQuantity += quantity;
+                totalReturned += returned;
+                totalAvailable += available;
+                totalRevenue += revenue;
+                totalCost += cost;
+                totalProfit += profit;
+                totalDiscount += itemDiscount;
+                
+                html += `
+                    <tr>
+                        <td>${escapeHtml(item.product_name || 'منتج #' + item.product_id)}</td>
+                        <td class="text-center">${quantity.toFixed(2)}</td>
+                        <td class="text-center">${returned.toFixed(2)}</td>
+                        <td class="text-center"><strong>${available.toFixed(2)}</strong></td>
+                        <td class="text-end">
+                            ${item.discount_type ? `
+                                <div class="text-decoration-line-through text-muted small">
+                                    ${sellingPrice.toFixed(2)}
+                                </div>
+                                <div>${item.price_after_item_discount?.toFixed(2) || sellingPrice.toFixed(2)}</div>
+                            ` : sellingPrice.toFixed(2)}
+                        </td>
+                        <td class="text-center">
+                            ${item.discount_type ? `
+                                <span class="discount-badge">
+                                    ${item.discount_display}
+                                </span>
+                            ` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td class="text-end">${revenue.toFixed(2)}</td>
+                        <td class="text-end">${cost.toFixed(2)}</td>
+                        <td class="text-end">
+                            <span class="${profit >= 0 ? 'badge-positive' : 'badge-negative'} stat-badge">
+                                ${profit.toFixed(2)}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // إجماليات البنود
+            html += `
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th class="text-end">المجموع:</th>
+                                <th class="text-center">${totalQuantity.toFixed(2)}</th>
+                                <th class="text-center">${totalReturned.toFixed(2)}</th>
+                                <th class="text-center">${totalAvailable.toFixed(2)}</th>
+                                <th></th>
+                                <th class="text-center">${totalDiscount.toFixed(2)} ج.م</th>
+                                <th class="text-end">${totalRevenue.toFixed(2)} ج.م</th>
+                                <th class="text-end">${totalCost.toFixed(2)} ج.م</th>
+                                <th class="text-end">
+                                    <span class="${totalProfit >= 0 ? 'badge-positive' : 'badge-negative'} stat-badge">
+                                        ${totalProfit.toFixed(2)} ج.م
+                                    </span>
+                                </th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+            
+            modalContent.innerHTML = html;
+            
+        } catch (error) {
+            console.error('Error loading invoice details:', error);
+            modalContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> حدث خطأ في الاتصال بالخادم.
+                </div>
+            `;
+        }
+    }
+    
+    // إغلاق المودال
+    closeModal.addEventListener('click', function() {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        modalContent.innerHTML = '';
+    });
+    
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            modalContent.innerHTML = '';
+        }
+    });
+    
+    // دالة escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 });
 </script>
 
