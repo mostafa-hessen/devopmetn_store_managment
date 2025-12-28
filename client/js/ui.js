@@ -420,6 +420,8 @@ import PrintManager from "./print.js";
             return highlighted;
           };
         results.forEach((result) => {
+          console.log(result);
+          
     const div = document.createElement("div");
     div.className = "search-result-item";
     div.style.cursor = "pointer";
@@ -448,7 +450,6 @@ div.innerHTML = `
             ? `المتاح للإرجاع: ${result.availableQuantity} | `
             : '<span class="text-danger">غير متاح للإرجاع</span> | '
         }
-        السعر: ${parseFloat(result.totalPrice)?.toFixed(2)} ج.م
     </div>
     ${
       highlightedNotes

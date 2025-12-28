@@ -1,8 +1,6 @@
 <?php
-// manage_purchase_invoices.fixed.php
-// مُعدَّل بناءً على طلب المستخدم: تسجيل أسباب التعديل، حذف بنود مختارة، تمرير sale_price إلى batches عند الاستلام، تزامن تغييرات أسعار البيع/الشراء بين purchase_invoice_items و batches، تحديث حالة الدُفعات عند الإلغاء، طباعة فاتورة المورد بدون عرض الدُفعات، وتحسين bind_param الديناميكي.
-
-// -- تحذير: خذ نسخة احتياطية قبل وضع الملف في الإنتاج --
+// manage_purchase_invoices.redesigned.php
+// مُعدَّل بناءً على طلب المستخدم: إعادة تصميم كامل للصفحة مع تحسينات البحث والفلاتر
 
 $page_title = "إدارة فواتير المشتريات";
 require_once dirname(__DIR__) . '/config.php';
@@ -32,7 +30,7 @@ $status_labels = [
 // ---------- مساعدات عامة ----------
 function has_column($conn, $table, $col)
 {
-  $ok =true;
+  $ok = true;
   $sql = "SHOW COLUMNS FROM `{$table}` LIKE ?";
   if ($st = $conn->prepare($sql)) {
     $st->bind_param("s", $col);
@@ -58,7 +56,6 @@ function append_invoice_note($conn, $invoice_id, $note_line)
 function stmt_bind_params(mysqli_stmt $stmt, string $types, array $params)
 {
   if (empty($params)) return true;
-  // mysqli::bind_param requires references
   $refs = [];
   $refs[] = $types;
   foreach ($params as $k => $v) $refs[] = &$params[$k];
@@ -123,7 +120,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'fetch_invoice_json' && isset(
     $stb->execute();
     $rb = $stb->get_result();
     while ($bb = $rb->fetch_assoc()) {
-      // cast numeric fields
       $bb['qty'] = (float)$bb['qty'];
       $bb['remaining'] = (float)$bb['remaining'];
       $bb['original_qty'] = (float)$bb['original_qty'];
@@ -134,7 +130,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'fetch_invoice_json' && isset(
     $stb->close();
   }
 
-  // can_edit / can_revert logic: pending => yes; fully_received => yes only if batches unconsumed and active
+  // can_edit / can_revert logic
   $can_edit = false;
   $can_revert = false;
   if ($inv['status'] === 'pending') {
@@ -160,7 +156,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'fetch_invoice_json' && isset(
     $can_revert = $all_ok;
   }
 
-  // also return invoice notes
   echo json_encode([
     'ok' => true,
     'invoice' => $inv,
@@ -173,114 +168,107 @@ if (isset($_GET['action']) && $_GET['action'] === 'fetch_invoice_json' && isset(
   exit;
 }
 
-// ---------- Print view (supplier-facing, without batches) ----------
+// ---------- AJAX: بحث الموردين ----------
+if (isset($_GET['action']) && $_GET['action'] === 'search_suppliers') {
+  header('Content-Type: application/json; charset=utf-8');
+  $search = isset($_GET['q']) ? trim($_GET['q']) : '';
+  $results = [];
+  
+  if (strlen($search) >= 2) {
+    $sql = "SELECT id, name FROM suppliers WHERE name LIKE ? ORDER BY name LIMIT 10";
+    if ($stmt = $conn->prepare($sql)) {
+      $search_term = "%{$search}%";
+      $stmt->bind_param("s", $search_term);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($row = $res->fetch_assoc()) {
+        $results[] = [
+          'id' => $row['id'],
+          'name' => $row['name']
+        ];
+      }
+      $stmt->close();
+    }
+  }
+  
+  echo json_encode($results);
+  exit;
+}
+
+// ---------- Print view ----------
 if (isset($_GET['action']) && $_GET['action'] === 'print_supplier' && isset($_GET['id'])) {
   $inv_id = intval($_GET['id']);
   if ($inv_id <= 0) {
     echo "Invalid invoice id";
     exit;
   }
-  // fetch invoice + items (no batches)
+  
   $st = $conn->prepare("SELECT pi.*, s.name AS supplier_name, s.address AS supplier_address FROM purchase_invoices pi JOIN suppliers s ON s.id = pi.supplier_id WHERE pi.id = ?");
   $st->bind_param("i", $inv_id);
   $st->execute();
   $inv = $st->get_result()->fetch_assoc();
   $st->close();
+  
   if (!$inv) {
     echo "Invoice not found";
     exit;
   }
+  
   $sti = $conn->prepare("SELECT pii.*, COALESCE(p.name,'') AS product_name FROM purchase_invoice_items pii LEFT JOIN products p ON p.id = pii.product_id WHERE purchase_invoice_id = ?");
   $sti->bind_param("i", $inv_id);
   $sti->execute();
   $items_res = $sti->get_result();
-  // output minimal printable HTML
 ?>
-  <!doctype html>
-  <html lang="ar" dir="rtl">
-
-  <head>
-    <meta charset="utf-8">
-    <title>طباعة فاتورة المورد - <?php echo e($inv['supplier_name']); ?></title>
-    <style>
-      body {
-        font-family: Tahoma, Arial;
-        direction: rtl;
-      }
-
-      .sheet {
-        width: 210mm;
-        margin: 10mm auto;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse
-      }
-
-      th,
-      td {
-        padding: 6px;
-        border: 1px solid #333
-      }
-
-      .no-batches-note {
-        font-size: 12px;
-        color: #666
-      }
-
-      @media print {
-        .no-print {
-          display: none
-        }
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="sheet">
-      <h2>فاتورة مشتريات — المورد: <?php echo e($inv['supplier_name']); ?></h2>
-      <div>تاريخ الشراء: <?php echo e($inv['purchase_date']); ?> — حالة: <?php echo e($status_labels[$inv['status']] ?? $inv['status']); ?></div>
-      <p class="no-batches-note">ملاحظة: هذا العرض يخص المورد ولا يتضمن معلومات الدُفعات الداخلية.</p>
-      <table>
-        <thead>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>طباعة فاتورة المورد - <?php echo e($inv['supplier_name']); ?></title>
+  <style>
+    body { font-family: Tahoma, Arial; direction: rtl; }
+    .sheet { width: 210mm; margin: 10mm auto; }
+    table { width: 100%; border-collapse: collapse }
+    th, td { padding: 6px; border: 1px solid #333 }
+    .no-batches-note { font-size: 12px; color: #666 }
+    @media print { .no-print { display: none } }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <h2>فاتورة مشتريات — المورد: <?php echo e($inv['supplier_name']); ?></h2>
+    <div>تاريخ الشراء: <?php echo e($inv['purchase_date']); ?> — حالة: <?php echo e($status_labels[$inv['status']] ?? $inv['status']); ?></div>
+    <p class="no-batches-note">ملاحظة: هذا العرض يخص المورد ولا يتضمن معلومات الدُفعات الداخلية.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>المنتج</th><th>الكمية</th><th>سعر التكلفة</th><th>سعر البيع</th><th>الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php while ($row = $items_res->fetch_assoc()) {
+          $total = ((float)$row['quantity']) * ((float)($row['cost_price_per_unit'] ?? 0)); ?>
           <tr>
-            <th>المنتج</th>
-            <th>الكمية</th>
-            <th>سعر التكلفة</th>
-            <th>سعر البيع (إن وُجد)</th>
-            <th>الإجمالي</th>
+            <td><?php echo e($row['product_name']); ?></td>
+            <td><?php echo e($row['quantity']); ?></td>
+            <td><?php echo e($row['cost_price_per_unit']); ?></td>
+            <td><?php echo e($row['sale_price'] ?? ''); ?></td>
+            <td><?php echo number_format($total, 2); ?></td>
           </tr>
-        </thead>
-        <tbody>
-          <?php while ($row = $items_res->fetch_assoc()) {
-            $total = ((float)$row['quantity']) * ((float)($row['cost_price_per_unit'] ?? 0)); ?>
-            <tr>
-              <td><?php echo e($row['product_name']); ?></td>
-              <td><?php echo e($row['quantity']); ?></td>
-              <td><?php echo e($row['cost_price_per_unit']); ?></td>
-              <td><?php echo e($row['sale_price'] ?? ''); ?></td>
-              <td><?php echo number_format($total, 2); ?></td>
-            </tr>
-          <?php } ?>
-        </tbody>
-      </table>
-      <div style="margin-top:10px">المجموع: <?php echo e(number_format($inv['total_amount'], 2)); ?></div>
-      <div style="margin-top:20px">ملاحظات:
-        <pre><?php echo e($inv['notes'] ?? ''); ?></pre>
-      </div>
-      <div class="no-print" style="margin-top:20px"><button onclick="window.print()">طباعة</button></div>
-    </div>
-  </body>
-
-  </html>
+        <?php } ?>
+      </tbody>
+    </table>
+    <div style="margin-top:10px">المجموع: <?php echo e(number_format($inv['total_amount'], 2)); ?></div>
+    <div style="margin-top:20px">ملاحظات: <pre><?php echo e($inv['notes'] ?? ''); ?></pre></div>
+    <div class="no-print" style="margin-top:20px"><button onclick="window.print()">طباعة</button></div>
+  </div>
+</body>
+</html>
 <?php
   exit;
 }
 
-// ---------------- POST handlers ----------------
+// ---------- POST handlers ----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  // CSRF
   if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
     $_SESSION['message'] = "<div class='alert alert-danger'>خطأ: طلب غير صالح (CSRF).</div>";
     header("Location: " . basename(__FILE__));
@@ -290,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $current_user_id = intval($_SESSION['id'] ?? 0);
   $current_user_name = $_SESSION['username'] ?? ('user#' . $current_user_id);
 
-  // ----- RECEIVE (fully) -----
+  // ----- RECEIVE -----
   if (isset($_POST['receive_purchase_invoice'])) {
     $invoice_id = intval($_POST['purchase_invoice_id'] ?? 0);
     if ($invoice_id <= 0) {
@@ -301,7 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $conn->begin_transaction();
     try {
-      // lock invoice
       $st = $conn->prepare("SELECT status FROM purchase_invoices WHERE id = ? FOR UPDATE");
       $st->bind_param("i", $invoice_id);
       $st->execute();
@@ -311,7 +298,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if ($invrow['status'] === 'fully_received') throw new Exception("الفاتورة مُسلمة بالفعل");
       if ($invrow['status'] === 'cancelled') throw new Exception("الفاتورة ملغاة");
 
-      // ensure no partial received
       $sti = $conn->prepare("SELECT id, qty_received FROM purchase_invoice_items WHERE purchase_invoice_id = ? FOR UPDATE");
       $sti->bind_param("i", $invoice_id);
       $sti->execute();
@@ -321,39 +307,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
       $sti->close();
 
-      // fetch items to insert batches
       $stii = $conn->prepare("SELECT id, product_id, quantity, cost_price_per_unit, COALESCE(sale_price, NULL) AS sale_price FROM purchase_invoice_items WHERE purchase_invoice_id = ?");
       $stii->bind_param("i", $invoice_id);
       $stii->execute();
       $rit = $stii->get_result();
-// بعد: $rit = $stii->get_result();
-if ($rit->num_rows === 0) {
-  throw new Exception("لا يوجد بنود في هذه الفاتورة للاستلام.");
-}
+      
+      if ($rit->num_rows === 0) {
+        throw new Exception("لا يوجد بنود في هذه الفاتورة للاستلام.");
+      }
 
-// أو تحقق من مجموع الكميات > 0 إن أردت:
-$has_qty = false;
-$rit->data_seek(0);
-while ($tmp = $rit->fetch_assoc()) {
-  if ((float)($tmp['quantity'] ?? 0) > 0) { $has_qty = true; break; }
-}
-$rit->data_seek(0);
-if (!$has_qty) {
-  throw new Exception("كل بنود الفاتورة فارغة أو بكميات صفرية — لا يمكن استلام فاتورة فارغة.");
-}
+      $has_qty = false;
+      $rit->data_seek(0);
+      while ($tmp = $rit->fetch_assoc()) {
+        if ((float)($tmp['quantity'] ?? 0) > 0) { $has_qty = true; break; }
+      }
+      $rit->data_seek(0);
+      if (!$has_qty) {
+        throw new Exception("كل بنود الفاتورة فارغة أو بكميات صفرية — لا يمكن استلام فاتورة فارغة.");
+      }
 
-      // prepare statements
       $stmt_update_product = $conn->prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?");
-      // $batches_have_sale_price = has_column($conn,'batches','sale_price');
-
-      // if ($batches_have_sale_price) {
-        $stmt_insert_batch_with_sale = $conn->prepare("INSERT INTO batches (product_id, qty, remaining, original_qty, unit_cost, sale_price, received_at, source_invoice_id, source_item_id, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())");
-        if (!$stmt_insert_batch_with_sale) throw new Exception('prepare insert batch with sale failed: ' . $conn->error);
-      // } else {
-      //   $stmt_insert_batch_without_sale = $conn->prepare("INSERT INTO batches (product_id, qty, remaining, original_qty, unit_cost, received_at, source_invoice_id, source_item_id, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())");
-      //   if (!$stmt_insert_batch_without_sale) throw new Exception('prepare insert batch without sale failed: ' . $conn->error);
-      // }
-
+      $stmt_insert_batch_with_sale = $conn->prepare("INSERT INTO batches (product_id, qty, remaining, original_qty, unit_cost, sale_price, received_at, source_invoice_id, source_item_id, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())");
+      if (!$stmt_insert_batch_with_sale) throw new Exception('prepare insert batch with sale failed: ' . $conn->error);
+      
       $stmt_update_item = $conn->prepare("UPDATE purchase_invoice_items SET qty_received = ?, batch_id = ? WHERE id = ?");
       if (!$stmt_update_product || !$stmt_update_item) throw new Exception("فشل تحضير استعلامات داخليّة: " . $conn->error);
 
@@ -365,7 +341,6 @@ if (!$has_qty) {
         $item_sale_price = isset($it['sale_price']) ? (is_null($it['sale_price']) ? null : (float)$it['sale_price']) : null;
         if ($qty <= 0) continue;
 
-        // Try to find a reverted batch to reactivate (same source_item_id)
         $st_find_rev = $conn->prepare("SELECT id, qty, remaining, original_qty, unit_cost, sale_price, status FROM batches WHERE source_item_id = ? AND status = 'reverted' LIMIT 1 FOR UPDATE");
         if ($st_find_rev) {
           $st_find_rev->bind_param("i", $item_id);
@@ -375,70 +350,56 @@ if (!$has_qty) {
         } else {
           $existing_rev = null;
         }
-  
 
+        if ($existing_rev && isset($existing_rev['id'])) {
+          $bid = intval($existing_rev['id']);
+          $new_qty = (float)$qty;
+          $new_remaining = $new_qty;
+          $new_original = $new_qty;
 
-if ($existing_rev && isset($existing_rev['id'])) {
-    // سنسمح بقبول التعديلات على الكمية أو سعر البيع:
-    // سنقوم بكتابة القيم الجديدة على صف الدفعة (overwrite) ثم نعيد تفعيلها
-    // ونزيد رصيد المنتج مرة واحدة بمقدار الكمية المطلوبة.
-    $bid = intval($existing_rev['id']);
-    $new_qty = (float)$qty;
-    $new_remaining = $new_qty;
-    $new_original = $new_qty;
+          if (!$stmt_update_product->bind_param("di", $new_qty, $product_id) || !$stmt_update_product->execute()) {
+            throw new Exception('فشل تحديث المنتج: ' . $stmt_update_product->error);
+          }
 
-    // 1) زد رصيد المنتج (لأن التراجع سبق وخصم الكمية)
-    if (!$stmt_update_product->bind_param("di", $new_qty, $product_id) || !$stmt_update_product->execute()) {
-        throw new Exception('فشل تحديث المنتج: ' . $stmt_update_product->error);
-    }
+          $adj_by = $current_user_id;
 
-    $adj_by = $current_user_id;
-
-    // 2) حدّث صف الدفعة: overwrite للقيم qty, remaining, original_qty, unit_cost, sale_price (أو NULL)
-    if ($item_sale_price === null) {
-        $upb = $conn->prepare(
-            "UPDATE batches
-               SET qty = ?, remaining = ?, original_qty = ?, unit_cost = ?, sale_price = NULL,
-                   status = 'active', adjusted_by = ?, adjusted_at = NOW()
-             WHERE id = ?"
-        );
-        if (!$upb) throw new Exception("فشل تحضير تحديث الدفعة (null sale_price): " . $conn->error);
-        // types: d,d,d,d,i,i  => qty, remaining, original, unit_cost, adjusted_by, id
-        if (!$upb->bind_param("ddddii", $new_qty, $new_remaining, $new_original, $unit_cost, $adj_by, $bid) || !$upb->execute()) {
-            $err = $upb->error ?: $conn->error;
+          if ($item_sale_price === null) {
+            $upb = $conn->prepare(
+              "UPDATE batches
+                 SET qty = ?, remaining = ?, original_qty = ?, unit_cost = ?, sale_price = NULL,
+                     status = 'active', adjusted_by = ?, adjusted_at = NOW()
+               WHERE id = ?"
+            );
+            if (!$upb) throw new Exception("فشل تحضير تحديث الدفعة (null sale_price): " . $conn->error);
+            if (!$upb->bind_param("ddddii", $new_qty, $new_remaining, $new_original, $unit_cost, $adj_by, $bid) || !$upb->execute()) {
+              $err = $upb->error ?: $conn->error;
+              $upb->close();
+              throw new Exception("فشل تحديث الدفعة (null sale_price): " . $err);
+            }
             $upb->close();
-            throw new Exception("فشل تحديث الدفعة (null sale_price): " . $err);
-        }
-        $upb->close();
-    } else {
-        $upb = $conn->prepare(
-            "UPDATE batches
-               SET qty = ?, remaining = ?, original_qty = ?, unit_cost = ?, sale_price = ?,
-                   status = 'active', adjusted_by = ?, adjusted_at = NOW()
-             WHERE id = ?"
-        );
-        if (!$upb) throw new Exception("فشل تحضير تحديث الدفعة (with sale_price): " . $conn->error);
-        // types: d,d,d,d,d,i,i => qty,remaining,original,unit_cost,sale_price,adjusted_by,id
-        if (!$upb->bind_param("dddddii", $new_qty, $new_remaining, $new_original, $unit_cost, $item_sale_price, $adj_by, $bid) || !$upb->execute()) {
-            $err = $upb->error ?: $conn->error;
+          } else {
+            $upb = $conn->prepare(
+              "UPDATE batches
+                 SET qty = ?, remaining = ?, original_qty = ?, unit_cost = ?, sale_price = ?,
+                     status = 'active', adjusted_by = ?, adjusted_at = NOW()
+               WHERE id = ?"
+            );
+            if (!$upb) throw new Exception("فشل تحضير تحديث الدفعة (with sale_price): " . $conn->error);
+            if (!$upb->bind_param("dddddii", $new_qty, $new_remaining, $new_original, $unit_cost, $item_sale_price, $adj_by, $bid) || !$upb->execute()) {
+              $err = $upb->error ?: $conn->error;
+              $upb->close();
+              throw new Exception("فشل تحديث الدفعة (with sale_price): " . $err);
+            }
             $upb->close();
-            throw new Exception("فشل تحديث الدفعة (with sale_price): " . $err);
+          }
+
+          $new_batch_id = $bid;
+          if (!$stmt_update_item->bind_param("dii", $new_qty, $new_batch_id, $item_id) || !$stmt_update_item->execute()) {
+            throw new Exception('فشل ربط البند بالدفعة: ' . $stmt_update_item->error);
+          }
+          continue;
         }
-        $upb->close();
-    }
 
-    // 3) اربط البند بالدفعة وحدد qty_received
-    $new_batch_id = $bid;
-    if (!$stmt_update_item->bind_param("dii", $new_qty, $new_batch_id, $item_id) || !$stmt_update_item->execute()) {
-        throw new Exception('فشل ربط البند بالدفعة: ' . $stmt_update_item->error);
-    }
-
-    // انتهى التعامل مع هذا البند
-    continue;
-}
-
-
-        // no suitable reverted batch found => insert new batch after updating product stock
         if (!$stmt_update_product->bind_param("di", $qty, $product_id) || !$stmt_update_product->execute()) {
           throw new Exception('فشل تحديث المنتج: ' . $stmt_update_product->error);
         }
@@ -453,36 +414,27 @@ if ($existing_rev && isset($existing_rev['id'])) {
         $b_source_item_id = $item_id;
         $b_created_by = $current_user_id;
 
-        // if ($batches_have_sale_price) {
-          if ($item_sale_price === null) {
-            // insert with explicit NULL sale_price
-            $insq = $conn->prepare("INSERT INTO batches (product_id, qty, remaining, original_qty, unit_cost, sale_price, received_at, source_invoice_id, source_item_id, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, 'active', ?, NOW(), NOW())");
-            if (!$insq) throw new Exception('فشل تحضير إدخال الدفعة (null sale): ' . $conn->error);
-            stmt_bind_params($insq, "iddddsiii", [$b_product_id, $b_qty, $b_remaining, $b_original, $b_unit_cost, $b_received_at, $b_source_invoice_id, $b_source_item_id, $b_created_by]);
-            if (!$insq->execute()) {
-              $insq->close();
-              throw new Exception('فشل إدخال الدفعة (null sale exec): ' . $insq->error);
-            }
-            $new_batch_id = $insq->insert_id;
+        if ($item_sale_price === null) {
+          $insq = $conn->prepare("INSERT INTO batches (product_id, qty, remaining, original_qty, unit_cost, sale_price, received_at, source_invoice_id, source_item_id, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, 'active', ?, NOW(), NOW())");
+          if (!$insq) throw new Exception('فشل تحضير إدخال الدفعة (null sale): ' . $conn->error);
+          stmt_bind_params($insq, "iddddsiii", [$b_product_id, $b_qty, $b_remaining, $b_original, $b_unit_cost, $b_received_at, $b_source_invoice_id, $b_source_item_id, $b_created_by]);
+          if (!$insq->execute()) {
             $insq->close();
-          } else {
-            stmt_bind_params($stmt_insert_batch_with_sale, "idddddsiii", [$b_product_id, $b_qty, $b_remaining, $b_original, $b_unit_cost, $item_sale_price, $b_received_at, $b_source_invoice_id, $b_source_item_id, $b_created_by]);
-            if (!$stmt_insert_batch_with_sale->execute()) throw new Exception('فشل إدخال الدفعة: ' . $stmt_insert_batch_with_sale->error);
-            $new_batch_id = $stmt_insert_batch_with_sale->insert_id;
+            throw new Exception('فشل إدخال الدفعة (null sale exec): ' . $insq->error);
           }
-        // } else {
-        //   stmt_bind_params($stmt_insert_batch_without_sale, "iddddsiii", [$b_product_id, $b_qty, $b_remaining, $b_original, $b_unit_cost, $b_received_at, $b_source_invoice_id, $b_source_item_id, $b_created_by]);
-        //   if (!$stmt_insert_batch_without_sale->execute()) throw new Exception('فشل إدخال الدفعة: ' . $stmt_insert_batch_without_sale->error);
-        //   $new_batch_id = $stmt_insert_batch_without_sale->insert_id;
-        // }
+          $new_batch_id = $insq->insert_id;
+          $insq->close();
+        } else {
+          stmt_bind_params($stmt_insert_batch_with_sale, "idddddsiii", [$b_product_id, $b_qty, $b_remaining, $b_original, $b_unit_cost, $item_sale_price, $b_received_at, $b_source_invoice_id, $b_source_item_id, $b_created_by]);
+          if (!$stmt_insert_batch_with_sale->execute()) throw new Exception('فشل إدخال الدفعة: ' . $stmt_insert_batch_with_sale->error);
+          $new_batch_id = $stmt_insert_batch_with_sale->insert_id;
+        }
 
-        // update purchase_invoice_items with batch id & qty_received
         if (!$stmt_update_item->bind_param("dii", $qty, $new_batch_id, $item_id) || !$stmt_update_item->execute()) {
           throw new Exception('فشل تحديث بند الفاتورة بعد إنشاء الدفعة: ' . $stmt_update_item->error);
         }
-      } // end items loop
+      }
 
-      // update invoice status to fully_received
       $stup = $conn->prepare("UPDATE purchase_invoices SET status = 'fully_received', updated_by = ?, updated_at = NOW() WHERE id = ?");
       $upd_by = $current_user_id;
       $stup->bind_param("ii", $upd_by, $invoice_id);
@@ -501,7 +453,7 @@ if ($existing_rev && isset($existing_rev['id'])) {
     exit;
   }
 
-  // ----- CHANGE STATUS => pending (revert) -----
+  // ----- REVERT -----
   if (isset($_POST['change_invoice_status']) && isset($_POST['new_status']) && $_POST['new_status'] === 'pending') {
     $invoice_id = intval($_POST['purchase_invoice_id'] ?? 0);
     $reason = trim($_POST['reason'] ?? '');
@@ -518,7 +470,6 @@ if ($existing_rev && isset($existing_rev['id'])) {
 
     $conn->begin_transaction();
     try {
-      // lock batches for invoice
       $stb = $conn->prepare("SELECT id, product_id, qty, remaining, original_qty, status FROM batches WHERE source_invoice_id = ? FOR UPDATE");
       if (!$stb) throw new Exception("فشل تحضير استعلام الدُفعات: " . $conn->error);
       $stb->bind_param("i", $invoice_id);
@@ -555,20 +506,17 @@ if ($existing_rev && isset($existing_rev['id'])) {
         }
       }
 
-      // reset items qty_received and batch linkage
       $rst = $conn->prepare("UPDATE purchase_invoice_items SET qty_received = 0, batch_id = NULL WHERE purchase_invoice_id = ?");
       $rst->bind_param("i", $invoice_id);
       $rst->execute();
       $rst->close();
 
-      // update invoice
       $u = $conn->prepare("UPDATE purchase_invoices SET status = 'pending', revert_reason = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
       $u_by = $current_user_id;
       $u->bind_param("sii", $reason, $u_by, $invoice_id);
       $u->execute();
       $u->close();
 
-      // append reason to notes
       $now = date('Y-m-d H:i:s');
       $note_line = "[" . $now . "] إرجاع إلى قيد الانتظار: " . $reason . " (المحرر: " . e($current_user_name) . ")\n";
       append_invoice_note($conn, $invoice_id, $note_line);
@@ -585,7 +533,7 @@ if ($existing_rev && isset($existing_rev['id'])) {
     exit;
   }
 
-  // ----- CANCEL invoice (soft) -----
+  // ----- CANCEL -----
   if (isset($_POST['cancel_purchase_invoice'])) {
     $invoice_id = intval($_POST['purchase_invoice_id'] ?? 0);
     $reason = trim($_POST['reason'] ?? '');
@@ -618,35 +566,24 @@ if ($existing_rev && isset($existing_rev['id'])) {
         exit;
       }
 
-      // update invoice
       $upd = $conn->prepare("UPDATE purchase_invoices SET status = 'cancelled', cancel_reason = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
       $upd_by = $current_user_id;
       $upd->bind_param("sii", $reason, $upd_by, $invoice_id);
       $upd->execute();
       $upd->close();
 
-      // update related batches: mark cancelled and save reason
-      // $upd_b = $conn->prepare("UPDATE batches SET status = 'cancelled', cancel_reason = ?, updated_at = NOW() WHERE source_invoice_id = ? AND status = 'active'");
-      // $upd_b->bind_param("si", $reason, $invoice_id);
-      // $upd_b->execute();
-      // $upd_b->close();
+      $upd_b = $conn->prepare("
+        UPDATE batches
+           SET status = 'cancelled',
+               cancel_reason = ?,
+               revert_reason = NULL,
+               updated_at = NOW()
+         WHERE source_invoice_id = ? AND status IN ('active','reverted')
+      ");
+      $upd_b->bind_param("si", $reason, $invoice_id);
+      $upd_b->execute();
+      $upd_b->close();
 
-
-      // update related batches: mark cancelled and save reason (including reverted ones)
-$upd_b = $conn->prepare("
-  UPDATE batches
-     SET status = 'cancelled',
-         cancel_reason = ?,
-         revert_reason = NULL,
-         updated_at = NOW()
-   WHERE source_invoice_id = ? AND status IN ('active','reverted')
-");
-$upd_b->bind_param("si", $reason, $invoice_id);
-$upd_b->execute();
-$upd_b->close();
-
-
-      // append cancel reason to invoice notes
       $now = date('Y-m-d H:i:s');
       $note_line = "[" . $now . "] إلغاء الفاتورة: " . $reason . " (المحرر: " . e($current_user_name) . ")\n";
       append_invoice_note($conn, $invoice_id, $note_line);
@@ -662,7 +599,7 @@ $upd_b->close();
     exit;
   }
 
-  // ----- DELETE single invoice item (pending only) -----
+  // ----- DELETE single invoice item -----
   if (isset($_POST['delete_invoice_item'])) {
     $invoice_id = intval($_POST['invoice_id'] ?? 0);
     $item_id = intval($_POST['item_id'] ?? 0);
@@ -675,7 +612,6 @@ $upd_b->close();
 
     $conn->begin_transaction();
     try {
-      // check invoice status
       $st = $conn->prepare("SELECT status FROM purchase_invoices WHERE id = ? FOR UPDATE");
       $st->bind_param("i", $invoice_id);
       $st->execute();
@@ -684,33 +620,22 @@ $upd_b->close();
       if (!$inv) throw new Exception('الفاتورة غير موجودة');
       if ($inv['status'] !== 'pending') throw new Exception('لا يمكن حذف بند إلا في حالة قيد الانتظار');
 
-      // get item info to show in notes
-      $sti = $conn->prepare("SELECT product_id, quantity  FROM purchase_invoice_items WHERE id = ?");
+      $sti = $conn->prepare("
+        SELECT p.name AS product_name, i.quantity, i.product_id
+        FROM purchase_invoice_items i
+        JOIN products p ON p.id = i.product_id
+        WHERE i.id = ?
+      ");
       $sti->bind_param("i", $item_id);
       $sti->execute();
       $it = $sti->get_result()->fetch_assoc();
       $sti->close();
-      if (!$it) throw new Exception('البند غير موجود');// get item info to show in notes
-$sti = $conn->prepare("
-    SELECT p.name AS product_name, i.quantity, i.product_id
-    FROM purchase_invoice_items i
-    JOIN products p ON p.id = i.product_id
-    WHERE i.id = ?
-");
-$sti->bind_param("i", $item_id);
-$sti->execute();
-$it = $sti->get_result()->fetch_assoc();
-$sti->close();
 
-
-
-      // delete
       $del = $conn->prepare("DELETE FROM purchase_invoice_items WHERE id = ?");
       $del->bind_param("i", $item_id);
       $del->execute();
       $del->close();
 
-      // recalc invoice total
       $sttot = $conn->prepare("SELECT COALESCE(SUM(quantity * cost_price_per_unit),0) AS total FROM purchase_invoice_items WHERE purchase_invoice_id = ?");
       $sttot->bind_param("i", $invoice_id);
       $sttot->execute();
@@ -722,20 +647,12 @@ $sti->close();
       $upinv->execute();
       $upinv->close();
 
-      // append note
-      // $now = date('Y-m-d H:i:s');
-      // $note_line = "[" . $now . "] حذف بند (#{$item_id}) - المنتج ID: {$it['product_id']},  الكمية: {$it['quantity']}. السبب: " . ($reason === '' ? 'لم يُذكر' : $reason) . " (المحرر: " . e($current_user_name) . ")\n";
-      // append_invoice_note($conn, $invoice_id, $note_line);
-
       $now = date('Y-m-d H:i:s');
-$product_name = $it['product_name'] ?? ("ID:" . $it['product_id']);
-
-$note_line = "[" . $now . "] حذف بند (#{$item_id}) - المنتج: {$product_name}, الكمية: {$it['quantity']}. السبب: " . 
-             ($reason === '' ? 'لم يُذكر' : $reason) . 
-             " (المحرر: " . e($current_user_name) . ")\n";
-
-append_invoice_note($conn, $invoice_id, $note_line);
-
+      $product_name = $it['product_name'] ?? ("ID:" . $it['product_id']);
+      $note_line = "[" . $now . "] حذف بند (#{$item_id}) - المنتج: {$product_name}, الكمية: {$it['quantity']}. السبب: " . 
+                   ($reason === '' ? 'لم يُذكر' : $reason) . 
+                   " (المحرر: " . e($current_user_name) . ")\n";
+      append_invoice_note($conn, $invoice_id, $note_line);
 
       $conn->commit();
       $_SESSION['message'] = "<div class='alert alert-success'>تم حذف البند وتحديث المجموع.</div>";
@@ -748,7 +665,7 @@ append_invoice_note($conn, $invoice_id, $note_line);
     exit;
   }
 
-  // ----- EDIT invoice items (adjustments) -----
+  // ----- EDIT invoice items -----
   if (isset($_POST['edit_invoice']) && isset($_POST['invoice_id'])) {
     $invoice_id = intval($_POST['invoice_id']);
     $items_json = $_POST['items_json'] ?? '[]';
@@ -772,7 +689,6 @@ append_invoice_note($conn, $invoice_id, $note_line);
         $new_sale = array_key_exists('new_sale_price', $it) ? ($it['new_sale_price'] === null ? null : (float)$it['new_sale_price']) : null;
         if ($item_id <= 0) continue;
 
-        // lock item
         $sti = $conn->prepare("SELECT id, purchase_invoice_id, product_id, quantity, qty_received, cost_price_per_unit, sale_price FROM purchase_invoice_items WHERE id = ? FOR UPDATE");
         $sti->bind_param("i", $item_id);
         $sti->execute();
@@ -782,154 +698,132 @@ append_invoice_note($conn, $invoice_id, $note_line);
         $old_qty = (float)$row['quantity'];
         $prod_id = intval($row['product_id']);
 
-       
-
         if ($inv['status'] === 'pending') {
-    $diff = $new_qty - $old_qty;
-    $qty_adj = (float)$diff;
-    $adj_by = $current_user_id;
+          $diff = $new_qty - $old_qty;
+          $qty_adj = (float)$diff;
+          $adj_by = $current_user_id;
+          $effective_cost = ($new_cost !== null) ? (float)$new_cost : (float)($row['cost_price_per_unit'] ?? 0.0);
+          $new_total_cost = $new_qty * $effective_cost;
 
-    // تحديد التكلفة بعد التعديل
-    $effective_cost = ($new_cost !== null) ? (float)$new_cost : (float)($row['cost_price_per_unit'] ?? 0.0);
-    $new_total_cost = $new_qty * $effective_cost;
+          $upit = $conn->prepare("UPDATE purchase_invoice_items 
+                                  SET quantity = ?, qty_adjusted = ?, adjustment_reason = ?, 
+                                      adjusted_by = ?, adjusted_at = NOW(), total_cost = ? 
+                                  WHERE id = ?");
+          if (!$upit) throw new Exception("فشل تحضير تعديل البند: " . $conn->error);
+          $upit->bind_param("dssidi", $new_qty, $qty_adj, $adjust_reason, $adj_by, $new_total_cost, $item_id);
+          if (!$upit->execute()) {
+            $upit->close();
+            throw new Exception("فشل تعديل البند: " . $upit->error);
+          }
+          $upit->close();
 
-    // تحديث الكمية + التعديلات + السبب
-    $upit = $conn->prepare("UPDATE purchase_invoice_items 
-                            SET quantity = ?, qty_adjusted = ?, adjustment_reason = ?, 
-                                adjusted_by = ?, adjusted_at = NOW(), total_cost = ? 
-                            WHERE id = ?");
-    if (!$upit) throw new Exception("فشل تحضير تعديل البند: " . $conn->error);
-    $upit->bind_param("dssidi", $new_qty, $qty_adj, $adjust_reason, $adj_by, $new_total_cost, $item_id);
-    if (!$upit->execute()) {
-        $upit->close();
-        throw new Exception("فشل تعديل البند: " . $upit->error);
-    }
-    $upit->close();
+          if ($new_cost !== null) {
+            $stmtc = $conn->prepare("UPDATE purchase_invoice_items SET cost_price_per_unit = ? WHERE id = ?");
+            $stmtc->bind_param("di", $new_cost, $item_id);
+            $stmtc->execute();
+            $stmtc->close();
+          }
+          if ($new_sale !== null) {
+            $stmts = $conn->prepare("UPDATE purchase_invoice_items SET sale_price = ? WHERE id = ?");
+            $stmts->bind_param("di", $new_sale, $item_id);
+            $stmts->execute();
+            $stmts->close();
+          }
+          continue;
+        }
 
-    // تحديث التكلفة أو سعر البيع لو تم إدخالهم
-    if ($new_cost !== null) {
-        $stmtc = $conn->prepare("UPDATE purchase_invoice_items SET cost_price_per_unit = ? WHERE id = ?");
-        $stmtc->bind_param("di", $new_cost, $item_id);
-        $stmtc->execute();
-        $stmtc->close();
-    }
-    if ($new_sale !== null) {
-        $stmts = $conn->prepare("UPDATE purchase_invoice_items SET sale_price = ? WHERE id = ?");
-        $stmts->bind_param("di", $new_sale, $item_id);
-        $stmts->execute();
-        $stmts->close();
-    }
-
-    continue;
-}
-
-
-        
-
-
-        // التعديل االاتي عملته عشان مكنش بيحسب ال total_cost in purchase_invoice_items
         if ($inv['status'] === 'fully_received') {
-    // find batch linked to this item
-    $stb = $conn->prepare("SELECT id, qty, remaining, original_qty FROM batches WHERE source_item_id = ? FOR UPDATE");
-    $stb->bind_param("i", $item_id);
-    $stb->execute();
-    $batch = $stb->get_result()->fetch_assoc();
-    $stb->close();
-    if (!$batch) throw new Exception("لا توجد دفعة مرتبطة بالبند #$item_id");
-    if (((float)$batch['remaining']) < ((float)$batch['original_qty'])) throw new Exception("لا يمكن تعديل هذا البند لأن الدفعة المرتبطة به قد اُستهلكت.");
+          $stb = $conn->prepare("SELECT id, qty, remaining, original_qty FROM batches WHERE source_item_id = ? FOR UPDATE");
+          $stb->bind_param("i", $item_id);
+          $stb->execute();
+          $batch = $stb->get_result()->fetch_assoc();
+          $stb->close();
+          if (!$batch) throw new Exception("لا توجد دفعة مرتبطة بالبند #$item_id");
+          if (((float)$batch['remaining']) < ((float)$batch['original_qty'])) throw new Exception("لا يمكن تعديل هذا البند لأن الدفعة المرتبطة به قد اُستهلكت.");
 
-    $diff = $new_qty - $old_qty;
-    $qty_adj = $diff;
-    $qty_adj_str = (string)$qty_adj;
-    $adj_by = $current_user_id;
+          $diff = $new_qty - $old_qty;
+          $qty_adj = $diff;
+          $qty_adj_str = (string)$qty_adj;
+          $adj_by = $current_user_id;
 
-    // update item quantity and record adjustment
-    $upit = $conn->prepare("UPDATE purchase_invoice_items SET quantity = ?, qty_received = ?, qty_adjusted = ?, adjustment_reason = ?, adjusted_by = ?, adjusted_at = NOW() WHERE id = ?");
-    if (!$upit) throw new Exception("فشل تحضير تعديل البند: " . $conn->error);
-    $upit->bind_param("ddssii", $new_qty,$new_qty, $qty_adj_str, $adjust_reason, $adj_by, $item_id);
-    if (!$upit->execute()) {
-      $upit->close();
-      throw new Exception("فشل تعديل البند: " . $upit->error);
-    }
-    $upit->close();
+          $upit = $conn->prepare("UPDATE purchase_invoice_items SET quantity = ?, qty_received = ?, qty_adjusted = ?, adjustment_reason = ?, adjusted_by = ?, adjusted_at = NOW() WHERE id = ?");
+          if (!$upit) throw new Exception("فشل تحضير تعديل البند: " . $conn->error);
+          $upit->bind_param("ddssii", $new_qty, $new_qty, $qty_adj_str, $adjust_reason, $adj_by, $item_id);
+          if (!$upit->execute()) {
+            $upit->close();
+            throw new Exception("فشل تعديل البند: " . $upit->error);
+          }
+          $upit->close();
 
-    // <-- **جديد**: بعد تعديل الكمية نعيد حساب total_cost لهذا البند
-    $st_tot_item = $conn->prepare("UPDATE purchase_invoice_items SET total_cost = (quantity * cost_price_per_unit) WHERE id = ?");
-    if (!$st_tot_item) throw new Exception("فشل تحضير تحديث total_cost: " . $conn->error);
-    $st_tot_item->bind_param("i", $item_id);
-    if (!$st_tot_item->execute()) {
-      $st_tot_item->close();
-      throw new Exception("فشل تحديث total_cost: " . $st_tot_item->error);
-    }
-    $st_tot_item->close();
+          $st_tot_item = $conn->prepare("UPDATE purchase_invoice_items SET total_cost = (quantity * cost_price_per_unit) WHERE id = ?");
+          if (!$st_tot_item) throw new Exception("فشل تحضير تحديث total_cost: " . $conn->error);
+          $st_tot_item->bind_param("i", $item_id);
+          if (!$st_tot_item->execute()) {
+            $st_tot_item->close();
+            throw new Exception("فشل تحديث total_cost: " . $st_tot_item->error);
+          }
+          $st_tot_item->close();
 
-    // update batch quantities
-    $new_batch_qty = (float)$batch['qty'] + $diff;
-    $new_remaining = (float)$batch['remaining'] + $diff;
-    $new_original = (float)$batch['original_qty'] + $diff;
-    if ($new_remaining < 0) throw new Exception("التعديل يؤدي إلى قيمة متبقية سلبية");
+          $new_batch_qty = (float)$batch['qty'] + $diff;
+          $new_remaining = (float)$batch['remaining'] + $diff;
+          $new_original = (float)$batch['original_qty'] + $diff;
+          if ($new_remaining < 0) throw new Exception("التعديل يؤدي إلى قيمة متبقية سلبية");
 
-    $adj_by_i = $current_user_id;
-    $upb = $conn->prepare("UPDATE batches SET qty = ?, remaining = ?, original_qty = ?, adjusted_by = ?, adjusted_at = NOW() WHERE id = ?");
-    if (!$upb) throw new Exception("فشل تحضير تحديث الدفعة: " . $conn->error);
-    $upb->bind_param("ddiii", $new_batch_qty, $new_remaining, $new_original, $adj_by_i, $batch['id']);
-    if (!$upb->execute()) {
-      $upb->close();
-      throw new Exception("فشل تحديث الدفعة: " . $upb->error);
-    }
-    $upb->close();
+          $adj_by_i = $current_user_id;
+          $upb = $conn->prepare("UPDATE batches SET qty = ?, remaining = ?, original_qty = ?, adjusted_by = ?, adjusted_at = NOW() WHERE id = ?");
+          if (!$upb) throw new Exception("فشل تحضير تحديث الدفعة: " . $conn->error);
+          $upb->bind_param("ddiii", $new_batch_qty, $new_remaining, $new_original, $adj_by_i, $batch['id']);
+          if (!$upb->execute()) {
+            $upb->close();
+            throw new Exception("فشل تحديث الدفعة: " . $upb->error);
+          }
+          $upb->close();
 
-    // update product stock
-    $upprod = $conn->prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?");
-    $upprod->bind_param("di", $diff, $prod_id);
-    if (!$upprod->execute()) {
-      $upprod->close();
-      throw new Exception("فشل تحديث المخزون: " . $upprod->error);
-    }
-    $upprod->close();
+          $upprod = $conn->prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?");
+          $upprod->bind_param("di", $diff, $prod_id);
+          if (!$upprod->execute()) {
+            $upprod->close();
+            throw new Exception("فشل تحديث المخزون: " . $upprod->error);
+          }
+          $upprod->close();
 
-    // update cost and sale price on item and batch if provided
-    if ($new_cost !== null) {
-      $stmtc = $conn->prepare("UPDATE purchase_invoice_items SET cost_price_per_unit = ? WHERE id = ?");
-      $stmtc->bind_param("di", $new_cost, $item_id);
-      $stmtc->execute();
-      $stmtc->close();
+          if ($new_cost !== null) {
+            $stmtc = $conn->prepare("UPDATE purchase_invoice_items SET cost_price_per_unit = ? WHERE id = ?");
+            $stmtc->bind_param("di", $new_cost, $item_id);
+            $stmtc->execute();
+            $stmtc->close();
 
-      $upb_cost = $conn->prepare("UPDATE batches SET unit_cost = ? WHERE id = ?");
-      $upb_cost->bind_param("di", $new_cost, $batch['id']);
-      $upb_cost->execute();
-      $upb_cost->close();
+            $upb_cost = $conn->prepare("UPDATE batches SET unit_cost = ? WHERE id = ?");
+            $upb_cost->bind_param("di", $new_cost, $batch['id']);
+            $upb_cost->execute();
+            $upb_cost->close();
 
-      // <-- **جديد**: بعد تعديل سعر الشراء أيضاً نعيد حساب total_cost
-      $st_tot_after_cost = $conn->prepare("UPDATE purchase_invoice_items SET total_cost = (quantity * cost_price_per_unit) WHERE id = ?");
-      if (!$st_tot_after_cost) throw new Exception("فشل تحضير تحديث total_cost بعد تغيير السعر: " . $conn->error);
-      $st_tot_after_cost->bind_param("i", $item_id);
-      if (!$st_tot_after_cost->execute()) {
-        $st_tot_after_cost->close();
-        throw new Exception("فشل تحديث total_cost بعد تغيير السعر: " . $st_tot_after_cost->error);
-      }
-      $st_tot_after_cost->close();
-    }
-    if ($new_sale !== null ) {
-      $stmt_sale_item = $conn->prepare("UPDATE purchase_invoice_items SET sale_price = ? WHERE id = ?");
-      $stmt_sale_item->bind_param("di", $new_sale, $item_id);
-      $stmt_sale_item->execute();
-      $stmt_sale_item->close();
+            $st_tot_after_cost = $conn->prepare("UPDATE purchase_invoice_items SET total_cost = (quantity * cost_price_per_unit) WHERE id = ?");
+            if (!$st_tot_after_cost) throw new Exception("فشل تحضير تحديث total_cost بعد تغيير السعر: " . $conn->error);
+            $st_tot_after_cost->bind_param("i", $item_id);
+            if (!$st_tot_after_cost->execute()) {
+              $st_tot_after_cost->close();
+              throw new Exception("فشل تحديث total_cost بعد تغيير السعر: " . $st_tot_after_cost->error);
+            }
+            $st_tot_after_cost->close();
+          }
+          if ($new_sale !== null) {
+            $stmt_sale_item = $conn->prepare("UPDATE purchase_invoice_items SET sale_price = ? WHERE id = ?");
+            $stmt_sale_item->bind_param("di", $new_sale, $item_id);
+            $stmt_sale_item->execute();
+            $stmt_sale_item->close();
 
-      $upb_sale = $conn->prepare("UPDATE batches SET sale_price = ? WHERE id = ?");
-      $upb_sale->bind_param("di", $new_sale, $batch['id']);
-      $upb_sale->execute();
-      $upb_sale->close();
-    }
-
-    continue;
-}
-
+            $upb_sale = $conn->prepare("UPDATE batches SET sale_price = ? WHERE id = ?");
+            $upb_sale->bind_param("di", $new_sale, $batch['id']);
+            $upb_sale->execute();
+            $upb_sale->close();
+          }
+          continue;
+        }
 
         throw new Exception("لا يمكن التعديل في الحالة الحالية");
       }
 
-      // recalc invoice total
       $sttot = $conn->prepare("SELECT COALESCE(SUM(quantity * cost_price_per_unit),0) AS total FROM purchase_invoice_items WHERE purchase_invoice_id = ?");
       $sttot->bind_param("i", $invoice_id);
       $sttot->execute();
@@ -942,7 +836,6 @@ append_invoice_note($conn, $invoice_id, $note_line);
       $upinv->execute();
       $upinv->close();
 
-      // append adjustment note to invoice notes
       if ($adjust_reason !== '') {
         $now = date('Y-m-d H:i:s');
         $note_line = "[" . $now . "] تعديل بنود: " . $adjust_reason . " (المحرر: " . e($current_user_name) . ")\n";
@@ -962,17 +855,24 @@ append_invoice_note($conn, $invoice_id, $note_line);
   }
 }
 
-// ---------- عرض الصفحة (الفلترة و الجدول) ----------
+// ---------- عرض الصفحة ----------
 $selected_supplier_id = isset($_GET['supplier_filter_val']) ? intval($_GET['supplier_filter_val']) : '';
+$selected_supplier_name = '';
 $selected_status = isset($_GET['status_filter_val']) ? trim($_GET['status_filter_val']) : '';
-// فلتر بحث مباشر برقم الفاتورة (invoice_out -> id)
 $search_invoice_id = isset($_GET['invoice_out_id']) ? intval($_GET['invoice_out_id']) : 0;
+$search_supplier_name = isset($_GET['search_supplier_name']) ? trim($_GET['search_supplier_name']) : '';
 
-
-$suppliers_list = [];
-$sql_suppliers = "SELECT id, name FROM suppliers ORDER BY name ASC";
-$rs = $conn->query($sql_suppliers);
-if ($rs) while ($r = $rs->fetch_assoc()) $suppliers_list[] = $r;
+// الحصول على اسم المورد المحدد
+if ($selected_supplier_id) {
+  $st = $conn->prepare("SELECT name FROM suppliers WHERE id = ?");
+  $st->bind_param("i", $selected_supplier_id);
+  $st->execute();
+  $res = $st->get_result();
+  if ($row = $res->fetch_assoc()) {
+    $selected_supplier_name = $row['name'];
+  }
+  $st->close();
+}
 
 $grand_total_all_purchases = 0;
 $rs2 = $conn->query("SELECT COALESCE(SUM(total_amount),0) AS grand_total FROM purchase_invoices WHERE status != 'cancelled'");
@@ -981,7 +881,7 @@ if ($rs2) {
   $grand_total_all_purchases = (float)$r2['grand_total'];
 }
 
-// fetch invoices with filters
+// جلب الفواتير مع الفلاتر
 $sql_select_invoices = "SELECT pi.id, pi.supplier_invoice_number, pi.purchase_date, pi.status, pi.total_amount, pi.created_at, s.name as supplier_name, u.username as creator_name
                         FROM purchase_invoices pi
                         JOIN suppliers s ON pi.supplier_id = s.id
@@ -989,35 +889,26 @@ $sql_select_invoices = "SELECT pi.id, pi.supplier_invoice_number, pi.purchase_da
 $conds = [];
 $params = [];
 $types = '';
-// if (!empty($selected_supplier_id)) {
-//   $conds[] = "pi.supplier_id = ?";
-//   $params[] = $selected_supplier_id;
-//   $types .= 'i';
-// }
-// if (!empty($selected_status)) {
-//   $conds[] = "pi.status = ?";
-//   $params[] = $selected_status;
-//   $types .= 's';
-// }
-
 
 if (!empty($search_invoice_id)) {
-  $conds[] = "pi.id = ?"; // exact match on invoice id
+  $conds[] = "pi.id = ?";
   $params[] = $search_invoice_id;
   $types .= 'i';
-} 
-  if (!empty($selected_supplier_id)) {
-    $conds[] = "pi.supplier_id = ?";
-    $params[] = $selected_supplier_id;
-    $types .= 'i';
-  }
-  if (!empty($selected_status)) {
-    $conds[] = "pi.status = ?";
-    $params[] = $selected_status;
-    $types .= 's';
-  }
+} elseif (!empty($selected_supplier_id)) {
+  $conds[] = "pi.supplier_id = ?";
+  $params[] = $selected_supplier_id;
+  $types .= 'i';
+} elseif (!empty($search_supplier_name)) {
+  $conds[] = "s.name LIKE ?";
+  $params[] = "%{$search_supplier_name}%";
+  $types .= 's';
+}
 
-
+if (!empty($selected_status)) {
+  $conds[] = "pi.status = ?";
+  $params[] = $selected_status;
+  $types .= 's';
+}
 
 if (!empty($conds)) $sql_select_invoices .= " WHERE " . implode(" AND ", $conds);
 $sql_select_invoices .= " ORDER BY pi.purchase_date DESC, pi.id DESC";
@@ -1035,26 +926,30 @@ if ($stmt_select = $conn->prepare($sql_select_invoices)) {
 }
 
 $displayed_invoices_sum = 0;
-$sql_total_displayed = "SELECT COALESCE(SUM(total_amount),0) AS total_displayed FROM purchase_invoices pi WHERE 1=1";
+$sql_total_displayed = "SELECT COALESCE(SUM(total_amount),0) AS total_displayed FROM purchase_invoices pi JOIN suppliers s ON s.id = pi.supplier_id WHERE 1=1";
 $conds_total = [];
 $params_total = [];
 $types_total = '';
+
 if (!empty($search_invoice_id)) {
-  $conds[] = "pi.id = ?"; // exact match on invoice id
-  $params[] = $search_invoice_id;
-  $types .= 'i';
-} 
-if (!empty($selected_supplier_id)) {
+  $conds_total[] = "pi.id = ?";
+  $params_total[] = $search_invoice_id;
+  $types_total .= 'i';
+} elseif (!empty($selected_supplier_id)) {
   $conds_total[] = "pi.supplier_id = ?";
   $params_total[] = $selected_supplier_id;
   $types_total .= 'i';
+} elseif (!empty($search_supplier_name)) {
+  $conds_total[] = "s.name LIKE ?";
+  $params_total[] = "%{$search_supplier_name}%";
+  $types_total .= 's';
 }
+
 if (!empty($selected_status)) {
   $conds_total[] = "pi.status = ?";
   $params_total[] = $selected_status;
   $types_total .= 's';
 }
-
 
 if (!empty($conds_total)) $sql_total_displayed .= " AND " . implode(" AND ", $conds_total);
 if ($stmt_total = $conn->prepare($sql_total_displayed)) {
@@ -1066,202 +961,164 @@ if ($stmt_total = $conn->prepare($sql_total_displayed)) {
   $stmt_total->close();
 }
 
-
-// apply filters in order of priority; if invoice id search is provided, it will be the strongest filter
-
-
-
-// ... (the rest of your page rendering / HTML comes here - unchanged)
-// You should ensure your UI/JS uses fetch_invoice_json to display invoice details incl. batches,
-// and that your edit modal sends items_json + adjust_reason when saving edits.
-
-// header/sidebar
 require_once BASE_DIR . 'partials/header.php';
 require_once BASE_DIR . 'partials/sidebar.php';
 ?>
 
-<!-- ====== HTML & JS (واجهة محسّنة بسيطة) ====== -->
-<!-- BEGIN: manage_purchase_invoices.html (updated frontend) -->
-<!-- START: manage_purchase_invoices HTML+JS (استبدل الجزء الموجود عندك بهذا) -->
+<!-- ====== التصميم الجديد ====== -->
 <style>
-
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 12px;
+  :root {
+    --primary: #4361ee;
+    --primary-dark: #3a56d4;
+    --secondary: #6c757d;
+    --success: #28a745;
+    --info: #17a2b8;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --light: #f8f9fa;
+    --dark: #343a40;
+    --border: #dee2e6;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --radius: 8px;
   }
 
   .card {
-    border-radius: 12px;
+    border: none;
+    border-radius: var(--radius);
     box-shadow: var(--shadow);
-    background: var(--bg);
-    margin-bottom: 12px;
+    margin-bottom: 1.5rem;
+    background: #fff;
   }
 
-  .badge-pending {
-    background: linear-gradient(90deg, #f59e0b, #d97706);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 20px;
+  .card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius) var(--radius) 0 0;
   }
 
-  .badge-received {
-    background: linear-gradient(90deg, #10b981, #0ea5e9);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 20px;
-  }
-
-  .badge-cancelled {
-    background: linear-gradient(90deg, #ef4444, #dc2626);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 20px;
-  }
-
-  .modal {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 2000;
-  }
-
-  .modal .modal-content {
-    background: var(--bg);
-    border-radius: 8px;
-    width: 92%;
-    max-width: 1100px;
-    max-height: 85vh;
-    overflow: auto;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-    padding: 0;
-  }
-
-  .modal .modal-content.wide {
-    max-width: 1300px;
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid #eee;
-  }
-
-  .modal-body {
-    padding: 14px 18px;
-  }
-
-  .modal-footer {
-    padding: 10px 16px;
-    border-top: 1px solid #eee;
-    text-align: left;
-  }
-
-  .btn-close {
-    background: transparent;
-    border: 0;
-    font-size: 22px;
-    cursor: pointer;
-  }
-
-  .table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 8px;
-  }
-
-  .table th,
-  .table td {
-    padding: 8px 10px;
-    border: 1px solid #eee;
-    text-align: left;
-    font-size: 13px;
-  }
-
-  .small-muted {
-    color: #6b7280;
-    font-size: 13px;
-  }
-
-  .inv-meta {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-  }
-
-  .inv-notes pre {
-    background: var(--bg) !important;
-    padding: 10px;
-    border-radius: 6px;
-    min-height: 40px;
-  }
-
-  input.edit-input {
-    width: 100px;
-    padding: 6px;
+  .card-body {
+    padding: 1.25rem;
   }
 
   .btn {
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 0;
-    cursor: pointer;
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    transition: all 0.2s;
   }
 
-  .btn.btn-primary {
+  .btn-primary {
     background: var(--primary);
-    color: #fff;
+    border-color: var(--primary);
   }
 
-  .btn.btn-secondary {
-    background: #f3f4f6;
-    color: #111827;
-    border: 1px solid #e5e7eb;
+  .btn-primary:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
   }
 
-  .btn.btn-success {
-    background: #10b981;
-    color: #fff;
+  .badge {
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 600;
+    border-radius: 50rem;
   }
 
-  .btn.btn-danger {
-    background: #ef4444;
-    color: #fff;
+  .badge.bg-pending { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .badge.bg-received { background: linear-gradient(135deg, #10b981, #0ea5e9); }
+  .badge.bg-cancelled { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+  .table {
+    margin-bottom: 0;
   }
 
-  .btn.btn-warning {
-    background: #f59e0b;
-    color: #fff;
+  .table th {
+    font-weight: 600;
+    background: #f8f9fa;
+    border-bottom: 2px solid var(--border);
   }
 
-  .text-end {
-    text-align: right;
+  .modal-content {
+    border: none;
+    border-radius: var(--radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   }
 
-  .text-center {
+  .search-container {
+    position: relative;
+  }
+
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+  }
+
+  .search-result-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .search-result-item:hover {
+    background: #f8f9fa;
+  }
+
+  .search-result-item:last-child {
+    border-bottom: none;
+  }
+
+  .filter-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
     text-align: center;
+    padding: 20px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
   }
 
+  .stat-card .number {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
 
-  .form-control {
-    padding: 6px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    width: 100%;
-    box-sizing: border-box;
+  .stat-card .label {
+    font-size: 0.875rem;
+    color: #6c757d;
+  }
+
+  .action-buttons .btn {
+    margin: 0 2px;
   }
 </style>
 
-<div class="container">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <h3>إدارة فواتير المشتريات</h3>
-    <a href="<?php echo BASE_URL; ?>admin/manage_suppliers.php" class="btn btn-success">إنشاء فاتورة جديدة</a>
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <h2 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>إدارة فواتير المشتريات</h2>
+      <p class="text-muted">إدارة وعرض فواتير المشتريات من الموردين</p>
+    </div>
+    <div class="col-auto">
+      <a href="<?php echo BASE_URL; ?>admin/manage_suppliers.php" class="btn btn-primary btn-lg">
+        <i class="fas fa-plus-circle me-2"></i>إنشاء فاتورة جديدة
+      </a>
+    </div>
   </div>
 
   <?php if (!empty($message)) echo $message;
@@ -1270,93 +1127,189 @@ require_once BASE_DIR . 'partials/sidebar.php';
     unset($_SESSION['message']);
   } ?>
 
-  <!-- Filters card (كما في صفحتك) -->
+  <!-- Filters Card -->
   <div class="card">
-    <div style="padding:12px;">
-      <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
-        <div style="flex:1;min-width:200px">
-          <label class="note-text">المورد</label>
-          <select name="supplier_filter_val" class="form-control">
-            <option value="">-- كل الموردين --</option>
-            <?php foreach ($suppliers_list as $s): ?>
-              <option value="<?php echo $s['id']; ?>" <?php echo ($selected_supplier_id == $s['id']) ? 'selected' : ''; ?>><?php echo e($s['name']); ?></option>
-            <?php endforeach; ?>
-          </select>
+    <div class="card-header">
+      <h5 class="mb-0"><i class="fas fa-filter me-2"></i>فلاتر البحث المتقدمة</h5>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <!-- البحث برقم الفاتورة -->
+        <div class="col-md-3">
+          <label class="form-label">بحث برقم الفاتورة</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+            <input type="number" name="invoice_out_id" class="form-control" placeholder="أدخل رقم الفاتورة" 
+                   value="<?php echo e($search_invoice_id); ?>">
+          </div>
         </div>
-        <div style="flex:1;min-width:200px">
-          <label class="note-text">الحالة</label>
-          <select name="status_filter_val" class="form-control">
-            <option value="">-- كل الحالات --</option>
+
+        <!-- البحث بالمورد (تحسين) -->
+        <div class="col-md-3">
+          <label class="form-label">البحث بالمورد</label>
+          <div class="search-container">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-search"></i></span>
+              <input type="text" id="supplier_search" class="form-control" 
+                     placeholder="ابدأ بكتابة اسم المورد..." 
+                     value="<?php echo e($selected_supplier_name ?: $search_supplier_name); ?>"
+                     autocomplete="off">
+              <input type="hidden" name="supplier_filter_val" id="supplier_id" value="<?php echo e($selected_supplier_id); ?>">
+              <input type="hidden" name="search_supplier_name" id="supplier_name" value="<?php echo e($search_supplier_name); ?>">
+            </div>
+            <div class="search-results" id="supplier_results"></div>
+          </div>
+        </div>
+
+        <!-- فلتر الحالة -->
+        <div class="col-md-3">
+          <label class="form-label">حالة الفاتورة</label>
+          <select name="status_filter_val" class="form-select">
+            <option value="">-- جميع الحالات --</option>
             <?php foreach ($status_labels as $k => $v): ?>
-              <option value="<?php echo $k; ?>" <?php echo ($selected_status == $k) ? 'selected' : ''; ?>><?php echo e($v); ?></option>
+              <option value="<?php echo $k; ?>" <?php echo ($selected_status == $k) ? 'selected' : ''; ?>>
+                <?php echo e($v); ?>
+              </option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div style="min-width:220px">
-  <label class="note-text">بحث برقم الفاتورة</label>
-  <input type="number" name="invoice_out_id" class="form-control" placeholder="أدخل رقم الفاتورة" value="<?php echo e($search_invoice_id); ?>">
-</div>
 
-        <div style="min-width:120px">
-          <button class="btn btn-primary" type="submit">تصفية</button>
+        <!-- أزرار التحكم -->
+        <div class="col-md-3 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-primary flex-fill">
+            <i class="fas fa-search me-2"></i>بحث
+          </button>
+          <?php if ($selected_supplier_id || $selected_status || !empty($search_invoice_id) || !empty($search_supplier_name)): ?>
+            <a href="<?php echo basename(__FILE__); ?>" class="btn btn-secondary">
+              <i class="fas fa-times me-2"></i>مسح
+            </a>
+          <?php endif; ?>
         </div>
-        <?php if ($selected_supplier_id || $selected_status || !empty($search_invoice_id)): ?>
-
-          <div style="min-width:120px"><a href="<?php echo basename(__FILE__); ?>" class="btn btn-secondary">مسح</a></div>
-        <?php endif; ?>
       </form>
     </div>
   </div>
 
-  <!-- Invoices table -->
+  <!-- Statistics -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="stat-card bg-light">
+        <div class="number text-primary"><?php echo number_format($grand_total_all_purchases, 2); ?> ج.م</div>
+        <div class="label">إجمالي المشتريات</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-card bg-light">
+        <div class="number text-success"><?php echo number_format($displayed_invoices_sum, 2); ?> ج.م</div>
+        <div class="label">إجمالي الفواتير المعروضة</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-card bg-light">
+        <div class="number text-info"><?php echo $result_invoices ? $result_invoices->num_rows : 0; ?></div>
+        <div class="label">عدد الفواتير</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoices Table -->
   <div class="card">
-    <div style="padding:8px;">
-      <div style="overflow:auto; " class="custom-table-wrapper">
-        <table class=" tabe custom-table customized">
-          <thead class="table-dark center">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">قائمة فواتير المشتريات</h5>
+      <div class="text-muted">
+        <?php echo $result_invoices ? $result_invoices->num_rows : 0; ?> فاتورة
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
             <tr>
-              <th>#</th>
+              <th width="60">#</th>
               <th>المورد</th>
-              <th>رقم المورد</th>
-              <th>تاريخ</th>
+              <th>رقم الفاتورة</th>
+              <th>تاريخ الشراء</th>
               <th>الحالة</th>
               <th class="text-end">الإجمالي</th>
-              <th class="text-center">إجراءات</th>
+              <th class="text-center">الإجراءات</th>
             </tr>
           </thead>
           <tbody>
-            <?php if ($result_invoices && $result_invoices->num_rows > 0): while ($inv = $result_invoices->fetch_assoc()): ?>
+            <?php if ($result_invoices && $result_invoices->num_rows > 0): 
+              while ($inv = $result_invoices->fetch_assoc()): ?>
                 <tr>
-                  <td><?php echo e($inv['id']); ?></td>
+                  <td><strong>#<?php echo e($inv['id']); ?></strong></td>
                   <td><?php echo e($inv['supplier_name']); ?></td>
                   <td><?php echo e($inv['supplier_invoice_number'] ?: '-'); ?></td>
                   <td><?php echo e(date('Y-m-d', strtotime($inv['purchase_date']))); ?></td>
                   <td>
-                    <?php if ($inv['status'] === 'pending'): ?><span class="badge-pending"><?php echo e($status_labels['pending']); ?></span>
-                    <?php elseif ($inv['status'] === 'fully_received'): ?><span class="badge-received"><?php echo e($status_labels['fully_received']); ?></span>
-                    <?php else: ?><span class="badge-cancelled"><?php echo e($status_labels['cancelled']); ?></span><?php endif; ?>
+                    <?php 
+                      $status_class = '';
+                      if ($inv['status'] === 'pending') $status_class = 'bg-pending';
+                      elseif ($inv['status'] === 'fully_received') $status_class = 'bg-received';
+                      else $status_class = 'bg-cancelled';
+                    ?>
+                    <span class="badge <?php echo $status_class; ?>">
+                      <?php echo e($status_labels[$inv['status']] ?? $inv['status']); ?>
+                    </span>
                   </td>
-                  <td class="text-end fw-bold"><?php echo number_format((float)$inv['total_amount'], 2); ?> ج.م</td>
-                  <td class="text-center">
-                    <button class="btn btn-info btn-sm" onclick="openInvoiceModalView(<?php echo $inv['id']; ?>)">عرض</button>
+                  <td class="text-end fw-bold">
+                    <?php echo number_format((float)$inv['total_amount'], 2); ?> ج.م
+                  </td>
+                  <td class="text-center action-buttons">
+                    <!-- زر العرض -->
+                    <button class="btn btn-sm btn-info" onclick="openInvoiceModalView(<?php echo $inv['id']; ?>)">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    
                     <?php if ($inv['status'] === 'pending'): ?>
-                      <button class="btn btn-warning btn-sm" onclick="openInvoiceModalEdit(<?php echo $inv['id']; ?>)">تعديل</button>
-                      <form method="post" style="display:inline-block" onsubmit="return confirm('تأكيد استلام الفاتورة بالكامل؟')">
+                      <!-- تعديل الفاتورة قيد الانتظار -->
+                      <button class="btn btn-sm btn-warning" onclick="openInvoiceModalEdit(<?php echo $inv['id']; ?>)">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      
+                      <!-- استلام الفاتورة -->
+                      <form method="post" style="display:inline" onsubmit="return confirm('تأكيد استلام الفاتورة بالكامل؟')">
                         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
                         <input type="hidden" name="purchase_invoice_id" value="<?php echo $inv['id']; ?>">
-                        <button type="submit" name="receive_purchase_invoice" class="btn btn-success btn-sm">استلام</button>
+                        <button type="submit" name="receive_purchase_invoice" class="btn btn-sm btn-success">
+                          <i class="fas fa-check-circle"></i>
+                        </button>
                       </form>
-                      <button class="btn btn-danger btn-sm" onclick="openReasonModal('cancel', <?php echo $inv['id']; ?>)">إلغاء</button>
+                      
+                      <!-- إلغاء الفاتورة -->
+                      <button class="btn btn-sm btn-danger" onclick="openReasonModal('cancel', <?php echo $inv['id']; ?>)">
+                        <i class="fas fa-times-circle"></i>
+                      </button>
+                      
                     <?php elseif ($inv['status'] === 'fully_received'): ?>
-                      <button class="btn btn-warning btn-sm" onclick="openInvoiceModalEdit(<?php echo $inv['id']; ?>)">تعديل</button>
-                      <button class="btn btn-outline-secondary btn-sm" onclick="openReasonModal('revert', <?php echo $inv['id']; ?>)">قيد الانتظار</button>
+                      <!-- تعديل الفاتورة المسلمه -->
+                      <button class="btn btn-sm btn-warning" onclick="openInvoiceModalEdit(<?php echo $inv['id']; ?>)">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      
+                      <!-- زر مرتجع -->
+                      <button class="btn btn-sm btn-outline-danger" onclick="openReasonModal('revert', <?php echo $inv['id']; ?>)">
+                        <i class="fas fa-undo"></i> مرتجع
+                      </button>
+                      
                     <?php endif; ?>
+                    
+                    <!-- زر طباعة -->
+                    <a href="<?php echo basename(__FILE__); ?>?action=print_supplier&id=<?php echo $inv['id']; ?>" 
+                       target="_blank" class="btn btn-sm btn-secondary">
+                      <i class="fas fa-print"></i>
+                    </a>
                   </td>
                 </tr>
               <?php endwhile;
             else: ?>
               <tr>
-                <td colspan="7" class="text-center">لا توجد فواتير.</td>
+                <td colspan="7" class="text-center py-4">
+                  <div class="text-muted">
+                    <i class="fas fa-inbox fa-2x mb-3"></i><br>
+                    لا توجد فواتير مطابقة لبحثك
+                  </div>
+                </td>
               </tr>
             <?php endif; ?>
           </tbody>
@@ -1364,472 +1317,530 @@ require_once BASE_DIR . 'partials/sidebar.php';
       </div>
     </div>
   </div>
+</div>
 
-  <!-- summary -->
-  <div style="display:flex;justify-content:flex-end;"class=" custom-text">
-    <div class="card" style="width:360px;">
-      <div style="padding:12px;">
-        <div class=" custom-text"><strong>إجمالي الفواتير المعروضة:</strong> <span class="badge bg-primary"><?php echo number_format($displayed_invoices_sum, 2); ?> ج.م</span></div>
-        <div class=" custom-text" style="margin-top:8px"><strong>الإجمالي الكلي (غير الملغاة):</strong> <span class="badge bg-success"><?php echo number_format($grand_total_all_purchases, 2); ?> ج.م</span></div>
+<!-- Modals (نفس المودالات السابقة مع تحسينات) -->
+<div id="invoiceModal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">تفاصيل الفاتورة</h5>
+        <button type="button" class="btn-close" onclick="closeModal('invoiceModal')"></button>
+      </div>
+      <div class="modal-body" id="invoiceModalBody">
+        جاري التحميل...
+      </div>
+      <div class="modal-footer" id="invoiceModalFooter">
+        <button class="btn btn-secondary" onclick="closeModal('invoiceModal')">إغلاق</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ======================= Invoice View Modal ======================= -->
-<div id="invoiceModal" class="modal" aria-hidden="true">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>تفاصيل الفاتورة</h3>
-      <button class="btn-close" onclick="document.getElementById('invoiceModal').style.display='none'">×</button>
-    </div>
-    <div class="modal-body" id="invoiceModalBody">
-      <!-- يملأ بالـ JS -->
-      <div style="padding:12px">جارٍ التحميل...</div>
-    </div>
-    <div class="modal-footer" id="invoiceModalFooter">
-      <button id="btn_inv_edit" class="btn btn-primary" style="display:none">تعديل بنود</button>
-      <button id="btn_inv_print" class="btn btn-secondary" style="display:none">طباعة للمورد</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('invoiceModal').style.display='none'">إغلاق</button>
-    </div>
-  </div>
-</div>
-
-<!-- ======================= Edit Invoice Modal ======================= -->
-<div id="editInvoiceModal" class="modal" aria-hidden="true">
-  <div class="modal-content wide">
-    <div class="modal-header">
-      <h3>تعديل بنود الفاتورة <span id="edit_inv_id"></span></h3>
-      <button class="btn-close" onclick="document.getElementById('editInvoiceModal').style.display='none'">×</button>
-    </div>
-    <div class="modal-body" id="editInvoiceBody">
-      <!-- يملأ بالـ JS -->
-      <div style="padding:12px">جارٍ التحميل...</div>
-    </div>
-    <div class="modal-footer">
-      <button id="btn_save_edit" class="btn btn-success">حفظ التعديلات</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('editInvoiceModal').style.display='none'">إلغاء</button>
+<div id="editInvoiceModal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">تعديل بنود الفاتورة <span id="edit_inv_id"></span></h5>
+        <button type="button" class="btn-close" onclick="closeModal('editInvoiceModal')"></button>
+      </div>
+      <div class="modal-body" id="editInvoiceBody">
+        جاري التحميل...
+      </div>
+      <div class="modal-footer">
+        <button id="btn_save_edit" class="btn btn-success">حفظ التعديلات</button>
+        <button class="btn btn-secondary" onclick="closeModal('editInvoiceModal')">إلغاء</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ======================= Reason Modal (revert/cancel) ======================= -->
-<div id="reasonModalBackdrop" class="modal" style="display:none;">
-  <div class="modal-content" style="max-width:640px;">
-    <div class="modal-header">
-      <h3>الرجاء إدخال السبب</h3><button class="btn-close" onclick="document.getElementById('reasonModalBackdrop').style.display='none'">×</button>
-    </div>
-    <div class="modal-body">
-      <form id="reasonForm" method="post">
-        <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
-        <input type="hidden" name="purchase_invoice_id" id="reason_invoice_id" value="">
-        <div style="margin-bottom:8px;"><label>السبب (مطلوب)</label><textarea name="reason" id="reason_text" rows="4" class="form-control" required></textarea></div>
-        <div style="text-align:left;">
-          <!-- inputs new_status/change are مضافة ديناميكياً من JS -->
-          <button type="submit" class="btn btn-primary">تأكيد</button>
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('reasonModalBackdrop').style.display='none'">إلغاء</button>
-        </div>
-      </form>
+<div id="reasonModalBackdrop" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">الرجاء إدخال السبب</h5>
+        <button type="button" class="btn-close" onclick="closeModal('reasonModalBackdrop')"></button>
+      </div>
+      <div class="modal-body">
+        <form id="reasonForm" method="post">
+          <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+          <input type="hidden" name="purchase_invoice_id" id="reason_invoice_id" value="">
+          <div class="mb-3">
+            <label class="form-label">السبب (مطلوب)</label>
+            <textarea name="reason" id="reason_text" rows="4" class="form-control" required></textarea>
+          </div>
+          <div class="text-end">
+            <button type="submit" class="btn btn-primary">تأكيد</button>
+            <button type="button" class="btn btn-secondary" onclick="closeModal('reasonModalBackdrop')">إلغاء</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-  /*
-  Full front-end JS for manage_purchase_invoices
-  - يعرض المودالات، يجلب بيانات الفاتورة من endpoint ?action=fetch_invoice_json&id=...
-  - مودال التعديل يضيف عمود حذف في حالة invoice.status === 'pending'
-  - زر الحذف يطلب سبب الحذف ثم يرسل form POST مخفي الى السيرفر (delete_invoice_item)
-  - زر الحفظ في المودال يجمع items_json ويرسله الى edit_invoice POST
-*/
-
-  (function() {
-    const ajaxUrl = '<?php echo basename(__FILE__); ?>';
-    const CSRF_TOKEN = <?php echo json_encode($csrf_token); ?>;
-
-    function q(sel, ctx = document) {
-      return ctx.querySelector(sel);
-    }
-
-    function qa(sel, ctx = document) {
-      return Array.from((ctx || document).querySelectorAll(sel));
-    }
-
-    function el(tag, attrs) {
-      const e = document.createElement(tag);
-      for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
-      return e;
-    }
-
-    function escapeHtml(s) {
-      if (s === null || s === undefined) return '';
-      return String(s).replace(/[&<>"']/g, m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": "&#39;"
-      } [m]));
-    }
-
-    function showModal(elm) {
-      if (!elm) return;
-      elm.style.display = 'flex';
-      elm.setAttribute('aria-hidden', 'false');
-    }
-
-    function hideModal(elm) {
-      if (!elm) return;
-      elm.style.display = 'none';
-      elm.setAttribute('aria-hidden', 'true');
-    }
-
-    // ----- VIEW invoice -----
-    async function openInvoiceModalView(id) {
-      if (!id) return;
-      const modal = document.getElementById('invoiceModal');
-      const body = document.getElementById('invoiceModalBody');
-      const btnEdit = document.getElementById('btn_inv_edit');
-      const btnPrint = document.getElementById('btn_inv_print');
-
-      showModal(modal);
-      body.innerHTML = '<div style="padding:12px">جارٍ التحميل...</div>';
-      btnEdit.style.display = 'none';
-      btnPrint.style.display = 'none';
-
-      try {
-        const res = await fetch(ajaxUrl + '?action=fetch_invoice_json&id=' + encodeURIComponent(id), {
-          credentials: 'same-origin'
-        });
-        const data = await res.json();
-        if (!data || !data.ok) {
-          body.innerHTML = '<div class="alert alert-danger">فشل جلب البيانات.</div>';
-          return;
-        }
-
-        const inv = data.invoice || {};
-        const items = data.items || [];
-        const batches = data.batches || [];
-
-        let html = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">' +
-          '<div><strong>فاتورة #' + escapeHtml(inv.id) + '</strong><div class="small-muted">' + escapeHtml(inv.purchase_date || inv.created_at || '') + '</div></div>' +
-          '<div>' + (inv.status === 'fully_received' ? '<span class="badge-received">مستلمة</span>' : (inv.status === 'cancelled' ? '<span class="badge-cancelled">ملغاة</span>' : '<span class="badge-pending">قيد الانتظار</span>')) + '</div></div>';
-
-        html += '<div style="margin-top:10px;"><strong>المورد:</strong> ' + escapeHtml(inv.supplier_name || '') + ' &nbsp; <strong>الإجمالي:</strong> ' + Number(inv.total_amount || 0).toFixed(2) + ' ج.م</div>';
-        html += '<div style="margin-top:10px"><h4>ملاحظات</h4><pre style="white-space:pre-wrap;padding:10px;border-radius:6px;">' + escapeHtml(inv.notes || '-') + '</pre></div>';
-
-        // items
-        html += '<div class="custom-table-wrapper" style="margin-top:10px"><h4>بنود الفاتورة</h4>';
-        html += '<table class="custom-table"><thead class="center"><tr><th>#</th><th>اسم</th><th>كمية</th><th>سعر شراء</th><th>سعر بيع</th><th>مستلم</th><th>إجمالي</th></tr></thead><tbody>';
-        let total = 0;
-        if (items.length) {
-          items.forEach((it, idx) => {
-            const line = Number(it.total_cost || (it.quantity * it.cost_price_per_unit) || 0).toFixed(2);
-            total += parseFloat(line);
-            html += '<tr><td>' + (idx + 1) + '</td><td style="text-align:right">' + escapeHtml(it.product_name || ('#' + it.product_id)) + '</td><td style="text-align:center">' + Number(it.quantity || 0).toFixed(2) + '</td><td style="text-align:right">' + Number(it.cost_price_per_unit || 0).toFixed(2) + '</td><td style="text-align:right">' + ((it.sale_price !== undefined && it.sale_price !== null) ? Number(it.sale_price).toFixed(2) + ' ج.م' : '-') + '</td><td style="text-align:center">' + Number(it.qty_received || 0).toFixed(2) + '</td><td style="text-align:right;font-weight:700">' + line + ' ج.م</td></tr>';
-          });
-        } else {
-          html += '<tr><td colspan="7" style="text-align:center">لا توجد بنود</td></tr>';
-        }
-        html += '</tbody><tfoot><tr><td colspan="6" style="text-align:right;font-weight:700">الإجمالي</td><td style="text-align:right;font-weight:800">' + total.toFixed(2) + ' ج.م</td></tr></tfoot></table></div>';
-
-        // batches
-        html += '<div class="custom-table-wrapper" style="margin-top:10px"><h4>الدفعات المرتبطة</h4>';
-        if (batches && batches.length) {
-          html += '<table class="custom-table"><thead class="center"><tr><th>دفعة</th><th>اسم</th><th>منتج</th><th>كمية</th><th>متبقي</th><th>سعر شراء</th><th>سعر بيع</th><th>الحالة</th><th>سبب الإرجاع</th><th>سبب الإلغاء</th></tr></thead><tbody>';
-          batches.forEach((b,index) => {
-            html += '<tr><td>' + escapeHtml(String(b.id)) + '</td><td>'+ escapeHtml(String(items[index]?.product_name?? '_')) + '</td><td>' + escapeHtml(String(b.product_id || '-')) + '</td><td>' + Number(b.qty || 0).toFixed(2) + '</td><td>' + Number(b.remaining || 0).toFixed(2) + '</td><td>' + (b.unit_cost !== null ? Number(b.unit_cost).toFixed(2) + ' ج.م' : '-') + '</td><td>' + (b.sale_price !== null && b.sale_price !== undefined ? Number(b.sale_price).toFixed(2) + ' ج.م' : '-') + '</td><td>' + escapeHtml(b.status || '') + '</td><td>' + escapeHtml(b.revert_reason || '-') + '</td><td>' + escapeHtml(b.cancel_reason || '-') + '</td></tr>';
-          });
-          html += '</tbody></table>';
-        } else {
-          html += '<div class="small-muted">لا توجد دفعات مرتبطة.</div>';
-        }
-        html += '</div>';
-
-        body.innerHTML = html;
-
-        // footer buttons
-        if (data.can_edit) {
-          document.getElementById('btn_inv_edit').style.display = 'inline-block';
-          document.getElementById('btn_inv_edit').onclick = function() {
-            hideModal(modal);
-            openInvoiceModalEdit(id);
-          };
-        } else {
-          document.getElementById('btn_inv_edit').style.display = 'none';
-        }
-        document.getElementById('btn_inv_print').style.display = 'inline-block';
-        document.getElementById('btn_inv_print').onclick = function() {
-          window.open(ajaxUrl + '?action=print_supplier&id=' + encodeURIComponent(id), '_blank');
-        };
-
-      } catch (err) {
-        console.error(err);
-        body.innerHTML = '<div class="alert alert-danger">فشل الاتصال بالخادم.</div>';
-      }
-    }
-
-    // ----- EDIT invoice (with delete) -----
-    async function openInvoiceModalEdit(id) {
-      if (!id) return;
-      const modal = document.getElementById('editInvoiceModal');
-      const body = document.getElementById('editInvoiceBody');
-      const footerSave = document.getElementById('btn_save_edit');
-
-      showModal(modal);
-      body.innerHTML = '<div style="padding:12px">جارٍ التحميل...</div>';
-      footerSave.onclick = null; // clear previous handler
-
-      try {
-        const res = await fetch(ajaxUrl + '?action=fetch_invoice_json&id=' + encodeURIComponent(id), {
-          credentials: 'same-origin'
-        });
-        const data = await res.json();
-        if (!data || !data.ok) {
-          body.innerHTML = '<div class="alert alert-danger">فشل جلب الفاتورة.</div>';
-          return;
-        }
-
-        const inv = data.invoice || {};
-        const items = data.items || [];
-        const canEdit = data.can_edit;
-        if (!canEdit) {
-          body.innerHTML = '<div class="alert alert-warning">لا يمكن التعديل لأن الدُفعات مستهلكة أو الحالة لا تسمح.</div>';
-          return;
-        }
-
-        const allowDelete = (String(inv.status).trim() === 'pending');
-
-        // build editable table
-        let html = '<table class="custom-table"><thead class="center">' +
-          '<tr<tr><th>#</th><th>المنتج</th><th>كمية حالية</th><th>كمية جديدة</th><th>سعر شراء حالي</th><th>سعر شراء جديد</th><th>سعر بيع حالي</th><th>سعر بيع جديد</th>';
-        if (allowDelete) html += '<th>حذف</th>';
-        html += '</tr></thead><tbody>';
-
-        items.forEach((it, idx) => {
-          const curQty = Number(it.quantity || 0).toFixed(2);
-          const curCost = Number(it.cost_price_per_unit || 0).toFixed(2);
-          const curSale = (it.sale_price !== undefined && it.sale_price !== null) ? Number(it.sale_price).toFixed(2) : '';
-          html += '<tr>' +
-            '<td>' + (idx + 1) + '</td>' +
-            '<td style="text-align:right">' + escapeHtml(it.product_name || ('#' + it.product_id)) + '</td>' +
-            '<td>' + curQty + '</td>' +
-            '<td><input class="form-control edit-item-qty" data-item-id="' + (it.id || '') + '" type="number" step="0.01" value="' + curQty + '"></td>' +
-            '<td>' + curCost + '</td>' +
-            '<td><input class="form-control edit-item-cost" data-item-id="' + (it.id || '') + '" type="number" step="0.01" value="' + curCost + '"></td>' +
-            '<td>' + (curSale ? curSale + ' ج.م' : '-') + '</td>' +
-            '<td><input class="form-control edit-item-sale" data-item-id="' + (it.id || '') + '" type="number" step="0.01" value="' + (curSale ? curSale : '') + '"></td>';
-          if (allowDelete) html += '<td><button type="button" class="btn btn-danger btn-sm js-delete-item" data-item-id="' + (it.id || '') + '">حذف</button></td>';
-          html += '</tr>';
-        });
-
-        html += '</tbody></table>';
-        html += '<div style="margin-top:8px;"><label><strong>سبب التعديل (مطلوب)</strong></label><textarea id="js_adjust_reason" rows="3" class="form-control"></textarea></div>';
-        body.innerHTML = html;
-        document.getElementById('edit_inv_id').innerText = '#' + id;
-
-        // wire delete buttons
-        if (allowDelete) {
-          qa('.js-delete-item', body).forEach(btn => {
-            btn.onclick = function() {
-              const itemId = this.dataset.itemId;
-              if (!itemId) return;
-              const reason = prompt('أدخل سبب الحذف (مطلوب):');
-              if (!reason || !reason.trim()) {
-                alert('العملية أُلغيت — سبب مطلوب');
-                return;
-              }
-              // create and submit hidden POST form to server
-              const f = document.createElement('form');
-              f.method = 'POST';
-              f.action = ajaxUrl;
-              f.style.display = 'none';
-
-              const i1 = el('input');
-              i1.type = 'hidden';
-              i1.name = 'delete_invoice_item';
-              i1.value = '1';
-              f.appendChild(i1);
-              const i2 = el('input');
-              i2.type = 'hidden';
-              i2.name = 'invoice_id';
-              i2.value = id;
-              f.appendChild(i2);
-              const i3 = el('input');
-              i3.type = 'hidden';
-              i3.name = 'item_id';
-              i3.value = itemId;
-              f.appendChild(i3);
-              const i4 = el('input');
-              i4.type = 'hidden';
-              i4.name = 'reason';
-              i4.value = reason;
-              f.appendChild(i4);
-              const i5 = el('input');
-              i5.type = 'hidden';
-              i5.name = 'csrf_token';
-              i5.value = CSRF_TOKEN;
-              f.appendChild(i5);
-
-              document.body.appendChild(f);
-              f.submit();
+// البحث الديناميكي عن الموردين
+let supplierSearchTimeout;
+document.getElementById('supplier_search').addEventListener('input', function(e) {
+  clearTimeout(supplierSearchTimeout);
+  const query = e.target.value.trim();
+  
+  if (query.length < 2) {
+    document.getElementById('supplier_results').style.display = 'none';
+    return;
+  }
+  
+  supplierSearchTimeout = setTimeout(() => {
+    fetch(`<?php echo basename(__FILE__); ?>?action=search_suppliers&q=${encodeURIComponent(query)}`)
+      .then(response => response.json())
+      .then(data => {
+        const resultsContainer = document.getElementById('supplier_results');
+        resultsContainer.innerHTML = '';
+        
+        if (data.length > 0) {
+          data.forEach(supplier => {
+            const div = document.createElement('div');
+            div.className = 'search-result-item';
+            div.textContent = supplier.name;
+            div.onclick = () => {
+              document.getElementById('supplier_id').value = supplier.id;
+              document.getElementById('supplier_search').value = supplier.name;
+              document.getElementById('supplier_name').value = '';
+              resultsContainer.style.display = 'none';
             };
+            resultsContainer.appendChild(div);
           });
+          resultsContainer.style.display = 'block';
+        } else {
+          const div = document.createElement('div');
+          div.className = 'search-result-item text-muted';
+          div.textContent = 'لا توجد نتائج';
+          resultsContainer.appendChild(div);
+          resultsContainer.style.display = 'block';
         }
+      });
+  }, 300);
+});
 
-        // wire save button
-        footerSave.onclick = function() {
-          // collect inputs
-          const inputsQty = qa('.edit-item-qty', body);
-          const inputsCost = qa('.edit-item-cost', body);
-          const inputsSale = qa('.edit-item-sale', body);
-          const mapById = {};
-          inputsQty.forEach(i => {
-            const idattr = i.dataset.itemId || '';
-            if (!idattr) return;
-            mapById[idattr] = mapById[idattr] || {};
-            mapById[idattr].new_quantity = parseFloat(i.value || 0);
-          });
-          inputsCost.forEach(i => {
-            const idattr = i.dataset.itemId || '';
-            if (!idattr) return;
-            mapById[idattr] = mapById[idattr] || {};
-            mapById[idattr].new_cost_price = parseFloat(i.value || 0);
-          });
-          inputsSale.forEach(i => {
-            const idattr = i.dataset.itemId || '';
-            if (!idattr) return;
-            mapById[idattr] = mapById[idattr] || {};
-            mapById[idattr].new_sale_price = (i.value === '') ? null : parseFloat(i.value || 0);
-          });
+// إخفاء نتائج البحث عند النقر خارجها
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.search-container')) {
+    document.getElementById('supplier_results').style.display = 'none';
+  }
+});
 
-          const itemsPayload = [];
-          for (const k in mapById) {
-            const obj = mapById[k];
-            obj.item_id = parseInt(k, 10);
-            itemsPayload.push(obj);
-          }
+// دالة لإغلاق المودالات
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    const backdrop = document.querySelector('.modal-backdrop');
+    if (backdrop) backdrop.remove();
+  }
+}
 
-          const adjustReason = (q('#js_adjust_reason') ? q('#js_adjust_reason').value.trim() : '');
-          if (!adjustReason) {
-            alert('الرجاء إدخال سبب التعديل');
-            q('#js_adjust_reason').focus();
-            return;
-          }
-          if (!itemsPayload.length) {
-            alert('لا توجد بنود للتعديل');
-            return;
-          }
+// دالة لفتح المودالات
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('show');
+    modal.style.display = 'block';
+    document.body.classList.add('modal-open');
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    document.body.appendChild(backdrop);
+  }
+}
 
-          // submit hidden form to trigger server-side edit handler
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = ajaxUrl;
-          form.style.display = 'none';
-          const f1 = el('input');
-          f1.type = 'hidden';
-          f1.name = 'edit_invoice';
-          f1.value = '1';
-          form.appendChild(f1);
-          const f2 = el('input');
-          f2.type = 'hidden';
-          f2.name = 'invoice_id';
-          f2.value = id;
-          form.appendChild(f2);
-          const f3 = el('input');
-          f3.type = 'hidden';
-          f3.name = 'items_json';
-          f3.value = JSON.stringify(itemsPayload);
-          form.appendChild(f3);
-          const f4 = el('input');
-          f4.type = 'hidden';
-          f4.name = 'adjust_reason';
-          f4.value = adjustReason;
-          form.appendChild(f4);
-          const f5 = el('input');
-          f5.type = 'hidden';
-          f5.name = 'csrf_token';
-          f5.value = CSRF_TOKEN;
-          form.appendChild(f5);
+// بقية دوال JavaScript كما هي مع بعض التعديلات البسيطة
+const ajaxUrl = '<?php echo basename(__FILE__); ?>';
+const CSRF_TOKEN = <?php echo json_encode($csrf_token); ?>;
 
-          document.body.appendChild(form);
-          form.submit();
-        };
-
-      } catch (err) {
-        console.error(err);
-        body.innerHTML = '<div class="alert alert-danger">فشل الاتصال بالخادم.</div>';
-      }
+async function openInvoiceModalView(id) {
+  openModal('invoiceModal');
+  const body = document.getElementById('invoiceModalBody');
+  body.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">جارٍ تحميل بيانات الفاتورة...</p></div>';
+  
+  try {
+    const res = await fetch(ajaxUrl + '?action=fetch_invoice_json&id=' + encodeURIComponent(id));
+    const data = await res.json();
+    
+    if (!data.ok) {
+      body.innerHTML = '<div class="alert alert-danger">فشل جلب البيانات.</div>';
+      return;
     }
+    
+    // بناء واجهة عرض الفاتورة
+    const inv = data.invoice || {};
+    const items = data.items || [];
+    const batches = data.batches || [];
+    
+    let html = `
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <h5>فاتورة مشتريات #${inv.id}</h5>
+          <p class="text-muted mb-1">التاريخ: ${inv.purchase_date || ''}</p>
+          <p class="text-muted">المورد: ${inv.supplier_name || ''}</p>
+        </div>
+        <div class="col-md-6 text-end">
+          <span class="badge ${inv.status === 'pending' ? 'bg-pending' : inv.status === 'fully_received' ? 'bg-received' : 'bg-cancelled'} fs-6">
+            ${data.status_labels[inv.status] || inv.status}
+          </span>
+          <h3 class="mt-2 text-primary">${parseFloat(inv.total_amount || 0).toFixed(2)} ج.م</h3>
+        </div>
+      </div>
+      
+      <div class="mb-4">
+        <h6>ملاحظات:</h6>
+        <div class="card card-body bg-light">
+          ${inv.notes ? inv.notes.replace(/\n/g, '<br>') : 'لا توجد ملاحظات'}
+        </div>
+      </div>
+      
+      <h6 class="mb-3">بنود الفاتورة:</h6>
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>#</th><th>المنتج</th><th>الكمية</th><th>سعر الشراء</th><th>سعر البيع</th><th>مستلم</th><th>الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    let total = 0;
+    items.forEach((it, idx) => {
+      const lineTotal = parseFloat(it.total_cost || (it.quantity * it.cost_price_per_unit) || 0);
+      total += lineTotal;
+      html += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${it.product_name || ('#' + it.product_id)}</td>
+          <td class="text-center">${parseFloat(it.quantity || 0).toFixed(2)}</td>
+          <td class="text-end">${parseFloat(it.cost_price_per_unit || 0).toFixed(2)} ج.م</td>
+          <td class="text-end">${it.sale_price ? parseFloat(it.sale_price).toFixed(2) + ' ج.م' : '-'}</td>
+          <td class="text-center">${parseFloat(it.qty_received || 0).toFixed(2)}</td>
+          <td class="text-end fw-bold">${lineTotal.toFixed(2)} ج.م</td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="6" class="text-end fw-bold">المجموع:</td>
+              <td class="text-end fw-bold">${total.toFixed(2)} ج.م</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+    
+    if (batches && batches.length > 0) {
+      html += `
+        <h6 class="mb-3 mt-4">الدفعات المرتبطة:</h6>
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>#</th><th>المنتج</th><th>الكمية</th><th>المتبقي</th><th>سعر الشراء</th><th>سعر البيع</th><th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      batches.forEach((b, idx) => {
+        const item = items[idx] || {};
+        html += `
+          <tr>
+            <td>${b.id}</td>
+            <td>${item.product_name || ('#' + b.product_id)}</td>
+            <td>${parseFloat(b.qty || 0).toFixed(2)}</td>
+            <td>${parseFloat(b.remaining || 0).toFixed(2)}</td>
+            <td>${b.unit_cost ? parseFloat(b.unit_cost).toFixed(2) + ' ج.م' : '-'}</td>
+            <td>${b.sale_price ? parseFloat(b.sale_price).toFixed(2) + ' ج.م' : '-'}</td>
+            <td><span class="badge ${b.status === 'active' ? 'bg-success' : b.status === 'reverted' ? 'bg-warning' : 'bg-danger'}">${b.status}</span></td>
+          </tr>
+        `;
+      });
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    
+    body.innerHTML = html;
+    
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = '<div class="alert alert-danger">فشل الاتصال بالخادم.</div>';
+  }
+}
 
-    // ----- reason modal (revert/cancel) -----
-    function openReasonModal(action, invoiceId) {
-      const backdrop = document.getElementById('reasonModalBackdrop');
-      const form = document.getElementById('reasonForm');
-      if (!form) {
-        alert('نموذج السبب غير متوفر');
+async function openInvoiceModalEdit(id) {
+  openModal('editInvoiceModal');
+  const body = document.getElementById('editInvoiceBody');
+  const footerSave = document.getElementById('btn_save_edit');
+  
+  body.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">جارٍ تحميل البيانات للتعديل...</p></div>';
+  footerSave.onclick = null;
+  
+  try {
+    const res = await fetch(ajaxUrl + '?action=fetch_invoice_json&id=' + encodeURIComponent(id));
+    const data = await res.json();
+    
+    if (!data.ok) {
+      body.innerHTML = '<div class="alert alert-danger">فشل جلب البيانات.</div>';
+      return;
+    }
+    
+    const inv = data.invoice || {};
+    const items = data.items || [];
+    const canEdit = data.can_edit;
+    
+    if (!canEdit) {
+      body.innerHTML = '<div class="alert alert-warning">لا يمكن التعديل لأن الدُفعات مستهلكة أو الحالة لا تسمح.</div>';
+      return;
+    }
+    
+    const allowDelete = (String(inv.status).trim() === 'pending');
+    document.getElementById('edit_inv_id').textContent = '#' + inv.id;
+    
+    let html = `
+      <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle me-2"></i>
+        يمكنك تعديل الكميات والأسعار. سيتم تحديث الدفعات المرتبطة تلقائياً.
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>#</th><th>المنتج</th><th>الكمية الحالية</th><th>الكمية الجديدة</th>
+              <th>سعر الشراء الحالي</th><th>سعر الشراء الجديد</th>
+              <th>سعر البيع الحالي</th><th>سعر البيع الجديد</th>
+              ${allowDelete ? '<th>حذف</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    items.forEach((it, idx) => {
+      const curQty = parseFloat(it.quantity || 0).toFixed(2);
+      const curCost = parseFloat(it.cost_price_per_unit || 0).toFixed(2);
+      const curSale = (it.sale_price !== undefined && it.sale_price !== null) ? parseFloat(it.sale_price).toFixed(2) : '';
+      
+      html += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${it.product_name || ('#' + it.product_id)}</td>
+          <td class="text-center">${curQty}</td>
+          <td><input class="form-control edit-item-qty" type="number" step="0.01" value="${curQty}" 
+                     data-item-id="${it.id || ''}"></td>
+          <td class="text-end">${curCost}</td>
+          <td><input class="form-control edit-item-cost" type="number" step="0.01" value="${curCost}" 
+                     data-item-id="${it.id || ''}"></td>
+          <td class="text-end">${curSale ? curSale + ' ج.م' : '-'}</td>
+          <td><input class="form-control edit-item-sale" type="number" step="0.01" 
+                     value="${curSale ? curSale : ''}" data-item-id="${it.id || ''}"></td>
+          ${allowDelete ? `
+            <td class="text-center">
+              <button type="button" class="btn btn-danger btn-sm js-delete-item" 
+                      data-item-id="${it.id || ''}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          ` : ''}
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="mt-3">
+        <label class="form-label fw-bold">سبب التعديل (مطلوب)</label>
+        <textarea id="js_adjust_reason" rows="3" class="form-control" 
+                  placeholder="أدخل سبب التعديل..."></textarea>
+      </div>
+    `;
+    
+    body.innerHTML = html;
+    
+    // إضافة أحداث الحذف
+    if (allowDelete) {
+      document.querySelectorAll('.js-delete-item').forEach(btn => {
+        btn.onclick = function() {
+          const itemId = this.dataset.itemId;
+          if (!itemId) return;
+          
+          const reason = prompt('أدخل سبب الحذف (مطلوب):');
+          if (!reason || !reason.trim()) {
+            alert('العملية أُلغيت — سبب مطلوب');
+            return;
+          }
+          
+          const f = document.createElement('form');
+          f.method = 'POST';
+          f.action = ajaxUrl;
+          f.style.display = 'none';
+          
+          const fields = [
+            ['delete_invoice_item', '1'],
+            ['invoice_id', id],
+            ['item_id', itemId],
+            ['reason', reason],
+            ['csrf_token', CSRF_TOKEN]
+          ];
+          
+          fields.forEach(([name, value]) => {
+            const i = document.createElement('input');
+            i.type = 'hidden';
+            i.name = name;
+            i.value = value;
+            f.appendChild(i);
+          });
+          
+          document.body.appendChild(f);
+          f.submit();
+        };
+      });
+    }
+    
+    footerSave.onclick = function() {
+      const inputsQty = document.querySelectorAll('.edit-item-qty');
+      const inputsCost = document.querySelectorAll('.edit-item-cost');
+      const inputsSale = document.querySelectorAll('.edit-item-sale');
+      const mapById = {};
+      
+      inputsQty.forEach(i => {
+        const id = i.dataset.itemId;
+        if (!id) return;
+        mapById[id] = mapById[id] || {};
+        mapById[id].new_quantity = parseFloat(i.value || 0);
+      });
+      
+      inputsCost.forEach(i => {
+        const id = i.dataset.itemId;
+        if (!id) return;
+        mapById[id] = mapById[id] || {};
+        mapById[id].new_cost_price = parseFloat(i.value || 0);
+      });
+      
+      inputsSale.forEach(i => {
+        const id = i.dataset.itemId;
+        if (!id) return;
+        mapById[id] = mapById[id] || {};
+        mapById[id].new_sale_price = (i.value === '') ? null : parseFloat(i.value || 0);
+      });
+      
+      const itemsPayload = [];
+      for (const k in mapById) {
+        const obj = mapById[k];
+        obj.item_id = parseInt(k, 10);
+        itemsPayload.push(obj);
+      }
+      
+      const adjustReason = document.getElementById('js_adjust_reason').value.trim();
+      if (!adjustReason) {
+        alert('الرجاء إدخال سبب التعديل');
+        document.getElementById('js_adjust_reason').focus();
         return;
       }
-      // clear old inputs
-      // remove previous hidden markers
-      ['change_invoice_status', 'cancel_purchase_invoice', 'new_status'].forEach(n => {
-        const elOld = form.querySelector('input[name="' + n + '"]');
-        if (elOld) elOld.remove();
-      });
-      // add new markers
-      if (action === 'revert') {
-        const a = el('input');
-        a.type = 'hidden';
-        a.name = 'change_invoice_status';
-        a.value = '1';
-        form.appendChild(a);
-        const b = el('input');
-        b.type = 'hidden';
-        b.name = 'new_status';
-        b.value = 'pending';
-        form.appendChild(b);
-      } else {
-        const a = el('input');
-        a.type = 'hidden';
-        a.name = 'cancel_purchase_invoice';
-        a.value = '1';
-        form.appendChild(a);
+      
+      if (itemsPayload.length === 0) {
+        alert('لا توجد بنود للتعديل');
+        return;
       }
-      form.querySelector('input[name="purchase_invoice_id"]').value = invoiceId;
-      // ensure csrf exists
-      let csrf = form.querySelector('input[name="csrf_token"]');
-      if (!csrf) {
-        csrf = el('input');
-        csrf.type = 'hidden';
-        csrf.name = 'csrf_token';
-        csrf.value = CSRF_TOKEN;
-        form.appendChild(csrf);
-      }
-      showModal(backdrop);
-      // default submit behavior will post to server and server redirects
-    }
-
-    // attach to global
-    window.openInvoiceModalView = openInvoiceModalView;
-    window.openInvoiceModalEdit = openInvoiceModalEdit;
-    window.openReasonModal = openReasonModal;
-
-    // close modals on backdrop click
-    ['invoiceModal', 'editInvoiceModal'].forEach(id => {
-      const m = document.getElementById(id);
-      if (!m) return;
-      m.addEventListener('click', function(e) {
-        if (e.target === m) m.style.display = 'none';
+      
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = ajaxUrl;
+      form.style.display = 'none';
+      
+      const fields = [
+        ['edit_invoice', '1'],
+        ['invoice_id', id],
+        ['items_json', JSON.stringify(itemsPayload)],
+        ['adjust_reason', adjustReason],
+        ['csrf_token', CSRF_TOKEN]
+      ];
+      
+      fields.forEach(([name, value]) => {
+        const i = document.createElement('input');
+        i.type = 'hidden';
+        i.name = name;
+        i.value = value;
+        form.appendChild(i);
       });
-    });
-    const reasonBackdrop = document.getElementById('reasonModalBackdrop');
-    if (reasonBackdrop) reasonBackdrop.addEventListener('click', function(e) {
-      if (e.target === reasonBackdrop) reasonBackdrop.style.display = 'none';
-    });
+      
+      document.body.appendChild(form);
+      form.submit();
+    };
+    
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = '<div class="alert alert-danger">فشل الاتصال بالخادم.</div>';
+  }
+}
 
-  })();
+function openReasonModal(action, invoiceId) {
+  openModal('reasonModalBackdrop');
+  const form = document.getElementById('reasonForm');
+  
+  ['change_invoice_status', 'cancel_purchase_invoice', 'new_status'].forEach(n => {
+    const elOld = form.querySelector('input[name="' + n + '"]');
+    if (elOld) elOld.remove();
+  });
+  
+  if (action === 'revert') {
+    const a = document.createElement('input');
+    a.type = 'hidden';
+    a.name = 'change_invoice_status';
+    a.value = '1';
+    form.appendChild(a);
+    
+    const b = document.createElement('input');
+    b.type = 'hidden';
+    b.name = 'new_status';
+    b.value = 'pending';
+    form.appendChild(b);
+  } else {
+    const a = document.createElement('input');
+    a.type = 'hidden';
+    a.name = 'cancel_purchase_invoice';
+    a.value = '1';
+    form.appendChild(a);
+  }
+  
+  form.querySelector('#reason_invoice_id').value = invoiceId;
+  form.querySelector('#reason_text').value = '';
+  
+  let csrf = form.querySelector('input[name="csrf_token"]');
+  if (!csrf) {
+    csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrf_token';
+    csrf.value = CSRF_TOKEN;
+    form.appendChild(csrf);
+  }
+}
+
+// تعيين الدوال للعامة
+window.openInvoiceModalView = openInvoiceModalView;
+window.openInvoiceModalEdit = openInvoiceModalEdit;
+window.openReasonModal = openReasonModal;
+window.closeModal = closeModal;
 </script>
-<!-- END: manage_purchase_invoices HTML+JS -->
 
 <?php
 require_once BASE_DIR . 'partials/footer.php';

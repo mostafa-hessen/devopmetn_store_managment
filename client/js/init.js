@@ -83,15 +83,15 @@ function setupEventListeners() {
             });
         });
     // البحث في المرتجع المتقدم
-    document
-        .getElementById("advancedProductSearch")
-        .addEventListener("input", (e) => {
+    // document
+    //     .getElementById("advancedProductSearch")
+    //     .addEventListener("input", (e) => {
 
 
-            const searchTerm = e.target.value;
-            const results = ReturnManager.searchProductsInInvoices(searchTerm);
-            this.displayAdvancedSearchResults(results);
-        });
+    //         const searchTerm = e.target.value;
+    //         // const results = ReturnManager.searchProductsInInvoices(searchTerm);
+    //         this.displayAdvancedSearchResults(results);
+    //     });
 
         document.querySelectorAll('.toggleInvoicesSectionBtn')
   .forEach(btn => {
