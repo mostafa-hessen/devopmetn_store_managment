@@ -203,11 +203,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   inset-inline-end: left; /* RTL */
   width: var(--sidebar-w);
   height: 100dvh;
-  padding-block-start: var(--header-h);
+  /* padding-block-start: var(--header-h); */
   background: linear-gradient(180deg, #1f2a44, #182133);
   color: #fff;
   box-shadow: var(--shadow-1);
-  overflow-y: auto;
+  /* overflow-y: auto; */
   transition: transform var(--normal), width var(--normal), opacity var(--normal);
   will-change: transform, width, opacity;
   z-index: 1040;
@@ -940,4 +940,21 @@ input[type=number] {
 .collapse-section {
   height: 0vh;
   overflow: hidden;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+}
+
+.mark-read-btn {
+    opacity: 0.6;
+}
+
+.notification-item:hover .mark-read-btn {
+    opacity: 1;
+}
+
+#notificationsDropdown .badge {
+    font-size: 0.7rem;
+    padding: 5px 6px;
 }

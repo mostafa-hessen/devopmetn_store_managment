@@ -511,3 +511,185 @@ ALTER TABLE invoice_out_items
 ADD unit_price_after_discount
 DECIMAL(10,2)
 GENERATED ALWAYS AS (total_after_discount / quantity) STORED;
+
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255),
+    message TEXT,
+    is_read TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+تمام 👌 خلّيك معايا خطوة خطوة، وهنخليك **تجرب فعليًا** وتشوف السكربت بيشتغل ولا لأ بدون تعقيد.
+
+بما إنك شغال **Windows + XAMPP** (واضح من المسارات)، يبقى هنستخدم
+
+## ✅ **Task Scheduler (بديل Cron على ويندوز)**
+
+---
+
+## 1️⃣ جهّز سكربت PHP للتجربة
+
+خلّي عندك ملف مثلاً:
+
+```
+C:\xampp\htdocs\store_v1\cron\backup_cron.php
+```
+
+وجوّه حط حاجة بسيطة جدًا للتجربة:
+
+```php
+<?php
+file_put_contents(
+    __DIR__ . '/test_cron.log',
+    "Cron worked at " . date('Y-m-d H:i:s') . PHP_EOL,
+    FILE_APPEND
+);
+```
+
+👉 الهدف: نتأكد إن Task Scheduler شغّال قبل أي Backup.
+
+---
+
+## 2️⃣ افتح Task Scheduler
+
+1. Start
+2. اكتب **Task Scheduler**
+3. افتحه
+
+---
+
+## 3️⃣ Create Task (مش Basic)
+
+📌 اختار **Create Task** (مهم جدًا)
+
+### 🟢 General
+
+* Name:
+
+  ```
+  Store Backup Test
+  ```
+* ✔ Run whether user is logged on or not
+* ✔ Run with highest privileges
+
+---
+
+## 4️⃣ Triggers (موعد التشغيل)
+
+* New
+* Begin the task: **On a schedule**
+* Daily
+* Start: خليها بعد دقيقة من دلوقتي (عشان تجرب فورًا)
+* ✔ Enabled
+
+---
+
+## 5️⃣ Actions (تشغيل PHP)
+
+* New
+* Action: **Start a program**
+
+### Program/script
+
+```
+C:\xampp\php\php.exe
+```
+
+### Add arguments
+
+```
+C:\xampp\htdocs\store_v1\cron\backup_cron.php
+```
+
+### Start in (مهم)
+
+```
+C:\xampp\htdocs\store_v1\cron
+```
+
+---
+
+## 6️⃣ Conditions
+
+* ❌ شيل:
+
+  * Start the task only if the computer is on AC power
+* ❌ شيل:
+
+  * Stop if computer switches to battery
+
+---
+
+## 7️⃣ Settings
+
+✔ Allow task to be run on demand
+✔ If the task fails, restart every 1 minute (اختياري)
+
+---
+
+## 8️⃣ حفظ وتشغيل يدوي
+
+* اضغط OK
+* هتطلب منك باسورد الويندوز
+* بعد الحفظ:
+
+  * كليك يمين على المهمة
+  * **Run**
+
+---
+
+## 9️⃣ التأكد إنه اشتغل ✅
+
+روح للمجلد:
+
+```
+C:\xampp\htdocs\store_v1\cron\
+```
+
+لو لقيت ملف:
+
+```
+test_cron.log
+```
+
+وفيه:
+
+```
+Cron worked at 2025-...
+```
+
+🎉 كده Task Scheduler شغال 100%
+
+---
+
+## 🔁 بعد النجاح
+
+نبدّل محتوى `backup_cron.php` بـ:
+
+* سكربت النسخ الاحتياطي
+* تسجيل إشعار
+* إرسال إشعار للوحة التحكم
+
+---
+
+## ⚠️ ملاحظات مهمة
+
+* الجهاز **لازم يكون شغال** (مش Sleep / Hibernate)
+* Task Scheduler بيشتغل حتى لو المتصفح مقفول
+* لو السيرفر حقيقي → الأفضل Linux + Cron
+
+---
+
+## تحب الخطوة الجاية؟
+
+🔹 أجهز لك:
+
+* `backup_cron.php` كامل
+* إشعار WebSocket / Fetch للمستخدمين
+* Log ذكي للأخطاء
+
+قولّي 👍 ونبدأ مباشرة.

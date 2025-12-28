@@ -1455,3 +1455,92 @@ button.field-active {
 }
 
 
+/* تنسيق خلايا الجدول */
+.cells-wrapper {
+    /* هذه الفئة يمكن تطبيقها على عنصر يحوي الخلايا إذا لزم */
+}
+
+.total-cell {
+    padding: 8px;
+    text-align: center;
+    font-weight: bold;
+    transition: all var(--fast);
+    border-radius: var(--radius-sm);
+}
+
+/* خلية السعر بعد الخصم */
+.total-after-cell {
+    composes: total-cell;
+    background-color: var(--surface-2);
+}
+
+.total-after-cell.zero {
+    background-color: rgba(239, 68, 68, 0.08); /* rose مع شفافية */
+    color: var(--danger);
+    position: relative;
+    overflow: hidden;
+}
+
+.total-after-cell.zero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--flash-gradient);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    100% {
+        left: 100%;
+    }
+}
+
+/* خلية السعر قبل الخصم */
+.total-before-cell {
+    composes: total-cell;
+    background-color: var(--surface);
+    color: var(--muted);
+    position: relative;
+}
+
+/* تأثير للأسعار المخفضة (عندما يكون هناك خصم) */
+.total-before-cell.discounted {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+/* علامة مجاناً */
+.free-badge {
+    display: block;
+    color: var(--danger);
+    font-size: 10px;
+    margin-top: 2px;
+    font-weight: 600;
+}
+
+/* سعر مجاني */
+.free-price {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+/* تحسينات للوضع الداكن */
+[data-app][data-theme="dark"] .total-after-cell {
+    background-color: var(--row-bg-odd-2);
+}
+
+[data-app][data-theme="dark"] .total-before-cell {
+    background-color: var(--row-bg-even-1);
+}
+
+[data-app][data-theme="dark"] .total-after-cell.zero {
+    background-color: rgba(239, 68, 68, 0.12);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+[data-app][data-theme="dark"] .total-after-cell.zero::after {
+    background: var(--flashy);
+}

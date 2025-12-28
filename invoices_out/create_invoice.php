@@ -2848,9 +2848,9 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
         let discountInputStyle = 'width: 100%; text-align: center;';
         
         if (item.discountLevel === 'high') {
-            discountInputStyle += ' background-color: #ffcccc; border-color: #dc3545;';
+            discountInputStyle += ' background-color: #fd5353ff; border-color: #dc3545; color: white;';
         } else if (item.discountLevel === 'medium') {
-            discountInputStyle += ' background-color: #fff3cd; border-color: #ffc107;';
+            discountInputStyle += ' background-color: #7d7354ff; border-color: #ffc107; color: white;';
         }
         
         // إذا تجاوز الحدود، لون أحمر داكن
@@ -2888,9 +2888,9 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                     ${item.priceType === 'retail' ? 'قطاعي' : 'جملة'}
                 </span>
             </td>
-            <td class="total-before-cell" style="background-color: #f8f9fa; padding: 8px; text-align: center;">
-                ${Helpers.formatCurrency(item.total_before_discount || 0)}
-            </td>
+         <td class="total-before-cell ${item.total_after_discount !== 0 && item.total_after_discount !== item.total_before_discount ? 'discounted' : ''}">
+    ${Helpers.formatCurrency(item.total_before_discount || 0)}
+</td>
             <td>
                 <input type="number" 
                        class="input-discount-value" 
@@ -2908,14 +2908,12 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                     <option value="percent" ${item.discount_type === 'percent' ? 'selected' : ''}>%</option>
                 </select>
             </td>
-            <td class="total-after-cell" 
-                style="background-color: ${item.total_after_discount === 0 ? '#ffcccc' : '#e8f5e8'}; 
-                       padding: 8px; text-align: center; font-weight: bold;">
-                ${item.total_after_discount === 0 ? 
-                  '<span style="color: #dc3545;">٠٫٠٠ ج.م</span>' : 
-                  Helpers.formatCurrency(item.total_after_discount || (item.quantity * item.price))}
-                ${item.total_after_discount === 0 ? '<br><small style="color: #dc3545; font-size: 10px;">مجاناً</small>' : ''}
-            </td>
+<td class="total-after-cell ${item.total_after_discount === 0 ? 'zero' : ''}"
+    data-price="${item.total_after_discount || (item.quantity * item.price)}">
+    ${item.total_after_discount === 0 ? 
+        '<span class="free-price">٠٫٠٠ ج.م</span><span class="free-badge">مجاناً</span>' : 
+        Helpers.formatCurrency(item.total_after_discount || (item.quantity * item.price))}
+</td>
             <td>
                 <button class="remove-item" data-index="${index}" style="color: #dc3545; background: none; border: none; cursor: pointer;">
                     <i class="fas fa-trash-alt"></i>
