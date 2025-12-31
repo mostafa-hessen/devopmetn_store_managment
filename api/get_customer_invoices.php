@@ -34,7 +34,7 @@ $check->close();
 $query = "
     SELECT 
         i.id,
-        i.work_order_id ,
+        i.work_order_id,
         i.id AS invoice_number,
         DATE(i.created_at) AS date,
         TIME(i.created_at) AS time,
@@ -43,11 +43,10 @@ $query = "
         i.remaining_amount AS remaining,
         i.created_by,
         i.total_before_discount,
-i.discount_type,
-i.discount_value,
-i.discount_amount,
- i.discount_scope,
-
+        i.discount_type,
+        i.discount_value,
+        i.discount_amount,
+        i.discount_scope,
 
         CASE 
             WHEN i.delivered = 'reverted' THEN 'returned'
@@ -56,7 +55,6 @@ i.discount_amount,
             ELSE 'pending'
         END AS status,
 
-        
         -- عدد البنود
         (SELECT COUNT(*) FROM invoice_out_items WHERE invoice_out_id = i.id) AS items_count,
 
@@ -70,10 +68,10 @@ i.discount_amount,
         w.title AS workOrderName,
         u.username AS createdByName
     FROM invoices_out i
-LEFT JOIN work_orders w ON w.id = i.work_order_id
-LEFT JOIN users u ON u.id = i.created_by
+    LEFT JOIN work_orders w ON w.id = i.work_order_id
+    LEFT JOIN users u ON u.id = i.created_by
     WHERE i.customer_id = ?
-
+      AND i.delivered != 'canceled'
     ORDER BY i.created_at DESC
 ";
 
@@ -105,7 +103,7 @@ $itemStmt = $conn->prepare("
         i.available_for_return,
         i.price_type,
         i.cost_price_per_unit,
-          i.discount_amount,
+        i.discount_amount,
         i.total_after_discount,         
         i.discount_type ,
         i.discount_value 

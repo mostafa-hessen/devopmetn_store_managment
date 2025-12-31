@@ -687,6 +687,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
                 <th>رصيد (دخل)</th>
                 <th>متبقي (Active)</th>
                 <th>حد الطلب</th>
+                <th>سعر الشراء</th>
                 <th>سعر بيع أساسي</th>
                 <th>سعر بيع قطاعي</th>
                 <th>آخر سعر شراء </th>
@@ -999,6 +1000,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
       <td class="small monos">${lastInfo}</td>
       <td class="monos ">${formatNum(p.base_selling_price || p.selling_price || 0)}</td>
       <td class="monos  ">${formatNum(p.retail_price || p.retail_price || 0)}</td>
+      <td class="monos">${formatNum(p.last_purchase_price ||0)}</td>
       <td class="monos">${formatNum(p.stock_value_active || 0)}</td>
       <td class="actions">
         <button class="btn btn-ghost" onclick="openProductModal(${p.id})" title="تعديل"><i class="fa fa-edit"></i></button>

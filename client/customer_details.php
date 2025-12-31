@@ -20,27 +20,13 @@
   $is_customer_8 = ($customer_id == 8);
 
   ?>
-  <!DOCTYPE html>
-  <html lang="ar" dir="rtl">
-
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>نظام إدارة العملاء والمخزون المتطور</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-    <link
-      href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css"
-      rel="stylesheet" />
+  
+ 
+ <head>
     <link rel="stylesheet" href="assets/index.css" />
-  </head>
+  </head> 
 
-  <body>
-    <div class="container-fluid py-4">
+    <div class="container-fluid py-4" id="customerBody">
       <!-- رأس العميل -->
       <div class="customer-header">
         <div class="row align-items-center">
@@ -1438,185 +1424,10 @@
     <!-- قسم الطباعة -->
     <div id="printSection" class="print-section" style="display: none"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-    <!-- Loader -->
-    <!-- Enhanced Loader -->
-    <!-- <div id="pageLoader" class[]="page-loader">
-      <div class="loader-content">
-          <div class="loader-spinner">
-              <div class="spinner-ring spinner-ring-1"></div>
-              <div class="spinner-ring spinner-ring-2"></div>
-              <div class="spinner-ring spinner-ring-3"></div>
-          </div>
-          
-          <div class="loader-text" id="loaderText">جاري تهيئة النظام...</div>
-          
-          <div class="loader-dots">
-              <div class="loader-dot"></div>
-              <div class="loader-dot"></div>
-              <div class="loader-dot"></div>
-          </div>
-          
-          <div class="loader-progress">
-              <div class="loader-progress-bar" id="loaderProgressBar"></div>
-          </div>
-          
-          <div class="loader-percentage" id="loaderPercentage">0%</div>
-      </div>
-  </div>  -->
-    <!-- <script>
   
-  class EnhancedPageLoader {
-      constructor() {
-          this.steps = [
-              { text: 'جاري تهيئة النظام...', duration: 400 },
-              { text: 'تحميل بيانات العميل...', duration: 800 },
-              { text: 'جاري تحميل الفواتير...', duration: 1000 },
-              { text: 'تحميل الشغلانات...', duration: 1000 },
-              { text: 'جلب البيانات المالية...', duration: 900 },
-              { text: 'جاري إعداد الواجهة...', duration: 700 }
-          ];
-          this.currentStep = 0;
-          this.totalSteps = this.steps.length;
-          this.interval = null;
-      }
-      
-      show() {
-          const loader = document.getElementById('pageLoader');
-          if (loader) {
-              loader.style.display = 'flex';
-              loader.classList.remove('fade-out');
-              this.startProgress();
-          }
-      }
-      
-      hide() {
-          const loader = document.getElementById('pageLoader');
-          if (loader) {
-              // أكمل التقدم إلى 100%
-              this.updateProgress(100, 'جاري الانتهاء...');
-              
-              setTimeout(() => {
-                  loader.classList.add('fade-out');
-                  
-                  setTimeout(() => {
-                      loader.style.display = 'none';
-                      this.reset();
-                  }, 500);
-              }, 500);
-          }
-      }
-      
-      startProgress() {
-          let progress = 0;
-          const totalDuration = this.steps.reduce((sum, step) => sum + step.duration, 0);
-          let elapsed = 0;
-          
-          this.interval = setInterval(() => {
-              elapsed += 100;
-              progress = Math.min((elapsed / totalDuration) * 100, 100);
-              
-              this.updateProgress(progress);
-              
-              // تحديث النص بناءً على التقدم
-              const stepIndex = Math.floor(progress / (100 / this.totalSteps));
-              if (stepIndex < this.totalSteps) {
-                  this.updateText(this.steps[stepIndex].text);
-              }
-              
-              if (progress >= 100) {
-                  clearInterval(this.interval);
-              }
-          }, 100);
-      }
-      
-      updateProgress(percent, customText = null) {
-          const progressBar = document.getElementById('loaderProgressBar');
-          const percentage = document.getElementById('loaderPercentage');
-          
-          if (progressBar) {
-              progressBar.style.width = percent + '%';
-          }
-          
-          if (percentage) {
-              percentage.textContent = Math.round(percent) + '%';
-          }
-          
-          if (customText) {
-              this.updateText(customText);
-          }
-      }
-      
-      updateText(text) {
-          const loaderText = document.getElementById('loaderText');
-          if (loaderText) {
-              // تأثير fade للنص
-              loaderText.style.opacity = '0.5';
-              setTimeout(() => {
-                  loaderText.textContent = text;
-                  loaderText.style.opacity = '1';
-              }, 150);
-          }
-      }
-      
-      reset() {
-          clearInterval(this.interval);
-          this.currentStep = 0;
-          this.updateProgress(0, 'جاري التحميل...');
-      }
-      
-      // طريقة للتحكم اليدوي في التقدم
-      setStep(stepIndex, customText = null) {
-          if (stepIndex < this.totalSteps) {
-              this.currentStep = stepIndex;
-              const progress = (stepIndex / this.totalSteps) * 100;
-              this.updateProgress(progress, customText || this.steps[stepIndex].text);
-          }
-      }
-  }
-
-  // إنشاء instance واحدة
-  const PageLoader = new EnhancedPageLoader();
-
-  // الاستخدام في التطبيق
-  document.addEventListener('DOMContentLoaded', function() {
-      PageLoader.show();
-      
-      // يمكنك التحكم في التقدم يدوياً
-      setTimeout(() => PageLoader.setStep(1), 500);
-      setTimeout(() => PageLoader.setStep(2), 1000);
-      setTimeout(() => PageLoader.setStep(3), 2000);
-      
-      // إخفاء التلقائي بعد 4 ثواني (أو بعد تحميل البيانات)
-      setTimeout(() => {
-          PageLoader.hide();
-      }, 4000);
-  });
-
-  // للاستخدام مع AJAX/API
-  async function loadCustomerData() {
-      PageLoader.show();
-      PageLoader.setStep(1, 'جاري تحميل بيانات العميل...');
-      
-      try {
-          const data = await fetchCustomerData();
-          PageLoader.setStep(2, 'جاري معالجة البيانات...');
-          
-          // معالجة البيانات...
-          
-          PageLoader.hide();
-      } catch (error) {
-          PageLoader.updateText('حدث خطأ في التحميل');
-          setTimeout(() => PageLoader.hide(), 2000);
-      }
-  }
-    </script>  -->
+  
     <script type="module" src="js/init.js"></script>
     </script>
-  </body>
-
-  </html>
   <?php
   $conn->close();
   require_once BASE_DIR . 'partials/footer.php';

@@ -48,6 +48,8 @@
 
 
   // =============== Sidebar state ===============
+const tooltips = document.querySelectorAll('.invoicesTableBody .invoice-row .invoice-item-hover .invoice-items-tooltip');
+
 const SIDEBAR_KEY = "sidebar-state"; // values: "open" | "hidden"
   const savedSidebar = localStorage.getItem(SIDEBAR_KEY);
   if (savedSidebar) body.setAttribute("data-sidebar", savedSidebar);
@@ -64,22 +66,35 @@ const SIDEBAR_KEY = "sidebar-state"; // values: "open" | "hidden"
     localStorage.setItem(SIDEBAR_KEY, state);
   };
 
+  let cur ;
   if (sidebarToggle) {
     sidebarToggle.addEventListener("click", () => {
-      const cur = body.getAttribute("data-sidebar");
+       cur = body.getAttribute("data-sidebar");
       setSidebar(cur === "open" ? "hidden" : "open");
+
+     
+
+      
     });
+
+
+
+
   }
 
   // إغلاق تلقائي عند الضغط على لينك (موبايل فقط)
   document.addEventListener("click", (e) => {
     if (window.matchMedia("(max-width: 992px)").matches && e.target.closest(".sidebar .nav-link")) {
       setSidebar("hidden");
+     
+      
     }
   });
 })();
 </script>
 
      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
 </body>
 </html>

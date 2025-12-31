@@ -1,0 +1,3294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-app data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المشتريات والمرتجعات</title>
+    
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+  <style>
+    
+        :root {
+            /* Base Colors */
+            --primary: #0b84ff;
+            --primary-600: #0a6be0;
+            --primary-700: #0a58c8;
+            --flash-gradient: linear-gradient(
+                90deg, rgba(255, 255, 255, 0) 0%, 
+                rgba(255, 255, 255, 0.6) 50%, 
+                rgba(255, 255, 255, 0) 100%
+            );
+            --accent: #7c3aed;
+            --accent-600: #6d28d9;
+            --teal: #10b981;
+            --teal-600: #0da271;
+            --amber: #f59e0b;
+            --amber-600: #d97706;
+            --rose: #ef4444;
+            --rose-600: #dc2626;
+            --const: #ffffff;
+            
+            /* Light Mode Tokens */
+            --bg: #f6f8fc;
+            --surface: #ffffff;
+            --surface-2: #f9fbff;
+            --text: #0f172a;
+            --text-soft: #334155;
+            --muted: #64748b;
+            --border: rgba(2, 6, 23, 0.08);
+            --border-strong: rgba(2, 6, 23, 0.12);
+            
+            /* Shadows & Effects */
+            --radius: 14px;
+            --radius-sm: 10px;
+            --radius-lg: 20px;
+            --radius-xl: 24px;
+            
+            --shadow-1: 0 10px 24px rgba(15, 23, 42, 0.06);
+            --shadow-2: 0 12px 28px rgba(11, 132, 255, 0.14);
+            --shadow-3: 0 20px 40px rgba(15, 23, 42, 0.08);
+            --ring: 0 0 0 4px rgba(11, 132, 255, 0.18);
+            
+            /* Spacing & Sizing */
+            --header-h: 64px;
+            
+            /* Transitions */
+            --fast: 0.15s ease;
+            --normal: 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* Gradients */
+            --grad-1: linear-gradient(135deg, #0b84ff, #7c3aed);
+            --grad-2: linear-gradient(135deg, #10b981, #0ea5e9);
+            --grad-3: linear-gradient(135deg, #f59e0b, #ef4444);
+            --grad-4: linear-gradient(135deg, #ef4444, #b91c1c);
+        }
+
+        /* ==================== DARK MODE ==================== */
+        [data-app][data-theme="dark"] {
+            --flashy: linear-gradient(90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.06) 28%,
+                rgba(255, 255, 255, 0.22) 50%,
+                rgba(255, 255, 255, 0.06) 72%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            --bg: #0c1222;
+            --surface: #0f162d;
+            --surface-2: #0a1122;
+            --text: #e5e7eb;
+            --text-soft: #cbd5e1;
+            --muted: #94a3b8;
+            --border: rgba(148, 163, 184, 0.15);
+            --border-strong: rgba(148, 163, 184, 0.25);
+            
+            --shadow-1: 0 12px 30px rgba(0, 0, 0, 0.45);
+            --shadow-2: 0 18px 40px rgba(11, 132, 255, 0.22);
+            --shadow-3: 0 24px 48px rgba(0, 0, 0, 0.55);
+            --ring: 0 0 0 4px rgba(11, 132, 255, 0.24);
+            
+            --accent-left: #7c3aed;
+            --accent-left-weak: rgba(124, 58, 237, 0.06);
+            --accent-right: #b9770e;
+            --accent-right-weak: rgba(185, 119, 14, 0.06);
+            
+            --row-bg-odd-1: #0f1724;
+            --row-bg-odd-2: #0b1220;
+            --row-bg-even-1: #0b1220;
+            --row-bg-even-2: #05070d;
+            --row-border-strong: rgba(148, 163, 184, 0.08);
+            --row-border-soft: rgba(148, 163, 184, 0.04);
+            --row-shadow: 0 8px 26px rgba(2, 6, 23, 0.55);
+            --row-hover-tint: rgba(124, 58, 237, 0.06);
+            --row-radius: 10px;
+        }
+
+        /* ==================== BASE STYLES ==================== */
+  
+        /* ==================== APP CONTAINER ==================== */
+        .app-container {
+            max-width: 1920px;
+            margin: 0 auto;
+            background: var(--surface);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-3);
+            overflow: hidden;
+            min-height: 100vh;
+        }
+
+        /* ==================== HEADER ==================== */
+        .app-header {
+            background: var(--grad-1);
+            color: var(--const);
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            position: relative;
+            overflow: hidden;
+            min-height: var(--header-h);
+        }
+
+        .app-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--flash-gradient);
+            animation: shine 3.5s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes shine {
+            0% { right: -100%; }
+            100% { right: 100%; }
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-brand h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+            color: var(--const);
+        }
+
+        /* ==================== GLOBAL SEARCH ==================== */
+        .global-search {
+            flex: 1;
+            max-width: 500px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .global-search-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .global-search-input {
+            width: 100%;
+            padding: 14px 20px 14px 50px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            color: var(--const);
+            font-size: 15px;
+            font-weight: 500;
+            transition: all var(--normal);
+            outline: none;
+        }
+
+        .global-search-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .global-search-input:focus {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+        }
+
+        /* ==================== HEADER ACTIONS ==================== */
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==================== BUTTONS ==================== */
+        .btn {
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--normal);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            outline: none;
+            white-space: nowrap;
+            height: 44px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+            height: 36px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--const);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-600);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-2);
+        }
+
+        .btn-success {
+            background: var(--teal);
+            color: var(--const);
+        }
+
+        .btn-success:hover {
+            background: var(--teal-600);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-danger {
+            background: var(--rose);
+            color: var(--const);
+        }
+
+        .btn-danger:hover {
+            background: var(--rose-600);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-warning {
+            background: var(--amber);
+            color: var(--const);
+        }
+
+        .btn-warning:hover {
+            background: var(--amber-600);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-info {
+            background: var(--accent);
+            color: var(--const);
+        }
+
+        .btn-info:hover {
+            background: var(--accent-600);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(124, 58, 237, 0.25);
+        }
+
+        .btn-light {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-light:hover {
+            background: var(--surface);
+            border-color: var(--border-strong);
+            transform: translateY(-1px);
+        }
+
+        /* ==================== BADGES ==================== */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            gap: 5px;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .badge-pending {
+            background: linear-gradient(135deg, var(--amber), #d97706);
+            color: white;
+        }
+
+        .badge-partial {
+            background: linear-gradient(135deg, var(--accent), #6d28d9);
+            color: white;
+        }
+
+        .badge-received {
+            background: linear-gradient(135deg, var(--teal), #059669);
+            color: white;
+        }
+
+        .badge-cancelled {
+            background: linear-gradient(135deg, var(--rose), #dc2626);
+            color: white;
+        }
+
+        .badge-returned {
+            background: linear-gradient(135deg, var(--primary), #2563eb);
+            color: white;
+        }
+
+        /* Batch Status Badges */
+        .badge-active {
+            background: linear-gradient(135deg, var(--teal), #059669);
+            color: white;
+        }
+
+        .badge-consumed {
+            background: linear-gradient(135deg, var(--muted), #475569);
+            color: white;
+        }
+
+        .badge-reverted {
+            background: linear-gradient(135deg, var(--amber), #d97706);
+            color: white;
+        }
+
+        /* ==================== MAIN CONTENT ==================== */
+        .main-content-container {
+            padding: 32px;
+        }
+
+        /* ==================== TABS ==================== */
+        .tabs-container {
+            margin-bottom: 32px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab {
+            padding: 14px 28px;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--muted);
+            cursor: pointer;
+            border-radius: var(--radius) var(--radius) 0 0;
+            transition: all var(--normal);
+            position: relative;
+            white-space: nowrap;
+            outline: none;
+        }
+
+        .tab:hover {
+            color: var(--primary);
+            background: rgba(11, 132, 255, 0.05);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            background: rgba(11, 132, 255, 0.1);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 2px 2px 0 0;
+        }
+
+        /* ==================== FILTERS CARD ==================== */
+        .filters-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-1);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-select, .form-input {
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+            transition: all var(--normal);
+            width: 100%;
+            outline: none;
+        }
+
+        .form-select:focus, .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: var(--ring);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* ==================== STATS CARDS ==================== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            border: 1px solid var(--border);
+            transition: all var(--normal);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--grad-1);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-2);
+        }
+
+        .stat-card:nth-child(2)::before { background: var(--grad-4); }
+        .stat-card:nth-child(3)::before { background: var(--grad-3); }
+        .stat-card:nth-child(4)::before { background: var(--grad-2); }
+
+        .stat-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        /* ==================== TABLE CONTAINER ==================== */
+        .table-container {
+            background: var(--surface);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-1);
+            border: 1px solid var(--border);
+            margin-top: 24px;
+        }
+
+        .table-header {
+            background: var(--surface-2);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* ==================== ENHANCED TABLE ==================== */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 1200px;
+        }
+
+        .data-table th {
+            padding: 16px;
+            text-align: right;
+            font-weight: 700;
+            color: var(--text);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+            font-size: 14px;
+            background: var(--surface-2);
+        }
+
+        .data-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+            font-size: 14px;
+            transition: background-color var(--fast);
+            background: var(--surface);
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background: var(--surface-2);
+        }
+
+        .data-table tbody tr:hover td {
+            background: rgba(11, 132, 255, 0.05);
+        }
+
+        /* ==================== ACTION BUTTONS ==================== */
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+
+        /* ==================== MODALS ==================== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            max-width: 1400px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: var(--shadow-3);
+            animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px); 
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0); 
+            }
+        }
+
+        .modal-header {
+            background: var(--grad-1);
+            color: var(--const);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--const);
+            font-size: 28px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background-color var(--fast);
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(90vh - 80px);
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-start;
+            gap: 12px;
+        }
+
+        /* ==================== INVOICE DETAILS ==================== */
+        .invoice-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .detail-card {
+            background: var(--surface-2);
+            padding: 20px;
+            border-radius: var(--radius-sm);
+            border-right: 4px solid var(--primary);
+        }
+
+        .detail-card:nth-child(2) { border-color: var(--accent); }
+        .detail-card:nth-child(3) { border-color: var(--teal); }
+        .detail-card:nth-child(4) { border-color: var(--amber); }
+
+        .detail-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        /* Invoice Notes */
+        .invoice-notes {
+            background: var(--surface-2);
+            padding: 20px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .invoice-notes h4 {
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .invoice-notes pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-soft);
+            background: var(--surface);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        /* ==================== EDIT MODAL STYLES ==================== */
+        .edit-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+
+        .edit-table th {
+            background: var(--surface-2);
+            padding: 12px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--text);
+            border-bottom: 2px solid var(--border);
+            font-size: 14px;
+        }
+
+        .edit-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+            transition: all var(--normal);
+        }
+
+        .edit-input:focus {
+            border-color: var(--primary);
+            box-shadow: var(--ring);
+            outline: none;
+        }
+
+        /* ==================== RETURN STEPS ==================== */
+        .return-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .return-steps::before {
+            content: '';
+            position: absolute;
+            top: 24px;
+            right: 0;
+            left: 0;
+            height: 2px;
+            background: var(--border);
+            z-index: 1;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--surface-2);
+            border: 3px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--muted);
+            margin-bottom: 8px;
+            transition: all var(--normal);
+        }
+
+        .step.active .step-number {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--const);
+            transform: scale(1.1);
+        }
+
+        .step.completed .step-number {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: var(--const);
+        }
+
+        .step-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            text-align: center;
+        }
+
+        .step.active .step-title {
+            color: var(--primary);
+        }
+
+        .step.completed .step-title {
+            color: var(--teal);
+        }
+
+        /* Return Form Sections */
+        .return-form-section {
+            display: none;
+        }
+
+        .return-form-section.active {
+            display: block;
+        }
+
+        /* Return Items Grid */
+        .return-items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .return-item-card {
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            border: 2px solid var(--border);
+            transition: all var(--normal);
+            cursor: pointer;
+        }
+
+        .return-item-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .return-item-card.selected {
+            border-color: var(--primary);
+            background: rgba(11, 132, 255, 0.05);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .item-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .item-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .info-item .value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Quantity Input */
+        .quantity-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .quantity-input:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        /* Return Summary */
+        .return-summary {
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin: 24px 0;
+            border: 1px solid var(--border);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        /* ==================== CHARTS ==================== */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+
+        .chart-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-1);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* ==================== UTILITY CLASSES ==================== */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .fw-bold {
+            font-weight: 700;
+        }
+
+        .fw-semibold {
+            font-weight: 600;
+        }
+
+        .text-muted {
+            color: var(--muted);
+        }
+
+        .text-success {
+            color: var(--teal);
+        }
+
+        .text-danger {
+            color: var(--rose);
+        }
+
+        .text-warning {
+            color: var(--amber);
+        }
+
+        .text-info {
+            color: var(--accent);
+        }
+
+        .mb-1 { margin-bottom: 8px; }
+        .mb-2 { margin-bottom: 16px; }
+        .mb-3 { margin-bottom: 24px; }
+        .mb-4 { margin-bottom: 32px; }
+
+        .mt-1 { margin-top: 8px; }
+        .mt-2 { margin-top: 16px; }
+        .mt-3 { margin-top: 24px; }
+        .mt-4 { margin-top: 32px; }
+
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .gap-1 { gap: 8px; }
+        .gap-2 { gap: 16px; }
+        .gap-3 { gap: 24px; }
+
+        /* ==================== RESPONSIVE DESIGN ==================== */
+        @media (max-width: 1400px) {
+            .app-container {
+                border-radius: var(--radius-lg);
+                margin: 12px;
+            }
+            
+            .main-content {
+                padding: 24px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .invoice-details-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .app-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+                padding: 20px;
+            }
+            
+            .global-search {
+                max-width: 100%;
+            }
+            
+            .header-actions {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .filter-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .invoice-details-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .return-items-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+            
+            .table-actions {
+                justify-content: center;
+            }
+            
+            .action-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .tabs {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .tab {
+                width: 100%;
+                text-align: center;
+                border-radius: var(--radius);
+            }
+            
+            .tab.active {
+                border-radius: var(--radius) var(--radius) 0 0;
+            }
+            
+            .return-steps {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            .return-steps::before {
+                display: none;
+            }
+            
+            .modal-content {
+                margin: 0;
+                border-radius: var(--radius) var(--radius) 0 0;
+            }
+        }
+  </style>
+</head>
+
+
+<body>
+    <div class="app-container">
+        <!-- ==================== HEADER ==================== -->
+        <header class="app-header">
+            <div class="header-brand">
+                <h1>
+                    <i class="fas fa-shopping-cart"></i>
+                    نظام إدارة المشتريات والمرتجعات
+                </h1>
+            </div>
+
+            <!-- Global Search -->
+            <div class="global-search">
+                <div class="global-search-wrapper">
+                    <input type="text" class="global-search-input" id="globalSearch" 
+                           placeholder="ابحث في الموردين، الفواتير، المرتجعات...">
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="PurchaseManager.openNewInvoiceModal()">
+                    <i class="fas fa-plus"></i>
+                    فاتورة شراء جديدة
+                </button>
+                <button class="btn btn-info" onclick="UIManager.switchTab('analytics')">
+                    <i class="fas fa-chart-line"></i>
+                    التحليلات
+                </button>
+                <button class="btn btn-warning" onclick="UIManager.switchTab('returns')">
+                    <i class="fas fa-exchange-alt"></i>
+                    إدارة المرتجعات
+                </button>
+            </div>
+        </header>
+
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <main class="main-content">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>إجمالي المشتريات</h3>
+                    <div class="stat-value" id="totalPurchases">125,450 ج.م</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i>
+                        12% عن الشهر الماضي
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>قيمة المرتجعات</h3>
+                    <div class="stat-value" id="totalReturns">8,750 ج.م</div>
+                    <div class="stat-change negative">
+                        <i class="fas fa-arrow-down"></i>
+                        5% عن الشهر الماضي
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>فواتير قيد المعالجة</h3>
+                    <div class="stat-value" id="pendingInvoices">7 فواتير</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-plus"></i>
+                        3 جديدة
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>معدل المرتجعات</h3>
+                    <div class="stat-value" id="returnRate">3.2%</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i>
+                        0.5% تحسن
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab active" onclick="UIManager.switchTab('invoices')">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        فواتير المشتريات
+                    </button>
+                    <button class="tab" onclick="UIManager.switchTab('returns')">
+                        <i class="fas fa-exchange-alt"></i>
+                        المرتجعات
+                    </button>
+                    <button class="tab" onclick="UIManager.switchTab('analytics')">
+                        <i class="fas fa-chart-pie"></i>
+                        التحليلات
+                    </button>
+                </div>
+            </div>
+
+            <!-- ==================== INVOICES TAB ==================== -->
+            <div id="invoicesTab" class="tab-content">
+                <!-- Invoices Filters -->
+                <div class="filters-card">
+                    <div class="filter-grid">
+                        <div class="filter-group">
+                            <label>اسم المورد</label>
+                            <select class="form-select" id="supplierFilter">
+                                <option value="">كل الموردين</option>
+                                <option value="1">شركة النور للأجهزة</option>
+                                <option value="2">مؤسسة التقنية المتطورة</option>
+                                <option value="3">شركة النجوم للتوريدات</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>رقم الهاتف</label>
+                            <input type="text" class="form-input" id="phoneFilter" placeholder="ابحث برقم الهاتف">
+                        </div>
+                        <div class="filter-group">
+                            <label>رقم الفاتورة</label>
+                            <input type="number" class="form-input" id="invoiceIdFilter" placeholder="رقم الفاتورة">
+                        </div>
+                        <div class="filter-group">
+                            <label>من تاريخ</label>
+                            <input type="date" class="form-input" id="dateFromFilter">
+                        </div>
+                        <div class="filter-group">
+                            <label>إلى تاريخ</label>
+                            <input type="date" class="form-input" id="dateToFilter">
+                        </div>
+                        <div class="filter-group">
+                            <label>الحالة</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">كل الحالات</option>
+                                <option value="pending">قيد الانتظار</option>
+                                <option value="received">تم الاستلام</option>
+                                <option value="cancelled">ملغاة</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn btn-primary" onclick="PurchaseManager.filterInvoices()">
+                                <i class="fas fa-search"></i>
+                                بحث
+                            </button>
+                            <button class="btn btn-light" onclick="PurchaseManager.resetFilters()">
+                                <i class="fas fa-redo"></i>
+                                تصفير
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Invoices Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3><i class="fas fa-file-invoice-dollar"></i> فواتير المشتريات</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-light btn-sm" onclick="ExportManager.exportInvoices()">
+                                <i class="fas fa-download"></i>
+                                تصدير البيانات
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>المورد</th>
+                                    <th>تاريخ الشراء</th>
+                                    <th>رقم فاتورة المورد</th>
+                                    <th>الحالة</th>
+                                    <th>الكميات</th>
+                                    <th>الإجمالي</th>
+                                    <th>المرتجعات</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoicesTable">
+                                <!-- سيتم تعبئته بواسطة JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== RETURNS TAB ==================== -->
+            <div id="returnsTab" class="tab-content hidden">
+                <!-- Returns Filters -->
+                <div class="filters-card">
+                    <div class="filter-grid">
+                        <div class="filter-group">
+                            <label>نوع المرتجع</label>
+                            <select class="form-select" id="returnTypeFilter">
+                                <option value="">كل الأنواع</option>
+                                <option value="supplier_return">إرجاع للمورد</option>
+                                <option value="damaged">تلف في المخزن</option>
+                                <option value="expired">منتهي الصلاحية</option>
+                                <option value="wrong_item">منتج خاطئ</option>
+                                <option value="excess">كمية زائدة</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>حالة المرتجع</label>
+                            <select class="form-select" id="returnStatusFilter">
+                                <option value="">كل الحالات</option>
+                                <option value="pending">قيد المعالجة</option>
+                                <option value="completed">مكتمل</option>
+                                <option value="cancelled">ملغي</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>من تاريخ</label>
+                            <input type="date" class="form-input" id="returnDateFrom">
+                        </div>
+                        <div class="filter-group">
+                            <label>إلى تاريخ</label>
+                            <input type="date" class="form-input" id="returnDateTo">
+                        </div>
+                        <div class="filter-group">
+                            <label>المورد</label>
+                            <select class="form-select" id="returnSupplierFilter">
+                                <option value="">كل الموردين</option>
+                                <option value="1">شركة النور للأجهزة</option>
+                                <option value="2">مؤسسة التقنية المتطورة</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn btn-primary" onclick="ReturnManager.filterReturns()">
+                                <i class="fas fa-search"></i>
+                                بحث
+                            </button>
+                            <button class="btn btn-light" onclick="ReturnManager.resetFilters()">
+                                <i class="fas fa-redo"></i>
+                                تصفير
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Returns Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3><i class="fas fa-exchange-alt"></i> المرتجعات</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-primary btn-sm" onclick="ReturnManager.openNewReturnModal()">
+                                <i class="fas fa-plus"></i>
+                                إضافة مرتجع
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>رقم المرتجع</th>
+                                    <th>الفاتورة الأصلية</th>
+                                    <th>المورد</th>
+                                    <th>نوع المرتجع</th>
+                                    <th>تاريخ المرتجع</th>
+                                    <th>الكمية</th>
+                                    <th>القيمة</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="returnsTable">
+                                <!-- سيتم تعبئته بواسطة JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Summary -->
+                <div class="stats-grid mt-4">
+                    <div class="stat-card">
+                        <h3>إجمالي المرتجعات</h3>
+                        <div class="stat-value" id="returnsTotalValue">8,750 ج.م</div>
+                        <div class="stat-change negative">
+                            <i class="fas fa-arrow-up"></i>
+                            +3% عن الشهر الماضي
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>متوسط قيمة المرتجع</h3>
+                        <div class="stat-value" id="averageReturnValue">437 ج.م</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-down"></i>
+                            -5% عن الشهر الماضي
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>أعلى مورد مرتجعات</h3>
+                        <div class="stat-value" id="topReturnSupplier">شركة الأجهزة الحديثة</div>
+                        <div class="stat-change">
+                            1,250 ج.م هذا الشهر
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>المرتجعات قيد المعالجة</h3>
+                        <div class="stat-value" id="pendingReturns">3 مرتجعات</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-down"></i>
+                            -1 عن الأسبوع الماضي
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== ANALYTICS TAB ==================== -->
+            <div id="analyticsTab" class="tab-content hidden">
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <!-- Monthly Purchases Chart -->
+                    <div class="chart-card">
+                        <h3>المشتريات الشهرية</h3>
+                        <div class="chart-container">
+                            <canvas id="monthlyPurchasesChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Returns by Type Chart -->
+                    <div class="chart-card">
+                        <h3>المرتجعات حسب النوع</h3>
+                        <div class="chart-container">
+                            <canvas id="returnsByTypeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Suppliers Chart -->
+                    <div class="chart-card">
+                        <h3>أعلى 5 موردين</h3>
+                        <div class="chart-container">
+                            <canvas id="topSuppliersChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Return Rate Chart -->
+                    <div class="chart-card">
+                        <h3>معدل المرتجعات الشهري</h3>
+                        <div class="chart-container">
+                            <canvas id="returnRateChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Stats -->
+                <div class="stats-grid mt-4">
+                    <div class="stat-card">
+                        <h3>معدل الرضا عن المشتريات</h3>
+                        <div class="stat-value">94.2%</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            +2.1% هذا الشهر
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>متوسط وقت معالجة المرتجع</h3>
+                        <div class="stat-value">3.2 أيام</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-down"></i>
+                            -0.8 أيام
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>التوفير من المرتجعات</h3>
+                        <div class="stat-value">2,150 ج.م</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            +15% عن الشهر الماضي
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>أكثر المنتجات مرتجعات</h3>
+                        <div class="stat-value">شاشات 24 بوصة</div>
+                        <div class="stat-change negative">
+                            <i class="fas fa-arrow-up"></i>
+                            12 مرتجع هذا الشهر
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+    
+    <!-- View Invoice Modal -->
+    <div class="modal" id="viewInvoiceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-invoice-dollar"></i> تفاصيل الفاتورة</h2>
+                <button class="modal-close" onclick="UIManager.closeModal('viewInvoiceModal')">×</button>
+            </div>
+            <div class="modal-body" id="invoiceDetails">
+                <!-- سيتم تعبئته بواسطة JavaScript -->
+            </div>
+            <div class="modal-footer" id="invoiceModalFooter">
+                <button class="btn btn-primary" onclick="window.print()">
+                    <i class="fas fa-print"></i>
+                    طباعة
+                </button>
+                <button class="btn btn-light" onclick="UIManager.closeModal('viewInvoiceModal')">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Invoice Modal -->
+    <div class="modal" id="editInvoiceModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--grad-2);">
+                <h2><i class="fas fa-edit"></i> تعديل بنود الفاتورة <span id="edit_inv_id"></span></h2>
+                <button class="modal-close" onclick="UIManager.closeModal('editInvoiceModal')">×</button>
+            </div>
+            <div class="modal-body" id="editInvoiceBody">
+                <!-- سيتم تعبئته بواسطة JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button id="btn_save_edit" class="btn btn-success">
+                    <i class="fas fa-save"></i>
+                    حفظ التعديلات
+                </button>
+                <button class="btn btn-light" onclick="UIManager.closeModal('editInvoiceModal')">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel Invoice Modal -->
+    <div class="modal" id="cancelInvoiceModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--grad-4);">
+                <h2><i class="fas fa-times-circle"></i> إلغاء الفاتورة</h2>
+                <button class="modal-close" onclick="UIManager.closeModal('cancelInvoiceModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="detail-label">رقم الفاتورة</label>
+                    <div class="detail-value" id="cancelInvoiceId"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="detail-label">السبب</label>
+                    <textarea id="cancelReason" rows="4" class="edit-input" 
+                              placeholder="أدخل سبب الإلغاء (مطلوب)"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="PurchaseManager.confirmCancel()">
+                    <i class="fas fa-check"></i>
+                    تأكيد الإلغاء
+                </button>
+                <button class="btn btn-light" onclick="UIManager.closeModal('cancelInvoiceModal')">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receive Invoice Modal -->
+    <div class="modal" id="receiveInvoiceModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--grad-success);">
+                <h2><i class="fas fa-check-circle"></i> استلام الفاتورة</h2>
+                <button class="modal-close" onclick="UIManager.closeModal('receiveInvoiceModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="detail-label">رقم الفاتورة</label>
+                    <div class="detail-value" id="receiveInvoiceId"></div>
+                </div>
+                <div class="mb-3">
+                    <p>هل تريد تأكيد استلام الفاتورة بالكامل؟</p>
+                    <p class="text-muted">سيتم إنشاء دفعات للمنتجات وتحديث المخزون.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="PurchaseManager.confirmReceive()">
+                    <i class="fas fa-check"></i>
+                    تأكيد الاستلام
+                </button>
+                <button class="btn btn-light" onclick="UIManager.closeModal('receiveInvoiceModal')">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Return Details Modal -->
+    <div class="modal" id="viewReturnModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--grad-4);">
+                <h2><i class="fas fa-exchange-alt"></i> تفاصيل المرتجع</h2>
+                <button class="modal-close" onclick="UIManager.closeModal('viewReturnModal')">×</button>
+            </div>
+            <div class="modal-body" id="returnDetails">
+                <!-- سيتم تعبئته بواسطة JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" onclick="UIManager.closeModal('viewReturnModal')">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Return Modal -->
+    <div class="modal" id="newReturnModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--grad-3);">
+                <h2><i class="fas fa-plus-circle"></i> إنشاء مرتجع جديد</h2>
+                <button class="modal-close" onclick="ReturnManager.closeReturnModal()">×</button>
+            </div>
+            <div class="modal-body" id="newReturnBody">
+                <!-- سيتم تعبئته بواسطة JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- View Return Items Modal -->
+    <div class="modal" id="viewReturnItemsModal">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--grad-info);">
+                <h2><i class="fas fa-boxes"></i> المرتجعات المرتبطة</h2>
+                <button class="modal-close" onclick="UIManager.closeModal('viewReturnItemsModal')">×</button>
+            </div>
+            <div class="modal-body" id="returnItemsList">
+                <!-- سيتم تعبئته بواسطة JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" onclick="UIManager.closeModal('viewReturnItemsModal')">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        // ==================== CONSTANTS ====================
+        const STATUS_LABELS = {
+            pending: 'قيد الانتظار',
+            partial_received: 'مستلمة جزئياً',
+            fully_received: 'تم الاستلام',
+            cancelled: 'ملغاة'
+        };
+
+        const RETURN_TYPES = {
+            supplier_return: 'إرجاع للمورد',
+            damaged: 'تلف في المخزن',
+            expired: 'منتهي الصلاحية',
+            wrong_item: 'منتج خاطئ',
+            excess: 'كمية زائدة'
+        };
+
+        // ==================== UI MANAGER ====================
+        const UIManager = {
+            currentLoader: null,
+
+            switchTab(tabName) {
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.add('hidden');
+                });
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                const tabElement = document.getElementById(tabName + 'Tab');
+                if (tabElement) tabElement.classList.remove('hidden');
+                
+                const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+                if (tabButton) tabButton.classList.add('active');
+                
+                if (tabName === 'analytics') {
+                    this.initCharts();
+                }
+            },
+
+            openModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            },
+
+            closeModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                }
+            },
+
+            showLoader(title = 'جاري التحميل...', text = 'يرجى الانتظار') {
+                this.hideLoader();
+                this.currentLoader = Swal.fire({
+                    title: title,
+                    text: text,
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    willOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+            },
+
+            hideLoader() {
+                if (this.currentLoader) {
+                    Swal.close();
+                    this.currentLoader = null;
+                }
+            },
+
+            showSuccess(message, title = 'نجاح') {
+                return Swal.fire({
+                    title: title,
+                    text: message,
+                    icon: 'success',
+                    confirmButtonText: 'موافق',
+                    confirmButtonColor: '#10b981',
+                    timer: 3000
+                });
+            },
+
+            showError(message, title = 'خطأ') {
+                return Swal.fire({
+                    title: title,
+                    text: message,
+                    icon: 'error',
+                    confirmButtonText: 'موافق',
+                    confirmButtonColor: '#ef4444'
+                });
+            },
+
+            showConfirm(message, title = 'تأكيد') {
+                return Swal.fire({
+                    title: title,
+                    text: message,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'نعم',
+                    cancelButtonText: 'لا',
+                    confirmButtonColor: '#0b84ff',
+                    cancelButtonColor: '#6b7280'
+                });
+            },
+
+            formatCurrency(amount) {
+                return new Intl.NumberFormat('ar-EG', {
+                    style: 'currency',
+                    currency: 'EGP',
+                    minimumFractionDigits: 2
+                }).format(amount);
+            },
+
+            formatDate(dateString) {
+                if (!dateString) return '-';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ar-EG');
+            },
+
+            // Charts Initialization
+            initCharts() {
+                // Monthly Purchases Chart
+                const monthlyPurchasesCtx = document.getElementById('monthlyPurchasesChart').getContext('2d');
+                new Chart(monthlyPurchasesCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+                        datasets: [{
+                            label: 'قيمة المشتريات',
+                            data: [120000, 150000, 180000, 125000, 200000, 175000],
+                            borderColor: '#0b84ff',
+                            backgroundColor: 'rgba(11, 132, 255, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                rtl: true
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return UIManager.formatCurrency(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Returns by Type Chart
+                const returnsByTypeCtx = document.getElementById('returnsByTypeChart').getContext('2d');
+                new Chart(returnsByTypeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['إرجاع للمورد', 'تلف في المخزن', 'منتهي الصلاحية', 'منتج خاطئ', 'كمية زائدة'],
+                        datasets: [{
+                            data: [25, 15, 10, 30, 20],
+                            backgroundColor: [
+                                '#ef4444',
+                                '#f59e0b',
+                                '#64748b',
+                                '#7c3aed',
+                                '#0b84ff'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'left',
+                                rtl: true
+                            }
+                        }
+                    }
+                });
+
+                // Top Suppliers Chart
+                const topSuppliersCtx = document.getElementById('topSuppliersChart').getContext('2d');
+                new Chart(topSuppliersCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['شركة النور', 'التقنية', 'النجوم', 'الابتكار', 'المكتبة'],
+                        datasets: [{
+                            label: 'قيمة المشتريات',
+                            data: [45000, 38000, 32000, 28000, 22000],
+                            backgroundColor: '#10b981'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                rtl: true
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return UIManager.formatCurrency(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Return Rate Chart
+                const returnRateCtx = document.getElementById('returnRateChart').getContext('2d');
+                new Chart(returnRateCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+                        datasets: [{
+                            label: 'معدل المرتجعات %',
+                            data: [3.5, 3.2, 3.8, 3.0, 2.8, 3.2],
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                rtl: true
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        // ==================== PURCHASE MANAGER ====================
+        const PurchaseManager = {
+            currentInvoiceId: null,
+
+            async loadInvoices() {
+                UIManager.showLoader('جاري تحميل الفواتير...');
+                try {
+                    // محاكاة API
+                    const invoices = [
+                        {
+                            id: 54,
+                            supplier: { name: 'إسلام حمدي', mobile: '01001234567' },
+                            purchase_date: '2025-12-16',
+                            status: 'pending',
+                            total_amount: 40.00,
+                            notes: '[2025-12-31 11:02:02] إرجاع إلى قيد الانتظار: ا (المحرر: saied)\n',
+                            items: [
+                                {
+                                    id: 199,
+                                    product_name: 'سيليكون شفاف',
+                                    quantity: 1.00,
+                                    cost_price_per_unit: 40.00,
+                                    sale_price: 50.00,
+                                    qty_received: 0.00,
+                                    total_cost: 40.00
+                                }
+                            ],
+                            batches: []
+                        },
+                        {
+                            id: 102,
+                            supplier: { name: 'مؤسسة التقنية المتطورة', mobile: '01009876543' },
+                            purchase_date: '2024-03-10',
+                            status: 'fully_received',
+                            total_amount: 45750.00,
+                            notes: '',
+                            items: [
+                                {
+                                    id: 200,
+                                    product_name: 'لابتوب ديل',
+                                    quantity: 10.00,
+                                    cost_price_per_unit: 1500.00,
+                                    sale_price: 1800.00,
+                                    qty_received: 10.00,
+                                    total_cost: 15000.00
+                                },
+                                {
+                                    id: 201,
+                                    product_name: 'ماوس لاسلكي',
+                                    quantity: 50.00,
+                                    cost_price_per_unit: 100.00,
+                                    sale_price: 120.00,
+                                    qty_received: 50.00,
+                                    total_cost: 5000.00
+                                }
+                            ],
+                            batches: [
+                                {
+                                    id: 1,
+                                    product_name: 'لابتوب ديل',
+                                    qty: 10,
+                                    remaining: 10,
+                                    unit_cost: 1500,
+                                    sale_price: 1800,
+                                    status: 'active'
+                                },
+                                {
+                                    id: 2,
+                                    product_name: 'ماوس لاسلكي',
+                                    qty: 50,
+                                    remaining: 48,
+                                    unit_cost: 100,
+                                    sale_price: 120,
+                                    status: 'active'
+                                }
+                            ]
+                        }
+                    ];
+
+                    this.renderInvoices(invoices);
+                    UIManager.hideLoader();
+                } catch (error) {
+                    UIManager.hideLoader();
+                    UIManager.showError('فشل تحميل الفواتير');
+                }
+            },
+
+            renderInvoices(invoices) {
+                const tbody = document.getElementById('invoicesTable');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+
+                if (invoices.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center" style="padding: 40px;">
+                                <div style="color: var(--muted); font-size: 16px;">
+                                    <i class="fas fa-search" style="margin-bottom: 10px; font-size: 48px;"></i>
+                                    <div>لا توجد فواتير</div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                invoices.forEach(invoice => {
+                    const row = this.createInvoiceRow(invoice);
+                    tbody.appendChild(row);
+                });
+            },
+
+            createInvoiceRow(invoice) {
+                const row = document.createElement('tr');
+                
+                const statusBadge = this.getStatusBadge(invoice.status);
+                const returnsCount = 0; // سيتم إضافته من API
+                
+                row.innerHTML = `
+                    <td class="fw-bold">${invoice.id}</td>
+                    <td>
+                        <div class="fw-semibold">${invoice.supplier?.name || 'غير معروف'}</div>
+                        <div class="text-muted" style="font-size: 12px;">${invoice.supplier?.mobile || ''}</div>
+                    </td>
+                    <td>${UIManager.formatDate(invoice.purchase_date)}</td>
+                    <td>${invoice.supplier_invoice_number || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="font-size: 13px;">
+                            <div>${invoice.items?.length || 0} منتج</div>
+                            <div class="text-muted">الكمية: ${invoice.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</div>
+                        </div>
+                    </td>
+                    <td class="fw-bold text-right">${UIManager.formatCurrency(invoice.total_amount)}</td>
+                    <td>
+                        ${returnsCount > 0 ? 
+                            `<span class="badge badge-returned">${returnsCount} مرتجع</span>` : 
+                            '<span class="text-muted">لا يوجد</span>'
+                        }
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            ${this.getActionButtons(invoice)}
+                        </div>
+                    </td>
+                `;
+                
+                return row;
+            },
+
+            getStatusBadge(status) {
+                switch(status) {
+                    case 'pending': return '<span class="badge badge-pending">قيد الانتظار</span>';
+                    case 'fully_received': return '<span class="badge badge-received">تم الاستلام</span>';
+                    case 'cancelled': return '<span class="badge badge-cancelled">ملغاة</span>';
+                    case 'partial_received': return '<span class="badge badge-partial">مستلمة جزئياً</span>';
+                    default: return '<span class="badge">غير معروف</span>';
+                }
+            },
+
+            getActionButtons(invoice) {
+                let buttons = '';
+                
+                // زر العرض مشترك لجميع الحالات
+                buttons += `
+                    <button class="btn btn-info btn-sm" onclick="PurchaseManager.viewInvoice(${invoice.id})">
+                        <i class="fas fa-eye"></i>
+                        عرض
+                    </button>
+                `;
+                
+                // أزرار حسب الحالة
+                switch(invoice.status) {
+                    case 'pending':
+                        buttons += `
+                            <button class="btn btn-warning btn-sm" onclick="PurchaseManager.editInvoice(${invoice.id})">
+                                <i class="fas fa-edit"></i>
+                                تعديل
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="PurchaseManager.receiveInvoice(${invoice.id})">
+                                <i class="fas fa-check-circle"></i>
+                                استلام
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="PurchaseManager.cancelInvoice(${invoice.id})">
+                                <i class="fas fa-times-circle"></i>
+                                إلغاء
+                            </button>
+                        `;
+                        break;
+                    
+                    case 'fully_received':
+                        buttons += `
+                            <button class="btn btn-warning btn-sm" onclick="PurchaseManager.editInvoice(${invoice.id})">
+                                <i class="fas fa-edit"></i>
+                                تعديل
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="ReturnManager.openNewReturnModal(${invoice.id})">
+                                <i class="fas fa-exchange-alt"></i>
+                                مرتجع
+                            </button>
+                        `;
+                        break;
+                    
+                    case 'cancelled':
+                        // فقط زر العرض موجود بالفعل
+                        break;
+                }
+                
+                return buttons;
+            },
+
+            viewInvoice(invoiceId) {
+                this.currentInvoiceId = invoiceId;
+                
+                // محاكاة بيانات الفاتورة
+                const invoice = {
+                    id: invoiceId,
+                    purchase_date: invoiceId === 54 ? '2025-12-16' : '2024-03-10',
+                    status: invoiceId === 54 ? 'pending' : 'fully_received',
+                    supplier: invoiceId === 54 ? { name: 'إسلام حمدي' } : { name: 'مؤسسة التقنية المتطورة' },
+                    total_amount: invoiceId === 54 ? 40.00 : 45750.00,
+                    notes: invoiceId === 54 ? '[2025-12-31 11:02:02] إرجاع إلى قيد الانتظار: ا (المحرر: saied)' : '',
+                    items: invoiceId === 54 ? [
+                        {
+                            id: 199,
+                            product_name: 'سيليكون شفاف',
+                            quantity: 1.00,
+                            cost_price_per_unit: 40.00,
+                            sale_price: 50.00,
+                            qty_received: 0.00,
+                            total_cost: 40.00
+                        }
+                    ] : [
+                        {
+                            id: 200,
+                            product_name: 'لابتوب ديل',
+                            quantity: 10.00,
+                            cost_price_per_unit: 1500.00,
+                            sale_price: 1800.00,
+                            qty_received: 10.00,
+                            total_cost: 15000.00
+                        },
+                        {
+                            id: 201,
+                            product_name: 'ماوس لاسلكي',
+                            quantity: 50.00,
+                            cost_price_per_unit: 100.00,
+                            sale_price: 120.00,
+                            qty_received: 50.00,
+                            total_cost: 5000.00
+                        }
+                    ],
+                    batches: invoiceId === 54 ? [] : [
+                        {
+                            id: 1,
+                            product_name: 'لابتوب ديل',
+                            qty: 10,
+                            remaining: 10,
+                            original_qty: 10,
+                            unit_cost: 1500,
+                            sale_price: 1800,
+                            status: 'active',
+                            revert_reason: null,
+                            cancel_reason: null
+                        },
+                        {
+                            id: 2,
+                            product_name: 'ماوس لاسلكي',
+                            qty: 50,
+                            remaining: 48,
+                            original_qty: 50,
+                            unit_cost: 100,
+                            sale_price: 120,
+                            status: 'active',
+                            revert_reason: null,
+                            cancel_reason: null
+                        }
+                    ]
+                };
+
+                this.renderInvoiceDetails(invoice);
+                UIManager.openModal('viewInvoiceModal');
+            },
+
+            renderInvoiceDetails(invoice) {
+                const modalBody = document.getElementById('invoiceDetails');
+                if (!modalBody) return;
+
+                const statusText = STATUS_LABELS[invoice.status] || invoice.status;
+                const totalItems = invoice.items.reduce((sum, item) => sum + item.quantity, 0);
+                const totalReceived = invoice.items.reduce((sum, item) => sum + item.qty_received, 0);
+                const totalCost = invoice.items.reduce((sum, item) => sum + item.total_cost, 0);
+
+                let html = `
+                    <div class="invoice-details-grid">
+                        <div class="detail-card">
+                            <div class="detail-label">رقم الفاتورة</div>
+                            <div class="detail-value">${invoice.id}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">تاريخ الشراء</div>
+                            <div class="detail-value">${UIManager.formatDate(invoice.purchase_date)}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">الحالة</div>
+                            <div class="detail-value">${statusText}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">المورد</div>
+                            <div class="detail-value">${invoice.supplier?.name || 'غير معروف'}</div>
+                        </div>
+                    </div>
+
+                    <div class="invoice-notes">
+                        <h4>ملاحظات</h4>
+                        <pre>${invoice.notes || 'لا توجد ملاحظات'}</pre>
+                    </div>
+
+                    <h4>بنود الفاتورة</h4>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم</th>
+                                    <th>كمية</th>
+                                    <th>سعر شراء</th>
+                                    <th>سعر بيع</th>
+                                    <th>مستلم</th>
+                                    <th>إجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                invoice.items.forEach((item, index) => {
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.product_name}</td>
+                            <td>${item.quantity.toFixed(2)}</td>
+                            <td>${UIManager.formatCurrency(item.cost_price_per_unit)}</td>
+                            <td>${item.sale_price ? UIManager.formatCurrency(item.sale_price) : '-'}</td>
+                            <td>${item.qty_received.toFixed(2)}</td>
+                            <td>${UIManager.formatCurrency(item.total_cost)}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="6" class="fw-bold text-right">الإجمالي</td>
+                                    <td class="fw-bold">${UIManager.formatCurrency(totalCost)}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                `;
+
+                if (invoice.status === 'fully_received' && invoice.batches && invoice.batches.length > 0) {
+                    html += `
+                        <h4 class="mt-4">الدفعات المرتبطة</h4>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>رقم الدفعة</th>
+                                        <th>المنتج</th>
+                                        <th>الكمية</th>
+                                        <th>المتاح</th>
+                                        <th>سعر الشراء</th>
+                                        <th>سعر البيع</th>
+                                        <th>حالة الدفعة</th>
+                                        <th>سبب الإرجاع</th>
+                                        <th>سبب الإلغاء</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    invoice.batches.forEach(batch => {
+                        const batchStatus = batch.status === 'active' ? 'نشط' : 
+                                          batch.status === 'consumed' ? 'مستهلك' : 
+                                          batch.status === 'reverted' ? 'معاد' : 'ملغي';
+                        
+                        html += `
+                            <tr>
+                                <td>${batch.id}</td>
+                                <td>${batch.product_name}</td>
+                                <td>${batch.qty}</td>
+                                <td>${batch.remaining}</td>
+                                <td>${UIManager.formatCurrency(batch.unit_cost)}</td>
+                                <td>${batch.sale_price ? UIManager.formatCurrency(batch.sale_price) : '-'}</td>
+                                <td>${batchStatus}</td>
+                                <td>${batch.revert_reason || '-'}</td>
+                                <td>${batch.cancel_reason || '-'}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="text-center mt-4 text-muted">
+                            <i class="fas fa-box-open" style="font-size: 48px; margin-bottom: 16px;"></i>
+                            <p>لا يوجد دفعات مرتبطة حتى الآن</p>
+                        </div>
+                    `;
+                }
+
+                modalBody.innerHTML = html;
+            },
+
+            editInvoice(invoiceId) {
+                this.currentInvoiceId = invoiceId;
+                
+                // محاكاة بيانات التعديل
+                const invoice = {
+                    id: invoiceId,
+                    items: [
+                        {
+                            id: 199,
+                            product_name: 'سيليكون شفاف',
+                            quantity: 1.00,
+                            cost_price_per_unit: 40.00,
+                            sale_price: 50.00
+                        }
+                    ]
+                };
+
+                this.renderEditModal(invoice);
+                UIManager.openModal('editInvoiceModal');
+            },
+
+            renderEditModal(invoice) {
+                const modalBody = document.getElementById('editInvoiceBody');
+                const invoiceIdSpan = document.getElementById('edit_inv_id');
+                
+                if (!modalBody || !invoiceIdSpan) return;
+                
+                invoiceIdSpan.textContent = `#${invoice.id}`;
+                
+                let html = `
+                    <table class="edit-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>المنتج</th>
+                                <th>كمية حالية</th>
+                                <th>كمية جديدة</th>
+                                <th>سعر شراء حالي</th>
+                                <th>سعر شراء جديد</th>
+                                <th>سعر بيع حالي</th>
+                                <th>سعر بيع جديد</th>
+                                <th>حذف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                invoice.items.forEach((item, index) => {
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.product_name}</td>
+                            <td>${item.quantity.toFixed(2)}</td>
+                            <td>
+                                <input class="edit-input edit-item-qty" 
+                                       data-item-id="${item.id}" 
+                                       type="number" 
+                                       step="0.01" 
+                                       value="${item.quantity.toFixed(2)}">
+                            </td>
+                            <td>${UIManager.formatCurrency(item.cost_price_per_unit)}</td>
+                            <td>
+                                <input class="edit-input edit-item-cost" 
+                                       data-item-id="${item.id}" 
+                                       type="number" 
+                                       step="0.01" 
+                                       value="${item.cost_price_per_unit.toFixed(2)}">
+                            </td>
+                            <td>${item.sale_price ? UIManager.formatCurrency(item.sale_price) : '-'}</td>
+                            <td>
+                                <input class="edit-input edit-item-sale" 
+                                       data-item-id="${item.id}" 
+                                       type="number" 
+                                       step="0.01" 
+                                       value="${item.sale_price?.toFixed(2) || ''}">
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm js-delete-item" 
+                                        data-item-id="${item.id}">
+                                    <i class="fas fa-trash"></i>
+                                    حذف
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                    
+                    <div class="mt-4">
+                        <label class="detail-label">سبب التعديل (مطلوب)</label>
+                        <textarea id="js_adjust_reason" rows="3" class="edit-input" 
+                                  placeholder="أدخل سبب التعديل..."></textarea>
+                    </div>
+                `;
+                
+                modalBody.innerHTML = html;
+                
+                // إضافة event listeners للأزرار
+                setTimeout(() => {
+                    document.getElementById('btn_save_edit').onclick = () => this.saveEdit();
+                    document.querySelectorAll('.js-delete-item').forEach(btn => {
+                        btn.onclick = (e) => {
+                            const itemId = e.target.dataset.itemId;
+                            this.deleteItem(itemId);
+                        };
+                    });
+                }, 100);
+            },
+
+            saveEdit() {
+                const reason = document.getElementById('js_adjust_reason').value.trim();
+                if (!reason) {
+                    UIManager.showError('يرجى إدخال سبب التعديل');
+                    return;
+                }
+
+                UIManager.showLoader('جاري حفظ التعديلات...');
+                
+                // محاكاة حفظ التعديلات
+                setTimeout(() => {
+                    UIManager.hideLoader();
+                    UIManager.showSuccess('تم حفظ التعديلات بنجاح');
+                    UIManager.closeModal('editInvoiceModal');
+                    this.loadInvoices(); // إعادة تحميل الفواتير
+                }, 1500);
+            },
+
+            deleteItem(itemId) {
+                UIManager.showConfirm('هل تريد تأكيد حذف هذا البند؟', 'تأكيد الحذف')
+                    .then(result => {
+                        if (result.isConfirmed) {
+                            UIManager.showLoader('جاري حذف البند...');
+                            
+                            // محاكاة حذف البند
+                            setTimeout(() => {
+                                UIManager.hideLoader();
+                                UIManager.showSuccess('تم حذف البند بنجاح');
+                                this.editInvoice(this.currentInvoiceId); // إعادة تحميل نموذج التعديل
+                            }, 1000);
+                        }
+                    });
+            },
+
+            receiveInvoice(invoiceId) {
+                this.currentInvoiceId = invoiceId;
+                document.getElementById('receiveInvoiceId').textContent = invoiceId;
+                UIManager.openModal('receiveInvoiceModal');
+            },
+
+            confirmReceive() {
+                UIManager.showLoader('جاري استلام الفاتورة...');
+                
+                // محاكاة استلام الفاتورة
+                setTimeout(() => {
+                    UIManager.hideLoader();
+                    UIManager.showSuccess('تم استلام الفاتورة بنجاح');
+                    UIManager.closeModal('receiveInvoiceModal');
+                    this.loadInvoices(); // إعادة تحميل الفواتير
+                }, 2000);
+            },
+
+            cancelInvoice(invoiceId) {
+                this.currentInvoiceId = invoiceId;
+                document.getElementById('cancelInvoiceId').textContent = invoiceId;
+                UIManager.openModal('cancelInvoiceModal');
+            },
+
+            confirmCancel() {
+                const reason = document.getElementById('cancelReason').value.trim();
+                if (!reason) {
+                    UIManager.showError('يرجى إدخال سبب الإلغاء');
+                    return;
+                }
+
+                UIManager.showLoader('جاري إلغاء الفاتورة...');
+                
+                // محاكاة إلغاء الفاتورة
+                setTimeout(() => {
+                    UIManager.hideLoader();
+                    UIManager.showSuccess('تم إلغاء الفاتورة بنجاح');
+                    UIManager.closeModal('cancelInvoiceModal');
+                    this.loadInvoices(); // إعادة تحميل الفواتير
+                }, 1500);
+            },
+
+            filterInvoices() {
+                UIManager.showLoader('جاري البحث...');
+                
+                // محاكاة البحث
+                setTimeout(() => {
+                    UIManager.hideLoader();
+                    UIManager.showSuccess('تم تطبيق الفلاتر');
+                }, 1000);
+            },
+
+            resetFilters() {
+                document.getElementById('supplierFilter').value = '';
+                document.getElementById('phoneFilter').value = '';
+                document.getElementById('invoiceIdFilter').value = '';
+                document.getElementById('dateFromFilter').value = '';
+                document.getElementById('dateToFilter').value = '';
+                document.getElementById('statusFilter').value = '';
+                
+                this.loadInvoices();
+            },
+
+            openNewInvoiceModal() {
+                UIManager.showSuccess('هذه الميزة قيد التطوير', 'قريباً');
+            }
+        };
+
+        // ==================== RETURN MANAGER ====================
+        const ReturnManager = {
+            currentStep: 1,
+            selectedBatches: [],
+            currentInvoiceId: null,
+
+            async loadReturns() {
+                UIManager.showLoader('جاري تحميل المرتجعات...');
+                try {
+                    // محاكاة API
+                    const returns = [
+                        {
+                            id: 'RET-2024-001',
+                            purchase_invoice_id: 102,
+                            supplier: { name: 'مورد التقنية المتطورة' },
+                            return_type: 'wrong_item',
+                            return_date: '2024-01-20',
+                            status: 'completed',
+                            reason: 'استلام منتج غير مطابق للمواصفات',
+                            total_amount: 200.00,
+                            items: [
+                                {
+                                    product_name: 'ماوس لاسلكي',
+                                    batch_id: 'B002',
+                                    quantity: 2,
+                                    unit_cost: 100.00,
+                                    total_cost: 200.00
+                                }
+                            ]
+                        },
+                        {
+                            id: 'RET-2024-002',
+                            purchase_invoice_id: 1003,
+                            supplier: { name: 'مستلزمات المكتبة' },
+                            return_type: 'damaged',
+                            return_date: '2024-01-18',
+                            status: 'completed',
+                            reason: 'تلف أثناء التخزين',
+                            total_amount: 2500.00,
+                            items: [
+                                {
+                                    product_name: 'طابعة ليزر',
+                                    batch_id: 'B004',
+                                    quantity: 1,
+                                    unit_cost: 2500.00,
+                                    total_cost: 2500.00
+                                }
+                            ]
+                        }
+                    ];
+
+                    this.renderReturns(returns);
+                    UIManager.hideLoader();
+                } catch (error) {
+                    UIManager.hideLoader();
+                    UIManager.showError('فشل تحميل المرتجعات');
+                }
+            },
+
+            renderReturns(returns) {
+                const tbody = document.getElementById('returnsTable');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+
+                returns.forEach(ret => {
+                    const row = this.createReturnRow(ret);
+                    tbody.appendChild(row);
+                });
+            },
+
+            createReturnRow(ret) {
+                const row = document.createElement('tr');
+                
+                const typeText = RETURN_TYPES[ret.return_type] || ret.return_type;
+                const typeColor = this.getReturnTypeColor(ret.return_type);
+                const statusBadge = this.getReturnStatusBadge(ret.status);
+                const totalItems = ret.items.reduce((sum, item) => sum + item.quantity, 0);
+                
+                row.innerHTML = `
+                    <td class="fw-bold">${ret.id}</td>
+                    <td>${ret.purchase_invoice_id}</td>
+                    <td>${ret.supplier?.name || 'غير معروف'}</td>
+                    <td><span class="badge" style="background: ${typeColor}">${typeText}</span></td>
+                    <td>${UIManager.formatDate(ret.return_date)}</td>
+                    <td>${totalItems} منتج</td>
+                    <td class="fw-bold text-right">${UIManager.formatCurrency(ret.total_amount)}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-info btn-sm" onclick="ReturnManager.viewReturnDetails('${ret.id}')">
+                                <i class="fas fa-eye"></i>
+                                عرض
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                return row;
+            },
+
+            getReturnTypeColor(type) {
+                switch(type) {
+                    case 'supplier_return': return 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    case 'damaged': return 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    case 'expired': return 'linear-gradient(135deg, #64748b, #475569)';
+                    case 'wrong_item': return 'linear-gradient(135deg, #7c3aed, #6d28d9)';
+                    case 'excess': return 'linear-gradient(135deg, #0b84ff, #2563eb)';
+                    default: return 'var(--muted)';
+                }
+            },
+
+            getReturnStatusBadge(status) {
+                switch(status) {
+                    case 'pending': return '<span class="badge badge-pending">قيد المعالجة</span>';
+                    case 'completed': return '<span class="badge badge-received">مكتمل</span>';
+                    case 'cancelled': return '<span class="badge badge-cancelled">ملغي</span>';
+                    default: return '<span class="badge">غير معروف</span>';
+                }
+            },
+
+            viewReturnDetails(returnId) {
+                // محاكاة بيانات المرتجع
+                const returnData = {
+                    id: returnId,
+                    purchase_invoice_id: 102,
+                    supplier: { name: 'مورد التقنية المتطورة' },
+                    return_type: 'wrong_item',
+                    return_date: '2024-01-20',
+                    status: 'completed',
+                    reason: 'استلام منتج غير مطابق للمواصفات',
+                    total_amount: 200.00,
+                    items: [
+                        {
+                            product_name: 'ماوس لاسلكي',
+                            batch_id: 'B002',
+                            quantity: 2,
+                            unit_cost: 100.00,
+                            total_cost: 200.00
+                        }
+                    ]
+                };
+
+                this.renderReturnDetails(returnData);
+                UIManager.openModal('viewReturnModal');
+            },
+
+            renderReturnDetails(returnData) {
+                const modalBody = document.getElementById('returnDetails');
+                if (!modalBody) return;
+
+                const typeText = RETURN_TYPES[returnData.return_type] || returnData.return_type;
+                const statusText = returnData.status === 'completed' ? 'مكتمل' : 
+                                 returnData.status === 'pending' ? 'قيد المعالجة' : 'ملغي';
+                
+                modalBody.innerHTML = `
+                    <div class="invoice-details-grid">
+                        <div class="detail-card">
+                            <div class="detail-label">رقم المرتجع</div>
+                            <div class="detail-value">${returnData.id}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">الفاتورة الأصلية</div>
+                            <div class="detail-value">${returnData.purchase_invoice_id}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">المورد</div>
+                            <div class="detail-value">${returnData.supplier?.name}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">نوع المرتجع</div>
+                            <div class="detail-value">${typeText}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">تاريخ المرتجع</div>
+                            <div class="detail-value">${UIManager.formatDate(returnData.return_date)}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">الحالة</div>
+                            <div class="detail-value">${statusText}</div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-label">القيمة الإجمالية</div>
+                            <div class="detail-value">${UIManager.formatCurrency(returnData.total_amount)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-notes">
+                        <h4>سبب المرتجع</h4>
+                        <pre>${returnData.reason}</pre>
+                    </div>
+                    
+                    <h4>المنتجات المرتجعة</h4>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>المنتج</th>
+                                    <th>الدفعة</th>
+                                    <th>الكمية</th>
+                                    <th>السعر</th>
+                                    <th>الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                returnData.items.forEach(item => {
+                    modalBody.innerHTML += `
+                        <tr>
+                            <td>${item.product_name}</td>
+                            <td>${item.batch_id}</td>
+                            <td>${item.quantity}</td>
+                            <td>${UIManager.formatCurrency(item.unit_cost)}</td>
+                            <td>${UIManager.formatCurrency(item.total_cost)}</td>
+                        </tr>
+                    `;
+                });
+
+                modalBody.innerHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            },
+
+            openNewReturnModal(invoiceId = null) {
+                this.currentInvoiceId = invoiceId;
+                this.currentStep = 1;
+                this.selectedBatches = [];
+                
+                if (invoiceId) {
+                    // محاكاة بيانات الفاتورة للترجيع
+                    const batches = [
+                        {
+                            id: 1,
+                            product_name: 'لابتوب ديل',
+                            batch_id: 'B001',
+                            unit_cost: 1500.00,
+                            remaining: 10,
+                            original_qty: 10,
+                            expiry: '2025-12-31'
+                        },
+                        {
+                            id: 2,
+                            product_name: 'ماوس لاسلكي',
+                            batch_id: 'B002',
+                            unit_cost: 100.00,
+                            remaining: 48,
+                            original_qty: 50,
+                            expiry: '2026-06-30'
+                        },
+                        {
+                            id: 3,
+                            product_name: 'كيبورد ميكانيكي',
+                            batch_id: 'B003',
+                            unit_cost: 300.00,
+                            remaining: 20,
+                            original_qty: 20,
+                            expiry: '2027-01-31'
+                        }
+                    ];
+
+                    this.renderNewReturnModal(batches);
+                } else {
+                    this.renderNewReturnModal();
+                }
+                
+                UIManager.openModal('newReturnModal');
+            },
+
+            renderNewReturnModal(batches = []) {
+                const modalBody = document.getElementById('newReturnBody');
+                if (!modalBody) return;
+
+                modalBody.innerHTML = `
+                    <!-- Steps Navigation -->
+                    <div class="return-steps">
+                        <div class="step ${this.currentStep >= 1 ? 'active' : ''} ${this.currentStep > 1 ? 'completed' : ''}" id="step1">
+                            <div class="step-number">1</div>
+                            <div class="step-title">اختيار المنتجات</div>
+                        </div>
+                        <div class="step ${this.currentStep >= 2 ? 'active' : ''} ${this.currentStep > 2 ? 'completed' : ''}" id="step2">
+                            <div class="step-number">2</div>
+                            <div class="step-title">تحديد الكميات</div>
+                        </div>
+                        <div class="step ${this.currentStep >= 3 ? 'active' : ''}" id="step3">
+                            <div class="step-number">3</div>
+                            <div class="step-title">تأكيد المرتجع</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Select Products -->
+                    <div class="return-form-section ${this.currentStep === 1 ? 'active' : ''}" id="step1Content">
+                        <div class="mb-3">
+                            <label class="detail-label">نوع المرتجع</label>
+                            <select class="form-select" id="returnType">
+                                <option value="">اختر نوع المرتجع</option>
+                                ${Object.entries(RETURN_TYPES).map(([value, label]) => 
+                                    `<option value="${value}">${label}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="detail-label">سبب المرتجع</label>
+                            <textarea class="form-input" id="returnReason" rows="3" 
+                                      placeholder="اكتب سبب الإرجاع..."></textarea>
+                        </div>
+
+                        ${batches.length > 0 ? `
+                            <div class="mb-3">
+                                <label class="detail-label">دفعات الفاتورة المتاحة للإرجاع</label>
+                                <div class="return-items-grid" id="batchesList">
+                                    ${batches.map(batch => `
+                                        <div class="return-item-card" id="batch-${batch.id}">
+                                            <div class="item-header">
+                                                <h4 style="margin: 0;">${batch.product_name}</h4>
+                                                <label style="cursor: pointer;">
+                                                    <input type="checkbox" class="batch-checkbox" value="${batch.id}" 
+                                                           onchange="ReturnManager.toggleBatchSelection(${batch.id})">
+                                                    اختر للإرجاع
+                                                </label>
+                                            </div>
+                                            <div class="item-info">
+                                                <div class="info-item">
+                                                    <label>رقم الدفعة</label>
+                                                    <div class="value">${batch.batch_id}</div>
+                                                </div>
+                                                <div class="info-item">
+                                                    <label>السعر</label>
+                                                    <div class="value">${UIManager.formatCurrency(batch.unit_cost)}</div>
+                                                </div>
+                                                <div class="info-item">
+                                                    <label>الكمية المتاحة</label>
+                                                    <div class="value">${batch.remaining} / ${batch.original_qty}</div>
+                                                </div>
+                                                <div class="info-item">
+                                                    <label>تاريخ الصلاحية</label>
+                                                    <div class="value">${batch.expiry || 'غير محدد'}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : '<p class="text-center text-muted">لا توجد دفعات متاحة للترجيع</p>'}
+
+                        <div class="text-left mt-4">
+                            <button class="btn btn-primary" onclick="ReturnManager.nextStep()">
+                                التالي
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Quantities -->
+                    <div class="return-form-section ${this.currentStep === 2 ? 'active' : ''}" id="step2Content">
+                        <h4 class="mb-3">تحديد الكميات المرتجعة</h4>
+                        <div id="quantitiesList"></div>
+                        <div class="text-left mt-4">
+                            <button class="btn btn-light" onclick="ReturnManager.prevStep()">
+                                <i class="fas fa-arrow-right"></i>
+                                السابق
+                            </button>
+                            <button class="btn btn-primary" onclick="ReturnManager.nextStep()">
+                                التالي
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Confirmation -->
+                    <div class="return-form-section ${this.currentStep === 3 ? 'active' : ''}" id="step3Content">
+                        <h4 class="mb-3">تأكيد بيانات المرتجع</h4>
+                        
+                        <div class="return-summary">
+                            <div class="summary-grid">
+                                <div>
+                                    <div class="detail-label">نوع المرتجع</div>
+                                    <div class="detail-value" id="summaryType">غير محدد</div>
+                                </div>
+                                <div>
+                                    <div class="detail-label">السبب العام</div>
+                                    <div class="detail-value" id="summaryReason"></div>
+                                </div>
+                                <div>
+                                    <div class="detail-label">إجمالي الكمية</div>
+                                    <div class="detail-value" id="summaryQuantity">0 منتج</div>
+                                </div>
+                                <div>
+                                    <div class="detail-label">القيمة الإجمالية</div>
+                                    <div class="detail-value" id="summaryTotal">0.00 ج.م</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <div class="detail-label">المنتجات المحددة:</div>
+                                <div id="summaryItems"></div>
+                            </div>
+                        </div>
+
+                        <div class="text-left mt-4">
+                            <button class="btn btn-light" onclick="ReturnManager.prevStep()">
+                                <i class="fas fa-arrow-right"></i>
+                                السابق
+                            </button>
+                            <button class="btn btn-success" onclick="ReturnManager.submitReturn()">
+                                <i class="fas fa-check"></i>
+                                تأكيد إنشاء المرتجع
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                if (this.currentStep === 2) {
+                    this.updateQuantitiesList();
+                } else if (this.currentStep === 3) {
+                    this.updateSummary();
+                }
+            },
+
+            toggleBatchSelection(batchId) {
+                const checkbox = document.querySelector(`.batch-checkbox[value="${batchId}"]`);
+                const batchCard = document.getElementById(`batch-${batchId}`);
+                
+                if (checkbox.checked) {
+                    batchCard.classList.add('selected');
+                    this.selectedBatches.push({
+                        id: batchId,
+                        quantity: 0,
+                        reason: ''
+                    });
+                } else {
+                    batchCard.classList.remove('selected');
+                    this.selectedBatches = this.selectedBatches.filter(b => b.id !== batchId);
+                }
+            },
+
+            updateQuantitiesList() {
+                const quantitiesList = document.getElementById('quantitiesList');
+                if (!quantitiesList || this.selectedBatches.length === 0) {
+                    quantitiesList.innerHTML = '<p class="text-center text-muted">لم يتم اختيار أي منتجات</p>';
+                    return;
+                }
+
+                quantitiesList.innerHTML = '';
+                
+                this.selectedBatches.forEach(batch => {
+                    const batchCard = document.querySelector(`#batch-${batch.id}`);
+                    const batchInfo = batchCard ? {
+                        product_name: batchCard.querySelector('h4').textContent,
+                        max_qty: parseInt(batchCard.querySelector('.info-item:nth-child(3) .value').textContent.split('/')[0])
+                    } : { product_name: 'منتج', max_qty: 0 };
+
+                    const quantityInput = document.createElement('div');
+                    quantityInput.className = 'mb-3';
+                    quantityInput.innerHTML = `
+                        <div class="detail-label">${batchInfo.product_name}</div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="number" class="form-input quantity-input" 
+                                   id="qty-${batch.id}" 
+                                   min="0" 
+                                   max="${batchInfo.max_qty}"
+                                   value="${batch.quantity}"
+                                   onchange="ReturnManager.updateBatchQuantity(${batch.id}, this.value)">
+                            <span class="text-muted">/ ${batchInfo.max_qty} متاح</span>
+                        </div>
+                        <div class="mt-2">
+                            <label class="detail-label">سبب إرجاع هذا المنتج</label>
+                            <input type="text" class="form-input" 
+                                   id="reason-${batch.id}" 
+                                   value="${batch.reason}"
+                                   onchange="ReturnManager.updateBatchReason(${batch.id}, this.value)"
+                                   placeholder="سبب محدد لهذا المنتج...">
+                        </div>
+                    `;
+                    
+                    quantitiesList.appendChild(quantityInput);
+                });
+            },
+
+            updateBatchQuantity(batchId, quantity) {
+                const batch = this.selectedBatches.find(b => b.id == batchId);
+                if (batch) {
+                    batch.quantity = parseInt(quantity) || 0;
+                }
+            },
+
+            updateBatchReason(batchId, reason) {
+                const batch = this.selectedBatches.find(b => b.id == batchId);
+                if (batch) {
+                    batch.reason = reason;
+                }
+            },
+
+            updateSummary() {
+                const returnType = document.getElementById('returnType')?.value;
+                const returnReason = document.getElementById('returnReason')?.value;
+                
+                document.getElementById('summaryType').textContent = 
+                    RETURN_TYPES[returnType] || 'غير محدد';
+                document.getElementById('summaryReason').textContent = returnReason || '';
+                
+                const totalQuantity = this.selectedBatches.reduce((sum, b) => sum + (b.quantity || 0), 0);
+                const totalValue = this.selectedBatches.reduce((sum, b) => {
+                    // هنا سيتم حساب القيمة الفعلية من السعر
+                    return sum + (b.quantity || 0) * 100; // سعر افتراضي
+                }, 0);
+                
+                document.getElementById('summaryQuantity').textContent = `${totalQuantity} منتج`;
+                document.getElementById('summaryTotal').textContent = UIManager.formatCurrency(totalValue);
+                
+                const summaryItems = document.getElementById('summaryItems');
+                summaryItems.innerHTML = this.selectedBatches.map(batch => {
+                    const batchCard = document.querySelector(`#batch-${batch.id}`);
+                    const productName = batchCard ? batchCard.querySelector('h4').textContent : 'منتج';
+                    
+                    return `
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>${productName}</span>
+                            <span>${batch.quantity || 0} × ${UIManager.formatCurrency(100)} = ${UIManager.formatCurrency((batch.quantity || 0) * 100)}</span>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            nextStep() {
+                if (this.currentStep === 1) {
+                    const returnType = document.getElementById('returnType').value;
+                    const returnReason = document.getElementById('returnReason').value;
+                    
+                    if (!returnType) {
+                        UIManager.showError('يرجى اختيار نوع المرتجع');
+                        return;
+                    }
+                    
+                    if (!returnReason.trim()) {
+                        UIManager.showError('يرجى كتابة سبب المرتجع');
+                        return;
+                    }
+                    
+                    if (this.selectedBatches.length === 0) {
+                        UIManager.showError('يرجى اختيار منتجات للإرجاع');
+                        return;
+                    }
+                } else if (this.currentStep === 2) {
+                    // التحقق من الكميات
+                    let valid = true;
+                    this.selectedBatches.forEach(batch => {
+                        if (batch.quantity <= 0) {
+                            valid = false;
+                        }
+                    });
+                    
+                    if (!valid) {
+                        UIManager.showError('يرجى تحديد كمية صحيحة لكل منتج');
+                        return;
+                    }
+                }
+                
+                this.currentStep++;
+                this.renderNewReturnModal();
+            },
+
+            prevStep() {
+                this.currentStep--;
+                this.renderNewReturnModal();
+            },
+
+            submitReturn() {
+                const returnType = document.getElementById('returnType').value;
+                const returnReason = document.getElementById('returnReason').value;
+                
+                if (!returnType || !returnReason.trim() || this.selectedBatches.length === 0) {
+                    UIManager.showError('يرجى إكمال جميع البيانات المطلوبة');
+                    return;
+                }
+
+                UIManager.showConfirm('هل تريد تأكيد إنشاء المرتجع؟', 'تأكيد الإنشاء')
+                    .then(result => {
+                        if (result.isConfirmed) {
+                            UIManager.showLoader('جاري إنشاء المرتجع...');
+                            
+                            // محاكاة إنشاء المرتجع
+                            setTimeout(() => {
+                                UIManager.hideLoader();
+                                UIManager.showSuccess('تم إنشاء المرتجع بنجاح');
+                                this.closeReturnModal();
+                                this.loadReturns(); // إعادة تحميل المرتجعات
+                                PurchaseManager.loadInvoices(); // تحديث الفواتير
+                            }, 2000);
+                        }
+                    });
+            },
+
+            closeReturnModal() {
+                this.currentStep = 1;
+                this.selectedBatches = [];
+                this.currentInvoiceId = null;
+                UIManager.closeModal('newReturnModal');
+            },
+
+            filterReturns() {
+                UIManager.showLoader('جاري البحث في المرتجعات...');
+                
+                // محاكاة البحث
+                setTimeout(() => {
+                    UIManager.hideLoader();
+                    UIManager.showSuccess('تم تطبيق الفلاتر على المرتجعات');
+                }, 1000);
+            },
+
+            resetFilters() {
+                document.getElementById('returnTypeFilter').value = '';
+                document.getElementById('returnStatusFilter').value = '';
+                document.getElementById('returnDateFrom').value = '';
+                document.getElementById('returnDateTo').value = '';
+                document.getElementById('returnSupplierFilter').value = '';
+                
+                this.loadReturns();
+            }
+        };
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            // تحميل الفواتير والمرتجعات
+            PurchaseManager.loadInvoices();
+            ReturnManager.loadReturns();
+            
+            // إضافة مستمع للبحث العام
+            document.getElementById('globalSearch').addEventListener('input', function(e) {
+                const query = e.target.value;
+                if (query.length >= 2) {
+                    PurchaseManager.filterInvoices();
+                    ReturnManager.filterReturns();
+                }
+            });
+            
+            // تهيئة الرسوم البيانية
+            UIManager.initCharts();
+            
+            // إضافة زر تغيير الثيم
+            const themeToggle = document.createElement('button');
+            themeToggle.className = 'btn btn-light btn-sm';
+            themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            themeToggle.style.position = 'fixed';
+            themeToggle.style.bottom = '20px';
+            themeToggle.style.left = '20px';
+            themeToggle.style.zIndex = '1000';
+            themeToggle.title = 'تغيير الثيم';
+            themeToggle.onclick = function() {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                themeToggle.innerHTML = newTheme === 'dark' ? 
+                    '<i class="fas fa-sun"></i>' : 
+                    '<i class="fas fa-moon"></i>';
+            };
+            document.body.appendChild(themeToggle);
+        });
+
+        // جعل الدوال متاحة عالمياً
+        window.UIManager = UIManager;
+        window.PurchaseManager = PurchaseManager;
+        window.ReturnManager = ReturnManager;
+    </script>
+</body>
+</html>

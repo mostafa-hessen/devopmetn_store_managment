@@ -90,45 +90,154 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_customer'])) {
 
 // --- جلب الإحصائيات الإجمالية ---
 $stats_sql = "SELECT 
-                COUNT(*) as total_customers,
-                SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as total_debts,
-                SUM(CASE WHEN balance < 0 THEN ABS(balance) ELSE 0 END) as total_credits,
-                SUM(balance) as net_balance,
-                SUM(wallet) as total_wallet,
-                SUM(CASE WHEN wallet > 0 THEN wallet ELSE 0 END) as total_positive_wallet,
-                SUM(CASE WHEN wallet < 0 THEN ABS(wallet) ELSE 0 END) as total_negative_wallet
-              FROM customers";
+    COUNT(DISTINCT c.id) AS total_customers,
+
+    SUM(
+        CASE 
+            WHEN i.remaining_amount > 0 
+             AND i.delivered != 'canceled'
+            THEN i.remaining_amount 
+            ELSE 0 
+        END
+    ) AS total_debts,
+
+    SUM(c.wallet) AS total_wallet,
+
+    SUM(CASE WHEN c.wallet > 0 THEN c.wallet ELSE 0 END) AS total_positive_wallet,
+    SUM(CASE WHEN c.wallet < 0 THEN ABS(c.wallet) ELSE 0 END) AS total_negative_wallet
+
+FROM customers c
+LEFT JOIN invoices_out i 
+    ON i.customer_id = c.id";
+
 $stats = [];
 if ($res_stats = $conn->query($stats_sql)) {
     $stats = $res_stats->fetch_assoc();
     $res_stats->free();
 }
 
+// --- تحديد الفلتر ---
+$debt_only = isset($_GET['debt_only']) && $_GET['debt_only'] == 1;
+$wallet_negative = isset($_GET['wallet_negative']) && $_GET['wallet_negative'] == 1;
+
 // --- البحث الديناميكي ---
 $q = '';
+$search_terms = [];
+$search_mode = false;
+
 if (isset($_GET['q'])) {
     $q = trim((string) $_GET['q']);
     if (mb_strlen($q) > 255) $q = mb_substr($q, 0, 255);
+    
+    // تقسيم الكلمات البحثية
+    $search_terms = preg_split('/\s+/', $q);
+    $search_terms = array_filter($search_terms, function($term) {
+        return mb_strlen(trim($term)) > 0;
+    });
+    
+    $search_mode = true;
 }
 
 $customers = [];
-$search_mode = false;
 
-if ($q !== '') {
+if (!empty($search_terms)) {
     $search_mode = true;
-    $sql_select = "SELECT c.id, c.name, c.mobile, c.city, c.address, c.notes, 
-                          c.created_at, c.balance, c.wallet, c.join_date,
-                          u.username as creator_name
-                   FROM customers c
-                   LEFT JOIN users u ON c.created_by = u.id
-                   WHERE (c.name LIKE ? OR c.mobile LIKE ? OR c.city LIKE ? OR c.address LIKE ? OR c.notes LIKE ?)
-                   ORDER BY c.id DESC";
-    $like = '%' . $q . '%';
+    
+    // بناء استعلام بحث متقدم مع تحديد الأوزان
+    $sql_select = "SELECT 
+        c.id, 
+        c.name, 
+        c.mobile, 
+        c.city, 
+        c.address, 
+        c.notes, 
+        c.created_at, 
+        c.balance, 
+        c.wallet, 
+        c.join_date,
+        u.username as creator_name,
+        
+        -- حساب وزن المطابقة
+        (
+            -- مطابقة كاملة للاسم (أعلى وزن)
+            CASE WHEN c.name = ? THEN 1000
+                 WHEN c.name LIKE ? THEN 900
+                 ELSE 0 END +
+            
+            -- مطابقة جزئية للاسم (متوسط وزن)
+            CASE WHEN c.name LIKE ? THEN 800
+                 ELSE 0 END +
+            
+            -- مطابقة كاملة للموبايل
+            CASE WHEN c.mobile = ? THEN 700
+                 WHEN c.mobile LIKE ? THEN 600
+                 ELSE 0 END +
+            
+            -- مطابقة كاملة للمدينة
+            CASE WHEN c.city = ? THEN 500
+                 WHEN c.city LIKE ? THEN 400
+                 ELSE 0 END +
+            
+            -- مطابقة جزئية للعنوان
+            CASE WHEN c.address LIKE ? THEN 300
+                 ELSE 0 END +
+            
+            -- مطابقة جزئية للملاحظات
+            CASE WHEN c.notes LIKE ? THEN 200
+                 ELSE 0 END +
+            
+            -- مطابقة جزئية لأي كلمة في الاسم
+            CASE WHEN c.name LIKE ? THEN 100
+                 ELSE 0 END
+        ) AS search_score
+        
+        FROM customers c
+        LEFT JOIN users u ON c.created_by = u.id
+        WHERE 1=1 ";
+    
+    // إضافة شروط البحث لكل مصطلح
+    $where_conditions = [];
+    $bind_types = '';
+    $bind_values = [];
+    
+    // معلمات البحث الأساسية (لكل مصطلح)
+    foreach ($search_terms as $term) {
+        $where_conditions[] = "(c.name LIKE ? OR c.mobile LIKE ? OR c.city LIKE ? OR c.address LIKE ? OR c.notes LIKE ?)";
+        $bind_types .= 'sssss';
+        $bind_values[] = '%' . $term . '%';
+        $bind_values[] = '%' . $term . '%';
+        $bind_values[] = '%' . $term . '%';
+        $bind_values[] = '%' . $term . '%';
+        $bind_values[] = '%' . $term . '%';
+    }
+    
+    if (!empty($where_conditions)) {
+        $sql_select .= " AND (" . implode(' AND ', $where_conditions) . ")";
+    }
+    
+    // إضافة شرط الفلتر إذا كان مفعلاً
+    if ($debt_only) {
+        $sql_select .= " AND c.balance > 0";
+    } elseif ($wallet_negative) {
+        $sql_select .= " AND c.wallet < 0";
+    }
+    
+    // ترتيب حسب وزن المطابقة أولاً، ثم حسب تاريخ الإنشاء
+    $sql_select .= " ORDER BY search_score DESC, c.id DESC";
+    
+    // إعداد معلمات الربط
+    $bind_params = array_merge([$q, $q . '%', '%' . $q . '%', $q, '%' . $q . '%', $q, '%' . $q . '%', '%' . $q . '%', '%' . $q . '%', '%' . $q . '%'], $bind_values);
+    $bind_types = 'ssssssssss' . $bind_types;
+    
     if ($stmt = $conn->prepare($sql_select)) {
-        $stmt->bind_param('sssss', $like, $like, $like, $like, $like);
+        $stmt->bind_param($bind_types, ...$bind_params);
         $stmt->execute();
         $res = $stmt->get_result();
-        while ($r = $res->fetch_assoc()) $customers[] = $r;
+        while ($r = $res->fetch_assoc()) {
+            // تخزين درجة المطابقة لفلاتر JavaScript
+            $r['search_score_display'] = $r['search_score'];
+            $customers[] = $r;
+        }
         $stmt->close();
     }
 } else {
@@ -137,8 +246,17 @@ if ($q !== '') {
                           c.created_at, c.balance, c.wallet, c.join_date,
                           u.username as creator_name
                    FROM customers c
-                   LEFT JOIN users u ON c.created_by = u.id
-                   ORDER BY c.id DESC";
+                   LEFT JOIN users u ON c.created_by = u.id";
+    
+    // إضافة شرط الفلتر إذا كان مفعلاً
+    if ($debt_only) {
+        $sql_select .= " WHERE c.balance > 0";
+    } elseif ($wallet_negative) {
+        $sql_select .= " WHERE c.wallet < 0";
+    }
+    
+    $sql_select .= " ORDER BY c.id DESC";
+    
     if ($res = $conn->query($sql_select)) {
         while ($r = $res->fetch_assoc()) $customers[] = $r;
         $res->free();
@@ -150,7 +268,11 @@ $invoice_counts = [];
 
 if (!empty($customers)) {
 
-    $ids = array_map(fn($c) => (int)$c['id'], $customers);
+    // $ids = array_map(fn($c) => (int)$c['id'], $customers);
+
+    $ids = array_map(function ($c) {
+    return (int) $c['id'];
+}, $customers);
     $ids_csv = implode(',', $ids);
 
     $sql = "
@@ -311,6 +433,30 @@ require_once BASE_DIR . 'partials/sidebar.php';
     font-size: 0.875rem;
 }
 
+/* فلتر الديون */
+.debt-filter-container {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-1);
+}
+
+.debt-filter-container .btn-group .btn {
+    border-radius: var(--radius-sm) !important;
+}
+
+.debt-filter-container .btn-group .btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.debt-filter-container .btn-group .btn:hover:not(.active) {
+    background: var(--surface-2);
+}
+
 /* بطاقة العميل */
 .customer-grid {
     display: grid;
@@ -333,6 +479,11 @@ require_once BASE_DIR . 'partials/sidebar.php';
     transform: translateY(-4px);
     box-shadow: var(--shadow-2);
     border-color: var(--primary);
+}
+
+.customer-card.highlight-match {
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
 .customer-header {
@@ -505,6 +656,11 @@ require_once BASE_DIR . 'partials/sidebar.php';
     background-color: var(--surface-2);
 }
 
+.custom-table tbody tr.highlight-match {
+    background-color: rgba(var(--primary-rgb), 0.05);
+    border-left: 3px solid var(--primary);
+}
+
 .custom-table td {
     padding: 1rem;
     color: var(--text);
@@ -561,6 +717,87 @@ require_once BASE_DIR . 'partials/sidebar.php';
     border-color: var(--primary);
 }
 
+/* مؤشرات دقة البحث */
+.search-match-indicator {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+    margin-left: 0.5rem;
+}
+
+/* شريط أدوات البحث */
+.search-tools {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-tool-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: all var(--fast);
+}
+
+.search-tool-btn:hover {
+    background: var(--surface);
+    color: var(--text);
+}
+
+.search-tool-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* اقتراحات البحث */
+.search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-2);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+}
+
+.search-suggestion-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background var(--fast);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-suggestion-item:hover {
+    background: var(--surface-2);
+}
+
+.search-suggestion-name {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.search-suggestion-details {
+    font-size: 0.875rem;
+    color: var(--text-soft);
+}
+
 /* Dark mode adjustments */
 [data-app][data-theme="dark"] .customer-card {
     background: var(--surface);
@@ -595,13 +832,15 @@ require_once BASE_DIR . 'partials/sidebar.php';
     .view-toggle {
         flex-direction: column;
     }
+    
+    .search-tools {
+        flex-direction: column;
+    }
 }
 
 .display-4{
     color: var(--text);
 }
-
-
 </style>
 
 <div class="container mt-1 pt-3">
@@ -637,11 +876,26 @@ require_once BASE_DIR . 'partials/sidebar.php';
             <div class="stat-value"><?php echo number_format($stats['total_debts'] ?? 0, 2); ?> ج.م</div>
         </div>
         
-        <!-- <div class="stat-card credit">
-            <div class="stat-icon"><i class="fas fa-credit-card"></i></div>
-            <div class="stat-label">إجمالي الائتمانات (Balance < 0)</div>
-            <div class="stat-value"><?php echo number_format($stats['total_credits'] ?? 0, 2); ?> ج.م</div>
-        </div> -->
+        <!-- بطاقة عدد العملاء المدينين -->
+        <div class="stat-card" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white;">
+            <div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+            <div class="stat-label">عدد العملاء المدينين (Balance > 0)</div>
+            <?php
+            $debt_customers_sql = "SELECT COUNT(*) as debt_count FROM customers WHERE balance > 0";
+            $debt_count = 0;
+            if ($res_debt = $conn->query($debt_customers_sql)) {
+                $row = $res_debt->fetch_assoc();
+                $debt_count = $row['debt_count'];
+                $res_debt->free();
+            }
+            ?>
+            <div class="stat-value"><?php echo number_format($debt_count); ?></div>
+            <div class="stat-label">
+                <?php echo $stats['total_customers'] > 0 
+                    ? round(($debt_count / $stats['total_customers']) * 100, 1) 
+                    : 0; ?>% من إجمالي العملاء
+            </div>
+        </div>
         
         <div class="stat-card wallet">
             <div class="stat-icon"><i class="fas fa-wallet"></i></div>
@@ -654,7 +908,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
         </div>
     </div>
 
-    <!-- شريط البحث المحسن -->
+    <!-- شريط البحث المتطور -->
     <div class="search-container">
         <div class="search-box">
             <i class="fas fa-search search-icon"></i>
@@ -663,17 +917,59 @@ require_once BASE_DIR . 'partials/sidebar.php';
                    class="search-input" 
                    placeholder="ابحث عن عميل بالاسم، الموبايل، المدينة، العنوان..."
                    value="<?php echo e($q); ?>"
-                   autocomplete="off">
+                   autocomplete="off"
+                   autofocus>
             <div class="loading-spinner">
                 <div class="spinner"></div>
             </div>
+            <div id="searchSuggestions" class="search-suggestions"></div>
         </div>
+        
+        <!-- أدوات البحث -->
+        <div class="search-tools">
+            <button type="button" class="search-tool-btn" data-filter="exact-name">
+                <i class="fas fa-user-check me-1"></i>مطابقة الاسم بالكامل
+            </button>
+            <button type="button" class="search-tool-btn" data-filter="mobile">
+                <i class="fas fa-mobile-alt me-1"></i>بحث بالرقم فقط
+            </button>
+            <button type="button" class="search-tool-btn" data-filter="city">
+                <i class="fas fa-city me-1"></i>بحث بالمدينة
+            </button>
+            <button type="button" class="search-tool-btn" id="clearSearch">
+                <i class="fas fa-times me-1"></i>مسح البحث
+            </button>
+        </div>
+        
         <div id="searchResultsInfo" class="search-results-info">
             <?php if ($search_mode): ?>
-                تم العثور على <?php echo count($customers); ?> عميل لعبارة "<?php echo e($q); ?>"
+                <?php if (!empty($search_terms)): ?>
+                    تم العثور على <?php echo count($customers); ?> عميل 
+                    <?php if (count($search_terms) > 1): ?>
+                        لمصطلحات البحث: "<?php echo e(implode(' ', $search_terms)); ?>"
+                    <?php else: ?>
+                        لمصطلح البحث: "<?php echo e($q); ?>"
+                    <?php endif; ?>
+                <?php else: ?>
+                    إجمالي العملاء: <?php echo count($customers); ?>
+                <?php endif; ?>
             <?php else: ?>
                 إجمالي العملاء: <?php echo count($customers); ?>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- فلتر الديون -->
+    <div class="debt-filter-container ">
+        <div class="btn-group d-flex gap-2" role="group">
+            <a href="<?php echo $_SERVER['PHP_SELF']; ?>" 
+               class="btn btn-outline-secondary <?php echo !isset($_GET['debt_only']) && !isset($_GET['wallet_negative']) ? 'active' : ''; ?>">
+                <i class="fas fa-users me-1"></i> جميع العملاء
+            </a>
+            <a href="<?php echo $_SERVER['PHP_SELF']; ?>?debt_only=1<?php echo $q ? '&q=' . urlencode($q) : ''; ?>" 
+               class="btn btn-outline-danger <?php echo isset($_GET['debt_only']) ? 'active' : ''; ?>">
+                <i class="fas fa-exclamation-triangle me-1"></i> العملاء المدينين فقط
+            </a>
         </div>
     </div>
 
@@ -695,12 +991,25 @@ require_once BASE_DIR . 'partials/sidebar.php';
                 $balance = floatval($row['balance'] ?? 0);
                 $wallet = floatval($row['wallet'] ?? 0);
                 $is_protected = in_array($cid, $protected_customers, true);
-                $counts = $invoice_counts[$cid] ?? ['yes'=>0,'no'=>0,'total'=>0];
+                $counts = $invoice_counts[$cid] ?? ['paid'=>0,'partial'=>0,'pending'=>0,'returned'=>0,'total'=>0];
+                
+                // تحديد درجة المطابقة للعرض
+                $search_score = isset($row['search_score_display']) ? $row['search_score_display'] : 0;
+                $is_exact_match = $search_mode && ($search_score >= 1000 || $row['name'] === $q);
                 ?>
-                <div class="customer-card" data-customer-id="<?php echo $cid; ?>">
+                <div class="customer-card <?php echo $is_exact_match ? 'highlight-match' : ''; ?>" data-customer-id="<?php echo $cid; ?>">
                     <div class="customer-header">
-                        <div class="customer-name"><?php echo e($row["name"]); ?></div>
-                        <div class="customer-id">#<?php echo e($row["id"]); ?></div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="customer-name"><?php echo e($row["name"]); ?></div>
+                                <div class="customer-id">#<?php echo e($row["id"]); ?></div>
+                            </div>
+                            <?php if ($search_mode && $search_score > 0): ?>
+                                <span class="search-match-indicator" title="درجة المطابقة">
+                                    <i class="fas fa-chart-line me-1"></i><?php echo $search_score; ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     
                     <div class="customer-body">
@@ -754,13 +1063,12 @@ require_once BASE_DIR . 'partials/sidebar.php';
                             <i class="fas fa-eye"></i>
                         </button>
 
-     <a href="../client/customer_details.php?customer_id=<?php echo $row['id']; ?>"
-   class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
-   title="عرض تفاصيل العميل">
-    <i class="fas fa-user-circle"></i>
-    <span class="d-none d-md-inline">تفاصيل</span>
-</a>
-
+                        <a href="../client/customer_details.php?customer_id=<?php echo $row['id']; ?>"
+                           class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
+                           title="عرض تفاصيل العميل">
+                            <i class="fas fa-user-circle"></i>
+                            <span class="d-none d-md-inline">تفاصيل</span>
+                        </a>
                         
                         <form action="<?php echo BASE_URL; ?>admin/edit_customer.php" method="post" class="d-inline">
                             <input type="hidden" name="customer_id_to_edit" value="<?php echo e($row["id"]); ?>">
@@ -770,40 +1078,37 @@ require_once BASE_DIR . 'partials/sidebar.php';
                             </button>
                         </form>
                         
-                     <?php if ($counts['total'] > 0): ?>
-    <div class="d-flex gap-1">
+                        <?php if ($counts['total'] > 0): ?>
+                            <div class="d-flex gap-1">
+                                <!-- مسلم -->
+                                <?php if ($counts['paid'] > 0): ?>
+                                    <span class="btn btn-outline-success btn-sm" title="فواتير مسلمة">
+                                        <i class="fas fa-check-circle"></i>
+                                        <?php echo $counts['paid']; ?>
+                                    </span>
+                                <?php endif; ?>
 
-        <!-- مسلم -->
-        <?php if ($counts['paid'] > 0): ?>
-            <span class="btn btn-outline-success btn-sm" title="فواتير مسلمة">
-                <i class="fas fa-check-circle"></i>
-                <?php echo $counts['paid']; ?>
-            </span>
-        <?php endif; ?>
+                                <!-- جزئي -->
+                                <?php if ($counts['partial'] > 0): ?>
+                                    <span class="btn btn-outline-warning btn-sm" title="فواتير مدفوعة جزئيًا">
+                                        <i class="fas fa-adjust"></i>
+                                        <?php echo $counts['partial']; ?>
+                                    </span>
+                                <?php endif; ?>
 
-        <!-- جزئي -->
-        <?php if ($counts['partial'] > 0): ?>
-            <span class="btn btn-outline-warning btn-sm" title="فواتير مدفوعة جزئيًا">
-                <i class="fas fa-adjust"></i>
-                <?php echo $counts['partial']; ?>
-            </span>
-        <?php endif; ?>
-
-        <!-- مؤجل -->
-        <?php if ($counts['pending'] > 0): ?>
-            <span class="btn btn-outline-primary btn-sm" title="فواتير مؤجلة">
-                <i class="fas fa-hourglass-half"></i>
-                <?php echo $counts['pending']; ?>
-            </span>
-        <?php endif; ?>
-
-    </div>
-<?php else: ?>
-    <span class="text-muted" style="font-size: 0.75rem;">
-        لا توجد فواتير
-    </span>
-<?php endif; ?>
-
+                                <!-- مؤجل -->
+                                <?php if ($counts['pending'] > 0): ?>
+                                    <span class="btn btn-outline-primary btn-sm" title="فواتير مؤجلة">
+                                        <i class="fas fa-hourglass-half"></i>
+                                        <?php echo $counts['pending']; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <span class="text-muted" style="font-size: 0.75rem;">
+                                لا توجد فواتير
+                            </span>
+                        <?php endif; ?>
                         
                         <!-- زر الحذف -->
                         <?php if (!$is_protected && $counts['total'] == 0): ?>
@@ -825,7 +1130,15 @@ require_once BASE_DIR . 'partials/sidebar.php';
             <div class="col-12 text-center py-5">
                 <i class="fas fa-users fa-3x text-muted mb-3"></i>
                 <h4 class="text-muted">لا يوجد عملاء</h4>
-                <p class="text-muted">قم بإضافة عميل جديد لبدء المتابعة</p>
+                <p class="text-muted"><?php 
+                    if (isset($_GET['debt_only'])) {
+                        echo 'لا يوجد عملاء لديهم ديون في الوقت الحالي';
+                    } elseif (isset($_GET['wallet_negative'])) {
+                        echo 'لا يوجد عملاء لديهم رصيد سلبي في المحفظة';
+                    } else {
+                        echo 'قم بإضافة عميل جديد لبدء المتابعة';
+                    }
+                ?></p>
             </div>
         <?php endif; ?>
     </div>
@@ -842,6 +1155,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
                         <th>المدينة</th>
                         <th>الديون</th>
                         <th>المحفظة</th>
+                        <th>درجة المطابقة</th>
                         <th>ملاحظات</th>
                         <th class="text-center">إجراءات</th>
                     </tr>
@@ -853,10 +1167,12 @@ require_once BASE_DIR . 'partials/sidebar.php';
                             $balance = floatval($row['balance'] ?? 0);
                             $wallet = floatval($row['wallet'] ?? 0);
                             $is_protected = in_array($cid, $protected_customers, true);
-                            $counts = $invoice_counts[$cid] ?? ['yes'=>0,'no'=>0,'total'=>0];
+                            $counts = $invoice_counts[$cid] ?? ['paid'=>0,'partial'=>0,'pending'=>0,'returned'=>0,'total'=>0];
                             $preview_notes = !empty($row["notes"]) ? mb_substr($row["notes"], 0, 30) . (mb_strlen($row["notes"])>30?'...':'') : '-';
+                            $search_score = isset($row['search_score_display']) ? $row['search_score_display'] : 0;
+                            $is_exact_match = $search_mode && ($search_score >= 1000 || $row['name'] === $q);
                             ?>
-                            <tr data-customer='<?php echo e(json_encode($row)); ?>'>
+                            <tr class="<?php echo $is_exact_match ? 'highlight-match' : ''; ?>" data-customer='<?php echo e(json_encode($row)); ?>'>
                                 <td><?php echo e($row["id"]); ?></td>
                                 <td><strong><?php echo e($row["name"]); ?></strong></td>
                                 <td><?php echo e($row["mobile"]); ?></td>
@@ -873,18 +1189,24 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                         <?php echo number_format($wallet, 2); ?> ج.م
                                     </span>
                                 </td>
+                                <td>
+                                    <?php if ($search_mode && $search_score > 0): ?>
+                                        <span class="badge bg-info"><?php echo $search_score; ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo e($preview_notes); ?></td>
                                 <td class="text-center gap-1 d-flex align-items-center justify-content-center">
                                     <button type="button" class="btn btn-info btn-sm btn-view" title="عرض التفاصيل">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                     
-     <a href="../client/customer_details.php?customer_id=<?php echo $row['id']; ?>"
-   class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
-   title="عرض تفاصيل العميل">
-    <i class="fas fa-user-circle"></i>
-    <!-- <span class="d-none d-md-inline">تفاصيل</span> -->
-</a>
+                                    <a href="../client/customer_details.php?customer_id=<?php echo $row['id']; ?>"
+                                       class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
+                                       title="عرض تفاصيل العميل">
+                                        <i class="fas fa-user-circle"></i>
+                                    </a>
                                     
                                     <form action="<?php echo BASE_URL; ?>admin/edit_customer.php" method="post" class="d-inline">
                                         <input type="hidden" name="customer_id_to_edit" value="<?php echo e($row["id"]); ?>">
@@ -903,7 +1225,6 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                                     onclick="return confirm('هل أنت متأكد من حذف هذا العميل؟');" 
                                                     title="حذف">
                                                 <i class="fas fa-trash-alt"></i>
-
                                             </button>
                                         </form>
                                     <?php endif; ?>
@@ -912,9 +1233,17 @@ require_once BASE_DIR . 'partials/sidebar.php';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="9" class="text-center py-4">
                                 <i class="fas fa-users fa-2x text-muted mb-2"></i>
-                                <p class="text-muted mb-0">لا يوجد عملاء لعرضهم</p>
+                                <p class="text-muted mb-0"><?php 
+                                    if (isset($_GET['debt_only'])) {
+                                        echo 'لا يوجد عملاء لديهم ديون في الوقت الحالي';
+                                    } elseif (isset($_GET['wallet_negative'])) {
+                                        echo 'لا يوجد عملاء لديهم رصيد سلبي في المحفظة';
+                                    } else {
+                                        echo 'لا يوجد عملاء لعرضهم';
+                                    }
+                                ?></p>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -947,13 +1276,26 @@ document.addEventListener('DOMContentLoaded', function(){
     const liveSearch = document.getElementById('liveSearch');
     const loadingSpinner = document.querySelector('.loading-spinner');
     const searchResultsInfo = document.getElementById('searchResultsInfo');
+    const searchSuggestions = document.getElementById('searchSuggestions');
     const toggleGrid = document.getElementById('toggleGrid');
     const toggleTable = document.getElementById('toggleTable');
     const gridView = document.getElementById('gridView');
     const tableView = document.getElementById('tableView');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const searchToolBtns = document.querySelectorAll('.search-tool-btn[data-filter]');
     
     let searchTimeout;
-
+    let currentSearchFilter = null;
+    
+    // جعل حقل البحث في حالة التركيز عند تحميل الصفحة
+    if (liveSearch) {
+        liveSearch.focus();
+        // وضع المؤشر في نهاية النص إذا كان هناك نص موجود
+        if (liveSearch.value) {
+            liveSearch.setSelectionRange(liveSearch.value.length, liveSearch.value.length);
+        }
+    }
+    
     // تبديل طريقة العرض
     toggleGrid.addEventListener('click', function() {
         toggleGrid.classList.add('active');
@@ -969,61 +1311,182 @@ document.addEventListener('DOMContentLoaded', function(){
         tableView.classList.remove('d-none');
     });
 
-    // البحث المباشر
+    // البحث المباشر مع تحسينات
     liveSearch.addEventListener('input', function() {
         clearTimeout(searchTimeout);
         const query = this.value.trim();
         
         if (query.length === 0) {
             // إذا كان البحث فارغًا، إعادة تحميل الصفحة لإظهار الكل
-            window.location.href = window.location.pathname;
+            reloadPageWithoutSearch();
             return;
         }
         
-        if (query.length < 2) {
-            return; // لا تبحث إلا إذا كان هناك حرفين على الأقل
-        }
-        
         loadingSpinner.classList.add('active');
+        searchSuggestions.style.display = 'none';
         
         searchTimeout = setTimeout(() => {
-            fetch(`<?php echo $_SERVER['PHP_SELF']; ?>?q=${encodeURIComponent(query)}`)
-                .then(response => response.text())
-                .then(html => {
-                    // تحليل الـ HTML واستخراج جزء العملاء فقط
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    // استخراج البيانات المطلوبة
-                    const customersGrid = doc.getElementById('gridView');
-                    const customersTable = doc.getElementById('tableView');
-                    const statsInfo = doc.querySelector('.search-results-info');
-                    
-                    if (customersGrid) {
-                        gridView.innerHTML = customersGrid.innerHTML;
-                    }
-                    
-                    if (customersTable) {
-                        tableView.innerHTML = customersTable.innerHTML;
-                    }
-                    
-                    if (statsInfo) {
-                        searchResultsInfo.innerHTML = statsInfo.innerHTML;
-                    }
-                    
-                    // إعادة ربط أحداث الأزرار للبيانات الجديدة
-                    rebindViewButtons();
-                    rebindDeleteButtons();
-                    
-                    loadingSpinner.classList.remove('active');
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    loadingSpinner.classList.remove('active');
-                });
-        }, 500); // تأخير 500 مللي ثانية
+            performSearch(query);
+        }, 300); // تأخير 300 مللي ثانية
     });
-
+    
+    // اقتراحات البحث أثناء الكتابة
+    liveSearch.addEventListener('keyup', function() {
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchSuggestions.style.display = 'none';
+            return;
+        }
+        
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            fetchSearchSuggestions(query);
+        }, 200);
+    });
+    
+    // إغلاق اقتراحات البحث عند النقر خارجها
+    document.addEventListener('click', function(e) {
+        if (!searchSuggestions.contains(e.target) && e.target !== liveSearch) {
+            searchSuggestions.style.display = 'none';
+        }
+    });
+    
+    // زر مسح البحث
+    clearSearchBtn.addEventListener('click', function() {
+        liveSearch.value = '';
+        liveSearch.focus();
+        reloadPageWithoutSearch();
+    });
+    
+    // أزرار فلاتر البحث
+    searchToolBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.getAttribute('data-filter');
+            
+            // تبديل حالة الزر النشط
+            searchToolBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            currentSearchFilter = filter;
+            
+            const query = liveSearch.value.trim();
+            if (query.length > 0) {
+                performSearch(query);
+            }
+        });
+    });
+    
+    // إعادة تحميل الصفحة بدون معلمة البحث
+    function reloadPageWithoutSearch() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('q');
+        window.location.href = url.toString();
+    }
+    
+    // إجراء البحث
+    function performSearch(query) {
+        // احتفظ بمعلمات الفلتر الحالية
+        const urlParams = new URLSearchParams(window.location.search);
+        const debtOnly = urlParams.get('debt_only');
+        const walletNegative = urlParams.get('wallet_negative');
+        
+        let fetchUrl = `<?php echo $_SERVER['PHP_SELF']; ?>?q=${encodeURIComponent(query)}`;
+        
+        // إضافة فلتر البحث المخصص إذا تم تحديده
+        if (currentSearchFilter) {
+            fetchUrl += `&search_filter=${currentSearchFilter}`;
+        }
+        
+        if (debtOnly) fetchUrl += `&debt_only=${debtOnly}`;
+        if (walletNegative) fetchUrl += `&wallet_negative=${walletNegative}`;
+        
+        fetch(fetchUrl)
+            .then(response => response.text())
+            .then(html => {
+                // تحليل الـ HTML واستخراج جزء العملاء فقط
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // استخراج البيانات المطلوبة
+                const customersGrid = doc.getElementById('gridView');
+                const customersTable = doc.getElementById('tableView');
+                const statsInfo = doc.querySelector('.search-results-info');
+                
+                if (customersGrid) {
+                    gridView.innerHTML = customersGrid.innerHTML;
+                }
+                
+                if (customersTable) {
+                    tableView.innerHTML = customersTable.innerHTML;
+                }
+                
+                if (statsInfo) {
+                    searchResultsInfo.innerHTML = statsInfo.innerHTML;
+                }
+                
+                // إعادة ربط أحداث الأزرار للبيانات الجديدة
+                rebindViewButtons();
+                rebindDeleteButtons();
+                
+                loadingSpinner.classList.remove('active');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingSpinner.classList.remove('active');
+                searchResultsInfo.innerHTML = '<span class="text-danger">حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.</span>';
+            });
+    }
+    
+    // جلب اقتراحات البحث
+    function fetchSearchSuggestions(query) {
+        fetch(`<?php echo $_SERVER['PHP_SELF']; ?>?ajax_suggestions=1&q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.suggestions && data.suggestions.length > 0) {
+                    renderSearchSuggestions(data.suggestions);
+                } else {
+                    searchSuggestions.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching suggestions:', error);
+                searchSuggestions.style.display = 'none';
+            });
+    }
+    
+    // عرض اقتراحات البحث
+    function renderSearchSuggestions(suggestions) {
+        searchSuggestions.innerHTML = '';
+        
+        suggestions.forEach(customer => {
+            const item = document.createElement('div');
+            item.className = 'search-suggestion-item';
+            item.innerHTML = `
+                <div>
+                    <div class="search-suggestion-name">${escapeHtml(customer.name)}</div>
+                    <div class="search-suggestion-details">
+                        ${customer.mobile ? escapeHtml(customer.mobile) + ' • ' : ''}
+                        ${customer.city ? escapeHtml(customer.city) : ''}
+                    </div>
+                </div>
+                <div>
+                    <span class="badge bg-secondary">#${customer.id}</span>
+                </div>
+            `;
+            
+            item.addEventListener('click', function() {
+                liveSearch.value = customer.name;
+                performSearch(customer.name);
+                searchSuggestions.style.display = 'none';
+            });
+            
+            searchSuggestions.appendChild(item);
+        });
+        
+        searchSuggestions.style.display = 'block';
+    }
+    
     // إعادة ربط أحداث عرض التفاصيل
     function rebindViewButtons() {
         document.querySelectorAll('.btn-view').forEach(btn => {
@@ -1045,7 +1508,7 @@ document.addEventListener('DOMContentLoaded', function(){
             });
         });
     }
-
+    
     // إعادة ربط أحداث الحذف
     function rebindDeleteButtons() {
         document.querySelectorAll('form[action*="delete"]').forEach(form => {
@@ -1059,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', function(){
             }
         });
     }
-
+    
     // عرض تفاصيل العميل في المودال
     function renderCustomerModal(data) {
         const balance = parseFloat(data.balance || 0);
@@ -1089,7 +1552,7 @@ document.addEventListener('DOMContentLoaded', function(){
             walletStatus = 'رصيد سلبي';
             walletClass = 'negative';
         }
-
+        
         modalBody.innerHTML = `
             <div class="customer-details">
                 <div class="row mb-3">
@@ -1178,7 +1641,7 @@ document.addEventListener('DOMContentLoaded', function(){
         `;
         modal.classList.add('open');
     }
-
+    
     // دالة الهروب من HTML
     function escapeHtml(str) {
         if (str === undefined || str === null) return '';
@@ -1186,7 +1649,7 @@ document.addEventListener('DOMContentLoaded', function(){
         div.textContent = str;
         return div.innerHTML;
     }
-
+    
     // ربط الأحداث الأولية
     rebindViewButtons();
     rebindDeleteButtons();
@@ -1197,6 +1660,17 @@ document.addEventListener('DOMContentLoaded', function(){
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.classList.remove('open');
+        }
+    });
+    
+    // إضافة وظيفة الـ Enter للبحث
+    liveSearch.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const query = this.value.trim();
+            if (query.length > 0) {
+                performSearch(query);
+                searchSuggestions.style.display = 'none';
+            }
         }
     });
 });
@@ -1269,9 +1743,69 @@ modalStyle.textContent = `
 }
 `;
 document.head.appendChild(modalStyle);
+
+// إضافة تحسينات إضافية للبحث
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة خاصية autofocus لحقل البحث
+    const searchInput = document.getElementById('liveSearch');
+    if (searchInput && !searchInput.value) {
+        searchInput.focus();
+    }
+    
+    // حفظ حالة البحث في localStorage
+    if (searchInput && searchInput.value) {
+        localStorage.setItem('customer_search_query', searchInput.value);
+    }
+    
+    // استعادة حالة البحث عند العودة للصفحة
+    window.addEventListener('pageshow', function() {
+        const savedQuery = localStorage.getItem('customer_search_query');
+        if (savedQuery && searchInput && !searchInput.value) {
+            searchInput.value = savedQuery;
+        }
+    });
+});
 </script>
 
 <?php
+// معالجة طلبات AJLAX للاقتراحات
+if (isset($_GET['ajax_suggestions']) && isset($_GET['q'])) {
+    $suggestions = [];
+    $query = trim($_GET['q']);
+    
+    if (strlen($query) >= 2) {
+        $sql = "SELECT id, name, mobile, city FROM customers 
+                WHERE (name LIKE ? OR mobile LIKE ?) 
+                ORDER BY 
+                    CASE 
+                        WHEN name = ? THEN 1
+                        WHEN name LIKE ? THEN 2
+                        WHEN mobile = ? THEN 3
+                        ELSE 4
+                    END,
+                    name ASC 
+                LIMIT 10";
+        
+        if ($stmt = $conn->prepare($sql)) {
+            $like1 = '%' . $query . '%';
+            $like2 = $query . '%';
+            $stmt->bind_param('sssss', $like1, $like1, $query, $like2, $query);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                $suggestions[] = $row;
+            }
+            
+            $stmt->close();
+        }
+    }
+    
+    header('Content-Type: application/json');
+    echo json_encode(['suggestions' => $suggestions]);
+    exit;
+}
+
 $conn->close();
 require_once BASE_DIR . 'partials/footer.php';
 ?>

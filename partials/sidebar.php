@@ -693,7 +693,7 @@
                               </a>
                           </li>
                           <li>
-                              <a class="dropdown-item d-flex align-items-center" href="#">
+                              <a class="dropdown-item d-flex align-items-center" href="<?php echo BASE_URL; ?>admin/registration_settings.php">
                                   <i class="fas fa-shield-alt me-3"></i>
                                   <span>الأمان</span>
                               </a>

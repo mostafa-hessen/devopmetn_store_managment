@@ -467,6 +467,8 @@ const InvoiceManager = {
 
   // ========== Event Listeners (نفس الكود الأصلي) ==========
   createTooltipContainer(invoice) {
+
+
     return `
             <div class="invoice-items-tooltip " id="tooltip-${invoice.id}" 
                 style="display: none;  z-index: 9999;">
@@ -767,6 +769,9 @@ const InvoiceManager = {
       }, 300);
     });
   },
+
+
+
   attachInvoiceEventListeners() {
     // 1. زر عرض الفاتورة
     document.querySelectorAll(".view-invoice").forEach((btn) => {

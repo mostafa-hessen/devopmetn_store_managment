@@ -295,14 +295,23 @@
 
 
               position: fixed;
-    top: 20%;
-    right: 5% ;
+    right: 10% ;
+    top: 10% ;
     /* transform: translateY(-50%); */
     width: 400px;
     z-index: 9999;
     max-height: 600px;
     overflow-y: scroll;
-        }
+
+      z-index: 99999;
+
+    
+  position: fixed !important;
+  z-index: 99999 !important;
+  display: none;
+}
+
+        
         
         /* .invoice-items-tooltip::after {
             content: '';
