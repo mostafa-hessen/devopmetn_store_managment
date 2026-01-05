@@ -1173,3 +1173,8 @@
                 border-radius: var(--radius) var(--radius) 0 0;
             }
         }
+
+        .badge-supplier_return { background-color: #28a745; } /* أخضر */
+.badge-damaged { background-color: #dc3545; }          /* أحمر */
+.badge-expired { background-color: #ffc107; color: #000; } /* أصفر */
+.badge-other { background-color: #17a2b8; }            

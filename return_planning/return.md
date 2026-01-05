@@ -89,6 +89,7 @@ CREATE TABLE `invoice_out_items` (
   `discount_value` decimal(10,2) DEFAULT 0.00,
   `discount_amount` decimal(12,2) DEFAULT 0.00,
   `total_after_discount` decimal(12,2) DEFAULT 0.00
+  `unit_price_after_discount` decimal(10,2) DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

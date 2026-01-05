@@ -160,8 +160,8 @@ body.has-fixed-header .custom-table thead th {
         <div class="card-body">
             <div class="custom-table-wrapper">
                 <table class="custom-table">
-                    <thead class="table-dark">
-                        <tr>
+                    <thead class="table-dark center">
+                        <tr class="align-middle">
                             <th>#</th>
                             <th>كود المنتج</th>
                             <th>اسم المنتج</th>

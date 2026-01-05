@@ -1215,7 +1215,7 @@ const CustomReturnManager = {
                                         <i class="fas fa-wallet fa-2x text-primary"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 text_muted">إضافة للمحفظة</h6>
+                                        <h6 class="mb-1 text-muted">إضافة للمحفظة</h6>
                                         <p class="small text-muted mb-0">سيتم إضافة المبلغ لمحفظة العميل</p>
                                     </div>
                                 </div>
@@ -1303,11 +1303,7 @@ const CustomReturnManager = {
         });
 
 
-        console.log(totalReturnedAfterThis, avilableForReturn);
-        
-        
-        // ✅ لو كل الكميات أصبحت مرتجعة = full
-        // نستخدم tolerance صغير لتفادي مشاكل التقريب
+   
         const tolerance = 0.01;
         const isFullyReturned = Math.abs(totalReturnedAfterThis - avilableForReturn) < tolerance;
         
@@ -1460,6 +1456,9 @@ const returnType = determineReturnType();
                         background: "var(--surface)",
                         color: "var(--text)"
                     });
+
+                    document.getElementById("customReturnReason").value = "";
+
 
                     // إغلاق المودال
                     const modal = bootstrap.Modal.getInstance(document.getElementById("customReturnModal"));

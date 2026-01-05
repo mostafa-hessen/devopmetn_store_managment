@@ -553,3 +553,15 @@ MODIFY COLUMN `status` enum('active','consumed','cancelled','returned','expired'
 
 ALTER TABLE `purchase_invoice_items`
 ADD COLUMN `qty_returned` decimal(13,4) NOT NULL DEFAULT 0.0000 AFTER `qty_adjusted`;
+
+
+
+ALTER TABLE invoice_payments
+ADD COLUMN return_id INT NULL AFTER created_at;
+
+
+
+-- أضف الفهارس لتسريع الاستعلامات
+CREATE INDEX idx_invoices_out_created_at ON invoices_out(created_at);
+CREATE INDEX idx_invoices_out_customer ON invoices_out(customer_id);
+CREATE INDEX idx_invoice_out_items_invoice ON invoice_out_items(invoice_out_id);

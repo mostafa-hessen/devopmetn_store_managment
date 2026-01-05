@@ -71,7 +71,7 @@
       [
           'title' => 'المشتريات',
           'icon' => 'fas fa-shopping-cart',
-          'url' => BASE_URL . 'admin/manage_purchase_invoices.php',
+          'url' => BASE_URL . 'purchase/purchase_invoices.php',
           'color' => 'warning',
           'badge' => '',
           'priority' => 5
@@ -809,7 +809,7 @@
                   <small class="text-white-50 px-3">المشتريات</small>
               </li>
               <li class="nav-item">
-                  <a class="nav-link <?php echo ($current_page == 'manage_purchase_invoices.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/manage_purchase_invoices.php">
+                  <a class="nav-link <?php echo ($current_page == 'purchase_invoices.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>purchase/purchase_invoices.php">
                       <i class="fas fa-shopping-cart me-3"></i>
                       <span>المشتريات</span>
                   </a>

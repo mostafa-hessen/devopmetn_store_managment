@@ -261,6 +261,7 @@ function fetchReturnJSON($return_id, $conn) {
 
 // قائمة المرتجعات مع الفلترة
 function listReturns($conn) {
+    $supplier_name = isset($_GET['supplier_name']) ? trim($_GET['supplier_name']) : '';
     $selected_supplier_id = isset($_GET['supplier_filter_val']) ? intval($_GET['supplier_filter_val']) : '';
     $selected_status = isset($_GET['status_filter_val']) ? trim($_GET['status_filter_val']) : '';
     $selected_return_type = isset($_GET['type_filter_val']) ? trim($_GET['type_filter_val']) : '';
@@ -282,7 +283,7 @@ function listReturns($conn) {
             LEFT JOIN users uc ON uc.id = pr.created_by
             LEFT JOIN users ua ON ua.id = pr.approved_by
             WHERE 1=1";
-    
+
     $params = [];
     $types = '';
     $conds = [];
@@ -292,31 +293,37 @@ function listReturns($conn) {
         $params[] = $search_return_id;
         $types .= 'i';
     }
-    
+
     if (!empty($selected_supplier_id)) {
         $conds[] = "pr.supplier_id = ?";
         $params[] = $selected_supplier_id;
         $types .= 'i';
     }
-    
+
     if (!empty($selected_status)) {
         $conds[] = "pr.status = ?";
         $params[] = $selected_status;
         $types .= 's';
     }
-    
+
     if (!empty($selected_return_type)) {
         $conds[] = "pr.return_type = ?";
         $params[] = $selected_return_type;
         $types .= 's';
     }
-    
+
+    if (!empty($supplier_name)) {
+        $conds[] = "s.name LIKE ?";
+        $params[] = "%" . $supplier_name . "%";
+        $types .= 's';
+    }
+
     if (!empty($start_date)) {
         $conds[] = "pr.return_date >= ?";
         $params[] = $start_date;
         $types .= 's';
     }
-    
+
     if (!empty($end_date)) {
         $conds[] = "pr.return_date <= ?";
         $params[] = $end_date;
@@ -336,7 +343,7 @@ function listReturns($conn) {
         }
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         while ($ret = $result->fetch_assoc()) {
             // جلب عدد المنتجات في المرتجع
             $count_sql = "SELECT COUNT(*) as item_count, SUM(quantity) as total_quantity 
@@ -347,7 +354,7 @@ function listReturns($conn) {
             $count_stmt->execute();
             $count_result = $count_stmt->get_result()->fetch_assoc();
             $count_stmt->close();
-            
+
             $returns[] = [
                 'id' => $ret['id'],
                 'return_number' => $ret['return_number'],
@@ -369,15 +376,17 @@ function listReturns($conn) {
         $stmt->close();
     }
 
-    // حساب الإحصائيات المعروضة
+    // حساب الإحصائيات المعروضة مع دعم اسم المورد
     $displayed_sum = 0;
-    $sql_total = "SELECT COALESCE(SUM(total_amount),0) AS total_displayed 
-                  FROM purchase_returns pr 
+    $sql_total = "SELECT COALESCE(SUM(pr.total_amount),0) AS total_displayed 
+                  FROM purchase_returns pr
+                  JOIN suppliers s ON pr.supplier_id = s.id
                   WHERE 1=1";
+
     if (!empty($conds)) {
         $sql_total .= " AND " . implode(" AND ", $conds);
     }
-    
+
     if ($stmt_total = $conn->prepare($sql_total)) {
         if (!empty($params)) {
             stmt_bind_params($stmt_total, $types, $params);
@@ -398,6 +407,7 @@ function listReturns($conn) {
         ],
         "filters" => [
             "supplier_id" => $selected_supplier_id,
+            "supplier_name" => $supplier_name,
             "status" => $selected_status,
             "return_type" => $selected_return_type,
             "search_return_id" => $search_return_id,
@@ -406,6 +416,7 @@ function listReturns($conn) {
         ]
     ], JSON_UNESCAPED_UNICODE);
 }
+
 
 // جلب الدفعات المتاحة للإرجاع من فاتورة معينة
 function getInvoiceBatches($conn) {
@@ -451,7 +462,9 @@ function getInvoiceBatches($conn) {
             WHERE b.source_invoice_id = ? 
               AND b.status = 'active'
               AND b.remaining > 0
-            ORDER BY b.product_id, b.expiry ASC";
+              GROUP BY b.id
+
+            ORDER BY b.product_id ASC";
     
     $batches = [];
     if ($stmt = $conn->prepare($sql)) {
@@ -471,7 +484,9 @@ function getInvoiceBatches($conn) {
             $stmt_returned->close();
             
             $returned_qty = (float)($returned_result['returned_qty'] ?? 0);
-            $max_returnable = $batch['remaining'] - $returned_qty;
+            $max_returnable = $batch["remaining"] ;
+            
+            
             
             if ($max_returnable > 0) {
                 $batches[] = [
@@ -798,7 +813,7 @@ function createPurchaseReturn($conn, $data, $current_user_id, $current_user_role
             
             // التحقق من الكمية المتاحة
             $sql_available = "SELECT 
-                              b.remaining - COALESCE(SUM(pri.quantity), 0) as available
+                              b.remaining  as available
                               FROM batches b
                               LEFT JOIN purchase_return_items pri ON pri.batch_id = b.id
                               WHERE b.id = ?";

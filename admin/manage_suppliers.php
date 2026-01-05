@@ -155,7 +155,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
         <h1><i class="fas fa-people-carry"></i> إدارة الموردين</h1>
         <div>
             <a href="<?php echo BASE_URL; ?>user/welcome.php" class="btn btn-outline-secondary me-2"><i class="fas fa-arrow-left"></i> رجوع</a>
-            <a href="<?php echo BASE_URL; ?>admin/manage_purchase_invoices.php" class="btn btn-outline-primary me-2"><i class="fas fa-file-invoice"></i> فواتير وارد</a>
+            <a href="<?php echo BASE_URL; ?>purchase/purchase_invoices.php" class="btn btn-outline-primary me-2"><i class="fas fa-file-invoice"></i> فواتير وارد</a>
             <a href="<?php echo BASE_URL; ?>admin/add_supplier.php" class="btn btn-success"><i class="fas fa-plus-circle"></i> إضافة مورد جديد</a>
         </div>
     </div>

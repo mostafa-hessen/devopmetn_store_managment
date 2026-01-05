@@ -303,15 +303,15 @@ while ($row = $res->fetch_assoc()) $low_stock_preview[] = $row;
             <div class="card-header category-purchases">المشتريات والموردين</div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="<?php echo BASE_URL; ?>admin/manage_purchase_invoices.php" class="btn btn-outline-warning text-start">
+                    <a href="<?php echo BASE_URL; ?>purchase/purchase_invoices.php" class="btn btn-outline-warning text-start">
                         <i class="fas fa-shopping-cart me-2"></i> فواتير الشراء
                     </a>
                     <a href="<?php echo BASE_URL; ?>admin/manage_suppliers.php" class="btn btn-outline-warning text-start">
                         <i class="fas fa-people-carry me-2"></i> إدارة الموردين
                     </a>
-                    <a href="<?php echo BASE_URL; ?>admin/manage_purchase_invoices.php" class="btn btn-outline-warning text-start">
+                    <!-- <a href="<?php echo BASE_URL; ?>admin/manage_purchase_invoices.php" class="btn btn-outline-warning text-start">
                         <i class="fas fa-file-import me-2"></i> تقارير المشتريات
-                    </a>
+                    </a> -->
                 </div>
             </div>
         </div>
