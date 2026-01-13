@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>فاتورة - إدارة خصم ومرتجع</title>
+  <style>
+    :root{--bg:#f4f6f8;--card:#fff;--muted:#6b7280;--accent:#0b6efd;--danger:#ef4444;--success:#16a34a}
+    html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", Tahoma, Arial;direction:rtl}
+    body{background:var(--bg);padding:24px}
+    .app{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    header h1{margin:0;font-size:20px}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:18px}
+
+    .card{background:var(--card);border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(10,10,10,0.04)}
+    .invoice-header{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .meta{color:var(--muted);font-size:13px}
+
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:10px;border-bottom:1px solid #eef2f6;text-align:center;font-size:14px}
+    th{background:#fafafa}
+
+    .summary-row{display:flex;flex-direction:column;gap:6px}
+    .summary-line{display:flex;justify-content:space-between;align-items:center;padding:6px 0}
+    .net-amount{font-size:22px;color:var(--success);font-weight:700}
+
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn-danger{background:var(--danger)}
+    .btn-ghost{background:transparent;color:var(--accent);border:1px solid #e6eefc}
+
+    .modal{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal.open{display:flex}
+    .modal-card{background:var(--card);width:100%;max-width:520px;border-radius:8px;padding:18px}
+    .modal-card h3{margin-top:0}
+    label{display:block;margin-top:8px;color:var(--muted);font-size:13px}
+    input[type="number"],select{width:100%;padding:8px;border-radius:6px;border:1px solid #e6eef6;margin-top:6px}
+
+    .log{max-height:260px;overflow:auto;padding:6px;border-radius:6px;background:#fbfdff;border:1px solid #eef6ff;font-size:13px}
+    .chip{display:inline-block;padding:6px 8px;border-radius:999px;background:#f1f5f9;margin-left:6px}
+
+    @media (max-width:950px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>تفاصيل الفاتورة — نظام ERP (Invoice #INV-1001)</h1>
+      <div class="meta">العميل: <strong>شركة المثال</strong> &nbsp; • &nbsp; تاريخ: <strong id="invoiceDate">2026-01-05</strong></div>
+    </header>
+
+    <div class="grid">
+      <!-- Main Column -->
+      <div>
+        <div class="card">
+          <div class="invoice-header">
+            <div>
+              <div>قيمة الفاتورة: <strong id="invoiceTotalLbl">1000</strong> <span class="chip">جنيه</span></div>
+              <div class="meta">حالة الفاتورة: <span id="invoiceStatus">مؤجلة</span></div>
+            </div>
+            <div class="actions">
+              <button onclick="openDiscountModal()">إضافة خصم (Credit Note)</button>
+              <button onclick="openReturnModal()">عمل مرتجع (Return)</button>
+              <button onclick="openPaymentModal()" class="btn-ghost">تسجيل سداد</button>
+            </div>
+          </div>
+
+          <h3 style="margin-top:12px">بنود الفاتورة</h3>
+          <table aria-label="invoice-items">
+            <thead>
+              <tr><th>البند</th><th>كمية</th><th>سعر وحدة</th><th>مجموع</th><th>مرتجع (Qty)</th></tr>
+            </thead>
+            <tbody id="itemsTable"></tbody>
+          </table>
+
+          <div style="margin-top:12px" class="summary-row">
+            <div class="card" style="padding:12px;background:#fbfdff;border:1px solid #eef6ff">
+              <div class="summary-line"><div>إجمالي الفاتورة</div><div id="invoiceTotal">1000 جنيه</div></div>
+              <div class="summary-line"><div>إجمالي الخصومات (Credit Notes)</div><div id="discountTotal">0</div></div>
+              <div class="summary-line"><div>إجمالي المرتجعات</div><div id="returnTotal">0</div></div>
+              <div class="summary-line"><div>المدفوع</div><div id="paidTotal">0</div></div>
+              <hr>
+              <div class="summary-line"><div>المتبقي (Net Open)</div><div class="net-amount" id="netAmount">1000</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>سجل الحركات (Audit Trail)</h3>
+          <div class="log" id="auditLog">
+            <!-- dynamic -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="card">
+          <h3>ملخص العميل</h3>
+          <div style="margin-top:8px">
+            <div class="summary-line"><div>رصيد العميل (computed)</div><div id="customerBalance">0</div></div>
+            <div class="summary-line"><div>محفظة</div><div id="walletBalance">200</div></div>
+          </div>
+          <hr>
+          <h4 style="margin:8px 0">المستخلصات</h4>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div><strong>Credit Notes</strong><div id="creditNotesList" style="margin-top:8px"></div></div>
+            <div><strong>Returns</strong><div id="returnsList" style="margin-top:8px"></div></div>
+            <div><strong>Payments</strong><div id="paymentsList" style="margin-top:8px"></div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>ملاحظات تصميمية</h3>
+          <ul style="padding-left:18px">
+            <li>لا تُعدّل الفاتورة الأصلية بعد الترحيل — فقط سجِّل مستندات جديدة.</li>
+            <li>المرتجع يُحسب بناءً على الصافي (بعد الخصومات السابقة).</li>
+            <li>أي رد مال من المحفظة يسجَّل كحركة Wallet Transaction منفصلة.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="discountModal" class="modal" aria-hidden="true">
+      <div class="modal-card">
+        <h3>إنشاء Credit Note (خصم سعري)</h3>
+        <label>قيمة الخصم (جنيه)</label>
+        <input type="number" id="discountAmountInput" min="0" step="0.01" value="0">
+        <label>السبب (اختياري)</label>
+        <input type="text" id="discountReason" placeholder="مثلاً: خطأ تسعير أو تفاوض">
+        <div style="margin-top:12px;text-align:left">
+          <button onclick="applyDiscount()">حفظ</button>
+          <button onclick="closeModals()" class="btn-ghost">إلغاء</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="returnModal" class="modal" aria-hidden="true">
+      <div class="modal-card">
+        <h3>تنفيذ مرتجع بيع</h3>
+        <div id="returnItemsContainer"></div>
+        <label style="margin-top:8px">ملاحظة المرتجع</label>
+        <input type="text" id="returnReason" placeholder="سبب المرتجع (اختياري)">
+        <div style="margin-top:12px;text-align:left">
+          <button onclick="applyReturn()">تأكيد المرتجع</button>
+          <button onclick="closeModals()" class="btn-ghost">إلغاء</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="paymentModal" class="modal" aria-hidden="true">
+      <div class="modal-card">
+        <h3>تسجيل سداد</h3>
+        <label>المبلغ</label>
+        <input type="number" id="paymentAmountInput" min="0" step="0.01">
+        <label>طريقة الدفع</label>
+        <select id="paymentMethod">
+          <option value="cash">نقدي</option>
+          <option value="wallet">محفظة</option>
+          <option value="bank">تحويل بنكي</option>
+        </select>
+        <label>ملاحظة</label>
+        <input type="text" id="paymentNote" placeholder="مرفق، رقم حوالة، ...">
+        <div style="margin-top:12px;text-align:left">
+          <button onclick="applyPayment()">سجل السداد</button>
+          <button onclick="closeModals()" class="btn-ghost">إلغاء</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /***** Sample data (represents DB state) *****/
+    const invoice = {
+      id: 'INV-1001',
+      total: 1000,
+      status: 'OPEN', // OPEN / PARTIALLY_PAID / PAID
+      items: [
+        { id: 1, name: 'منتج A', qty: 1, unit_price: 1000, cost_price: 700, returned: 0 }
+      ]
+    }
+
+    // derived tables (append-only in real DB)
+    const creditNotes = []; // {id,type,invoiceId,amount,reason,createdAt}
+    const returns = []; // {id,invoiceId,items:[{invoiceItemId,qty,amount,cost}],total,reason}
+    const payments = []; // {id,invoiceId,amount,method,note}
+    const customerTransactions = []; // ledger entries {id,amount,type,ref}
+    const wallet = { balance: 200 };
+    const inventory = { 1: { qty: 10 } };
+
+    /***** Helpers *****/
+    function format(n){ return Number(n).toFixed(2) + ' جنيه' }
+    function uid(prefix='id'){return prefix+'-'+Math.random().toString(36).slice(2,9)}
+
+    // compute aggregates from ledger-like tables
+    function sumCredits(){ return creditNotes.reduce((s,c)=>s + (c.amount||0),0) }
+    function sumReturns(){ return returns.reduce((s,r)=>s + (r.total||0),0) }
+    function sumPayments(){ return payments.reduce((s,p)=>s + (p.amount||0),0) }
+
+    function computeNetOpen(){
+      return round(invoice.total - sumCredits() - sumReturns() - sumPayments());
+    }
+    function round(v){ return Math.round((v + Number.EPSILON) * 100) / 100 }
+
+    function computeCustomerBalance(){
+      // balance computed from transactions (debit = customer owes positive)
+      // For simplicity we compute: invoices - credits - payments
+      const invoicesTotal = invoice.total; // in full system sum of all invoices
+      const bal = invoicesTotal - sumCredits() - sumReturns() - sumPayments();
+      return round(bal);
+    }
+
+    /***** UI Rendering *****/
+    function render(){
+      document.getElementById('invoiceTotalLbl').innerText = invoice.total;
+      document.getElementById('invoiceStatus').innerText = invoice.status;
+
+      // items
+      const tbody = document.getElementById('itemsTable'); tbody.innerHTML = '';
+      invoice.items.forEach(it=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${it.name}</td><td>${it.qty}</td><td>${format(it.unit_price)}</td><td>${format(it.unit_price*it.qty)}</td>
+          <td><input type='number' min='0' max='${it.qty - it.returned}' value='0' data-item='${it.id}' class='ret-qty' style='width:70px'></td>`;
+        tbody.appendChild(tr);
+      })
+
+      document.getElementById('invoiceTotal').innerText = format(invoice.total);
+      document.getElementById('discountTotal').innerText = format(sumCredits());
+      document.getElementById('returnTotal').innerText = format(sumReturns());
+      document.getElementById('paidTotal').innerText = format(sumPayments());
+
+      const net = computeNetOpen();
+      document.getElementById('netAmount').innerText = format(net);
+
+      // customer summary
+      document.getElementById('customerBalance').innerText = format(computeCustomerBalance());
+      document.getElementById('walletBalance').innerText = format(wallet.balance);
+
+      // lists
+      const cnList = document.getElementById('creditNotesList'); cnList.innerHTML = '';
+      creditNotes.forEach(c=>{
+        const d = document.createElement('div'); d.style.marginBottom='6px'; d.innerText = `${c.type} — ${format(c.amount)} — ${c.reason||''}`; cnList.appendChild(d);
+      })
+      const rList = document.getElementById('returnsList'); rList.innerHTML='';
+      returns.forEach(r=>{ const d=document.createElement('div'); d.style.marginBottom='6px'; d.innerText=`RETURN — ${format(r.total)} — ${r.reason||''}`; rList.appendChild(d) })
+      const pList = document.getElementById('paymentsList'); pList.innerHTML='';
+      payments.forEach(p=>{ const d=document.createElement('div'); d.style.marginBottom='6px'; d.innerText=`PAY — ${format(p.amount)} — ${p.method} — ${p.note||''}`; pList.appendChild(d) })
+
+      // audit log
+      const log = document.getElementById('auditLog'); log.innerHTML = '';
+      const lines = [];
+      creditNotes.forEach(c=> lines.push(`${c.createdAt} | CreditNote(${c.type}) ${format(c.amount)} | ${c.reason||''}`));
+      returns.forEach(r=> lines.push(`${r.createdAt} | Return ${format(r.total)} | ${r.reason||''}`));
+      payments.forEach(p=> lines.push(`${p.createdAt} | Payment ${format(p.amount)} | ${p.method}`));
+      // latest first
+      lines.sort().reverse().forEach(l=>{ const d=document.createElement('div'); d.innerText=l; log.appendChild(d) })
+    }
+
+    /***** Modal Controls *****/
+    function openDiscountModal(){
+      document.getElementById('discountAmountInput').value = 0;
+      document.getElementById('discountReason').value = '';
+      document.getElementById('discountModal').classList.add('open');
+    }
+    function openReturnModal(){
+      // build return items inputs
+      const container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
+      invoice.items.forEach(it=>{
+        const row = document.createElement('div');
+        row.style.display='flex';row.style.gap='8px';row.style.alignItems='center';row.style.marginTop='8px'
+        row.innerHTML = `<div style='flex:1'>${it.name} — المتبقي: ${it.qty - it.returned}</div>
+          <div><input type='number' min='0' max='${it.qty - it.returned}' value='0' data-item='${it.id}' class='ret-qty-modal' style='width:90px'></div>`
+        container.appendChild(row);
+      })
+      document.getElementById('returnReason').value='';
+      document.getElementById('returnModal').classList.add('open');
+    }
+    function openPaymentModal(){
+      document.getElementById('paymentAmountInput').value = computeNetOpen();
+      document.getElementById('paymentNote').value='';
+      document.getElementById('paymentModal').classList.add('open');
+    }
+    function closeModals(){
+      document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open'));
+    }
+
+    /***** Operations that would map to backend routines (append-only) *****/
+    function applyDiscount(){
+      const v = Number(document.getElementById('discountAmountInput').value||0);
+      const reason = document.getElementById('discountReason').value || 'خصم'
+      if(v <= 0){ alert('أدخل قيمة خصم موجبة'); return }
+
+      const netAllowed = invoice.total - sumCredits() - sumReturns() - sumPayments();
+      if(v > netAllowed){ alert('قيمة الخصم أكبر من الصافي المسموح'); return }
+
+      const cn = { id: uid('cn'), invoiceId: invoice.id, type: 'DISCOUNT', amount: round(v), reason, createdAt: new Date().toLocaleString('ar-EG') };
+      creditNotes.push(cn);
+
+      // ledger entry
+      customerTransactions.push({ id: uid('ct'), amount: -v, type: 'CREDIT_NOTE', ref: cn.id, createdAt: new Date().toISOString() });
+
+      render(); closeModals();
+      console.log('INSERT credit_note', cn);
+    }
+
+    function applyReturn(){
+      // gather returned quantities
+      const inputs = Array.from(document.querySelectorAll('.ret-qty-modal'));
+      let total = 0; const items = [];
+      inputs.forEach(inp=>{
+        const q = Number(inp.value||0); const id = inp.dataset.item; if(q>0){
+          const it = invoice.items.find(x=>x.id==id);
+          const amount = round(it.unit_price * q);
+          const cost = round(it.cost_price * q);
+          items.push({ invoiceItemId: id, qty: q, amount, cost });
+          total += amount;
+        }
+      })
+      total = round(total);
+      if(total <= 0){ alert('لا يوجد كمية مرتجع'); return }
+
+      const netAllowed = invoice.total - sumCredits() - sumReturns() - sumPayments();
+      if(total > netAllowed){ alert('قيمة المرتجع أكبر من الصافي المسموح'); return }
+
+      // apply return: create credit note type RETURN and adjust inventory, COGS in ledger
+      const ret = { id: uid('ret'), invoiceId: invoice.id, items, total, reason: document.getElementById('returnReason').value || 'مرتجع', createdAt: new Date().toLocaleString('ar-EG') };
+      returns.push(ret);
+
+      // update item returned qty and inventory
+      items.forEach(itm=>{
+        const invItem = inventory[itm.invoiceItemId]; if(invItem) invItem.qty += itm.qty;
+        const invLine = invoice.items.find(x=>x.id==itm.invoiceItemId);
+        if(invLine) invLine.returned += itm.qty;
+      })
+
+      // ledger entries
+      customerTransactions.push({ id: uid('ct'), amount: -total, type: 'SALES_RETURN', ref: ret.id, createdAt: new Date().toISOString() });
+
+      render(); closeModals();
+      console.log('INSERT return', ret);
+    }
+
+    function applyPayment(){
+      const v = Number(document.getElementById('paymentAmountInput').value||0);
+      const method = document.getElementById('paymentMethod').value;
+      const note = document.getElementById('paymentNote').value || '';
+      const net = computeNetOpen();
+      if(v <= 0){ alert('أدخل مبلغ صحيح'); return }
+
+      // Overpayment handling
+      if(v > net){
+        const over = round(v - net);
+        if(method === 'wallet' && wallet.balance < v){ alert('رصيد المحفظة لا يكفي'); return }
+
+        // split: pay net, create credit-on-account
+        const p = { id: uid('pay'), invoiceId: invoice.id, amount: net, method, note, createdAt: new Date().toLocaleString('ar-EG') };
+        payments.push(p);
+        customerTransactions.push({ id: uid('ct'), amount: +net, type: 'PAYMENT', ref: p.id, createdAt: new Date().toISOString() });
+
+        // create credit on account for over
+        const credit = { id: uid('cn'), invoiceId: invoice.id, type: 'OVERPAYMENT', amount: round(over), reason: 'رصيد زائد/سلفة', createdAt: new Date().toLocaleString('ar-EG') };
+        creditNotes.push(credit);
+        customerTransactions.push({ id: uid('ct'), amount: -round(over), type: 'CREDIT_ON_ACCOUNT', ref: credit.id });
+
+        if(method === 'wallet') wallet.balance = round(wallet.balance - v);
+
+        alert('تم السداد، المبلغ الزائد تم تحويله لرصيد العميل');
+      } else {
+        // exact or less than net
+        if(method === 'wallet' && wallet.balance < v){ alert('رصيد المحفظة لا يكفي'); return }
+        const p = { id: uid('pay'), invoiceId: invoice.id, amount: v, method, note, createdAt: new Date().toLocaleString('ar-EG') };
+        payments.push(p);
+        customerTransactions.push({ id: uid('ct'), amount: +v, type: 'PAYMENT', ref: p.id, createdAt: new Date().toISOString() });
+        if(method === 'wallet') wallet.balance = round(wallet.balance - v);
+      }
+
+      render(); closeModals();
+      console.log('INSERT payment', payments[payments.length-1]);
+    }
+
+    // initialize
+    render();
+
+  </script>
+</body>
+</html>

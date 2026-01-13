@@ -565,3 +565,43 @@ ADD COLUMN return_id INT NULL AFTER created_at;
 CREATE INDEX idx_invoices_out_created_at ON invoices_out(created_at);
 CREATE INDEX idx_invoices_out_customer ON invoices_out(customer_id);
 CREATE INDEX idx_invoice_out_items_invoice ON invoice_out_items(invoice_out_id);
+
+
+
+
+ALTER TABLE invoices_out
+ADD PRIMARY KEY (id);
+
+CREATE TABLE invoice_adjustments (
+    id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    invoice_id INT(11) NOT NULL,
+    work_order_id INT(11) DEFAULT NULL,
+    created_by INT(11) NOT NULL,
+    adjustment_type ENUM('discount_add','price_change','item_discount_add','item_price_change') DEFAULT 'discount_add',
+    discount_type ENUM('percent','amount') DEFAULT NULL,
+    discount_value DECIMAL(10,2) DEFAULT 0.00,
+    discount_amount DECIMAL(12,2) DEFAULT 0.00,
+    old_total_after_discount DECIMAL(12,2) DEFAULT 0.00,
+    new_total_after_discount DECIMAL(12,2) DEFAULT 0.00,
+    old_remaining_amount DECIMAL(12,2) DEFAULT 0.00,
+    new_remaining_amount DECIMAL(12,2) DEFAULT 0.00,
+    old_profit_amount DECIMAL(12,2) DEFAULT 0.00,
+    new_profit_amount DECIMAL(12,2) DEFAULT 0.00,
+    refund_method ENUM('cash','wallet','balance_reduction','none') DEFAULT 'none',
+    refund_amount DECIMAL(12,2) DEFAULT 0.00,
+    reason TEXT NOT NULL,
+    items_data JSON DEFAULT NULL,
+    customer_balance_before DECIMAL(12,2) DEFAULT 0.00,
+    customer_balance_after DECIMAL(12,2) DEFAULT 0.00,
+    customer_wallet_before DECIMAL(12,2) DEFAULT 0.00,
+    customer_wallet_after DECIMAL(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_invoice_id (invoice_id),
+    INDEX idx_work_order_id (work_order_id),
+    INDEX idx_created_by (created_by),
+    
+    CONSTRAINT fk_adj_invoice FOREIGN KEY (invoice_id) REFERENCES invoices_out(id) ON DELETE CASCADE,
+    CONSTRAINT fk_adj_work_order FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE SET NULL,
+    CONSTRAINT fk_adj_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

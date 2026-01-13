@@ -17,7 +17,9 @@ const apis = {
 
     processPayment: BASE + "create_payment.php",           // سداد فاتورة/دفعة
     processReturn: BASE + "create_return.php",  
-    getReturnItems : BASE + "get_customer_return_detailes.php",        // إرجاع فاتورة/دفعة
+    getReturnItems : BASE + "get_customer_return_detailes.php",
+    applayExtraDiscount: BASE + "apply_invoice_discount.php",
+       // إرجاع فاتورة/دفعة
 
 };
 

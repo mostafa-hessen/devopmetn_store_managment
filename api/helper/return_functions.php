@@ -131,7 +131,7 @@ $balance_after = $financials['balance'];
      */
 
     function updateWorkOrderTotals($conn, $invoice_id) {
-        $stmt = $conn->prepare("SELECT work_order_id FROM invoices_out WHERE id=? AND delivered NOT IN ('canceled')");
+        $stmt = $conn->prepare("SELECT work_order_id FROM invoices_out WHERE id=? AND delivered NOT IN ('canceled','reverted')");
         $stmt->bind_param("i", $invoice_id);
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
@@ -143,9 +143,9 @@ $balance_after = $financials['balance'];
         // حساب المجاميع مع استثناء الفواتير الملغاة
         $stmt = $conn->prepare("
             SELECT 
-                SUM(CASE WHEN delivered NOT IN ('canceled') THEN total_after_discount ELSE 0 END) AS total_invoice_amount,
+                SUM(CASE WHEN delivered NOT IN ('canceled','reverted') THEN total_after_discount ELSE 0 END) AS total_invoice_amount,
                 SUM(paid_amount) AS total_paid,
-                SUM(CASE WHEN delivered NOT IN ('canceled') THEN total_after_discount - paid_amount ELSE 0 END) AS total_remaining_calculated
+                SUM(CASE WHEN delivered NOT IN ('canceled','reverted') THEN total_after_discount - paid_amount ELSE 0 END) AS total_remaining_calculated
             FROM invoices_out
             WHERE work_order_id=? 
         ");

@@ -501,20 +501,20 @@ const PrintManager = {
         modal.hide();
     },
     printAggregatedReport(report) {
-    const printWindow = window.open("", "_blank", "width=300,height=600");
-    if (!printWindow) {
-        Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
-        return;
-    }
-    
-    // ... إنشاء receiptContent
-    printWindow.document.write(receiptContent);
-    printWindow.document.close();
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 500);
-},
+        const printWindow = window.open("", "_blank", "width=300,height=600");
+        if (!printWindow) {
+            Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
+            return;
+        }
+
+        // ... إنشاء receiptContent
+        printWindow.document.write(receiptContent);
+        printWindow.document.close();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    },
     // في PrintManager:
     printWorkOrderInvoices(workOrderId) {
         const workOrder = AppData.workOrders.find(wo => wo.id === workOrderId);

@@ -10,11 +10,111 @@ import apis from "./constant/api_links.js";
 const InvoiceManager = {
   isLoading: false,
   currentCustomerId: null,
+  currentInvoiceIdForDiscount: null,
+
 
   async init() {
     await this.loadCustomerInvoices();
     this.setupGlobalListeners();
     this.setupTooltipStyles();
+    this.attachExtraDiscountListener();
+  },
+
+  // داخل InvoiceManager
+  attachExtraDiscountListener() {
+    document.querySelectorAll(".applyExtraDiscountBtn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const row = e.currentTarget.closest("tr"); // الحصول على الصف الأب
+        const invoiceId = row ? row.getAttribute("data-invoice-id") : btn.getAttribute("data-invoice-id"); // أخذ معرف الفاتورة
+
+        if (!invoiceId) {
+          Swal.fire('تنبيه', 'لم يتم تحديد الفاتورة', 'warning');
+          return;
+        }
+
+        // الحصول على معرف العميل من URL أو AppData
+        let customerId = this.currentCustomerId;
+        if (!customerId) {
+          const urlParams = new URLSearchParams(window.location.search);
+          customerId = urlParams.get('customer_id') || urlParams.get('id');
+        }
+        if (!customerId && AppData.currentCustomer) {
+          customerId = AppData.currentCustomer.id;
+        }
+
+        // الانتقال لصفحة التعديل
+        const baseUrl = window.location.origin + '/store_v1/';
+        const adjustUrl = `${baseUrl}admin/adjust_invoice.php?id=${invoiceId}`;
+        if (customerId) {
+          window.location.href = `${adjustUrl}&customer_id=${customerId}`;
+        } else {
+          window.location.href = adjustUrl;
+        }
+      });
+    });
+
+    document.getElementById("confirmExtraDiscountBtn")?.addEventListener("click", async () => {
+      const invoiceId = this.currentInvoiceIdForDiscount; // الفاتورة الحالية
+      if (!invoiceId) return alert("لم يتم تحديد الفاتورة");
+
+      const amount = parseFloat(document.getElementById("extraDiscountAmount").value);
+      const reason = document.getElementById("extraDiscountReason").value;
+      const scope = document.getElementById("extraDiscountScope").value;
+      const discountType = document.getElementById("extraDiscountType")?.value || "amount";
+
+      if (amount <= 0) return alert("يجب إدخال قيمة خصم صحيحة");
+      if (discountType === "percent" && (amount <= 0 || amount > 100)) {
+        return alert("نسبة الخصم يجب أن تكون بين 0 و 100");
+      }
+
+      // التحقق من أن المستخدم متأكد
+      const confirmMessage = discountType === "percent"
+        ? `هل أنت متأكد من تطبيق خصم ${amount}% على الفاتورة؟`
+        : `هل أنت متأكد من تطبيق خصم ${amount} ج.م على الفاتورة؟`;
+
+      if (!confirm(confirmMessage)) return;
+
+      // هنا تبعت البيانات للـ backend
+      try {
+        const res = await fetch(`${apis.applayExtraDiscount}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            invoice_id: invoiceId,
+            discount_value: amount,
+            discount_type: discountType,
+            discount_scope: scope,
+            reason: reason,
+            user_id: this.currentCustomerId
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          let message = "تم تطبيق الخصم الإضافي بنجاح";
+          if (data.customer?.was_fully_paid) {
+            message += `\nملاحظة: تم إرجاع ${Math.abs(data.customer.balance_change).toFixed(2)} ج.م للعميل كرصيد إضافي`;
+          }
+          alert(message);
+
+          // تحديث الجدول والمودال مباشرة بعد تطبيق الخصم
+          await this.loadCustomerInvoices();
+          bootstrap.Modal.getInstance(document.getElementById("extraDiscountModal")).hide();
+
+          // مسح الحقول
+          document.getElementById("extraDiscountAmount").value = "";
+          document.getElementById("extraDiscountReason").value = "";
+        } else {
+          alert("حدث خطأ: " + (data.error || "غير معروف"));
+        }
+      } catch (err) {
+        console.error(err);
+        alert("حدث خطأ في الاتصال بالخادم");
+      }
+    });
   },
 
   // ========== دوال API ==========
@@ -124,7 +224,8 @@ const InvoiceManager = {
   },
 
   createInvoiceRow(invoice) {
-    
+
+
     const row = document.createElement("tr");
     row.className = `invoice-row ${invoice.status}`;
 
@@ -216,9 +317,8 @@ const InvoiceManager = {
     row.setAttribute("data-invoice-id", invoice.id);
     row.innerHTML = `
           
-       ${
-  invoice.status !== "returned"
-    ? `
+       ${invoice.status !== "returned"
+        ? `
         <td>
           <input 
             type="checkbox" 
@@ -227,35 +327,33 @@ const InvoiceManager = {
         </td>
        
       `
-    : `
+        : `
         <td colspan="1"></td>
       `
-}
+      }
 
              <td>
           <strong>${invoice.invoice_number || invoice.id}</strong>
           <br>
           <small class="text-muted">
-            ${
-              invoice.workOrderName
-                ? `<i class="fa-solid fa-hammer"></i> ${invoice.workOrderName}`
-                : ""
-            }
+            ${invoice.workOrderName
+        ? `<i class="fa-solid fa-hammer"></i> ${invoice.workOrderName}`
+        : ""
+      }
           </small>
+          ${invoice.description ? `<div class="invoice-notes-cell mt-1 small text-info" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${invoice.description}"><i class="fas fa-comment-alt me-1"></i>${invoice.description}</div>` : ""}
         </td>  
             <td>${invoice.date}<br><small>${invoice.time}</small></td>
             <td class="invoice-item-hover position-relative">
                 <div class="items-count" data-invoice-id="${invoice.id}">
                     ${invoice.items_count || 0} بند
-                    ${
-                      invoice.has_returns
-                        ? '<br><small class="text-warning">(يوجد مرتجعات)</small>'
-                        : '<br><small class="text-muted">(مرر للعرض)</small>'
-                    }
+                    ${invoice.has_returns
+        ? '<br><small class="text-warning">(يوجد مرتجعات)</small>'
+        : '<br><small class="text-muted">(مرر للعرض)</small>'
+      }
                 </div>
                 ${tooltipContainer}
                 </td>
-            <!-- هذا هو عمود الإجمالي اللي هيتعدل -->
             <td>
                 ${totalCellHTML}
                 
@@ -273,33 +371,42 @@ const InvoiceManager = {
                             data-invoice-id="${invoice.id}">
                         <i class="fas fa-eye"></i>
                     </button>
-                    ${
-                      invoice.status !== "paid" && invoice.status !== "returned"
-                        ? `
+                    ${invoice.status !== "paid" && invoice.status !== "returned"
+        ? `
                     <button class="btn btn-sm btn-outline-success pay-invoice" 
                             data-invoice-id="${invoice.id}">
                         <i class="fas fa-money-bill-wave"></i>
                     </button>
                     `
-                        : ""
-                    }
-                    ${
-                      invoice.status !== "returned"
-                        ? `
+        : ""
+      }
+                    ${invoice.status !== "returned"
+        ? `
                     <button class="btn btn-sm btn-outline-warning custom-return-invoice" 
                             data-invoice-id="${invoice.id}">
                         <i class="fas fa-undo"></i>
                     </button>
                     `
-                        : ""
-                    }
-                    ${ 
-                      invoice.status !== "returned"
-                    ? `
+        : ""
+      }
+                    ${invoice.status !== "returned" && invoice.status !== "paid" && invoice.status !== "partial"
+        ? `
+          
+<button class="btn btn-warning btn-sm applyExtraDiscountBtn"  data-invoice-id="${invoice.id}" 
+        title="تطبيق خصم إضافي على الفاتورة">
+    <i class="fas fa-tag me-1"></i> 
+     خصم إضافي
+</button>
+
+                    `
+        : ""
+      }
+                    ${invoice.status !== "returned"
+        ? `
                     <button class="btn btn-sm btn-outline-secondary print-invoice" 
                             data-invoice-id="${invoice.id}">
                         <i class="fas fa-print"></i>
-                    </button>`:""}
+                    </button>`: ""}
                 </div>
             </td>
         `;
@@ -332,8 +439,8 @@ const InvoiceManager = {
     );
     const itemAfterDiscount = parseFloat(
       item.total_after_discount ||
-        item.total_after_discount ||
-        originalTotal - itemDiscountAmount
+      item.total_after_discount ||
+      originalTotal - itemDiscountAmount
     );
     const hasReturn = item.returned_quantity > 0;
     const itemPriceAfterDiscount = item?.unit_price_after_discount;
@@ -361,15 +468,14 @@ const InvoiceManager = {
     let itemHTML = `
             <td>
                 <strong>${item.product_name || "منتج"}</strong>
-                ${
-                  item.returned_quantity > 0
-                    ? `<div class="mt-1">
+                ${item.returned_quantity > 0
+        ? `<div class="mt-1">
                         <span class="badge bg-warning return-history-badge">
                             مرتجع: ${item.returned_quantity}
                         </span>
                     </div>`
-                    : ""
-                }
+        : ""
+      }
             </td>
             <td>
                 <div class="d-flex flex-column">
@@ -424,9 +530,8 @@ const InvoiceManager = {
                 </td>
 
     <td class="fw-bold">
-        ${
-          hasReturn
-            ? `
+        ${hasReturn
+          ? `
                 <div class="text-muted text-decoration-line-through">
                     ${itemAfterDiscount.toFixed(2)} ج.م
                 </div>
@@ -434,7 +539,7 @@ const InvoiceManager = {
                     ${currentAfterDiscountTotal.toFixed(2)} ج.م
                 </div>
             `
-            : `
+          : `
                 <div class="text-success fw-bold">
                     ${itemAfterDiscount.toFixed(2)} ج.م
                 </div>
@@ -463,7 +568,7 @@ const InvoiceManager = {
     return row;
   },
 
-  
+
 
   // ========== Event Listeners (نفس الكود الأصلي) ==========
   createTooltipContainer(invoice) {
@@ -479,7 +584,7 @@ const InvoiceManager = {
         `;
   },
 
-  
+
   buildItemsTooltip(invoice) {
     const items = invoice.items || [];
 
@@ -541,8 +646,8 @@ const InvoiceManager = {
                             <small class="text-danger">
                                 <i class="fas fa-tag me-1"></i>
                                 خصم: ${itemDiscount.toFixed(
-                                  2
-                                )} ج.م (${itemDiscountPercent}%)
+            2
+          )} ج.م (${itemDiscountPercent}%)
                             </small>
                         </div>
                     `;
@@ -556,28 +661,24 @@ const InvoiceManager = {
         return `
                     <div class="tooltip-item">
                         <div>
-                            <div class="tooltip-item-name">${
-                              item.product_name || "منتج"
-                            }</div>
+                            <div class="tooltip-item-name">${item.product_name || "منتج"
+          }</div>
                             <div class="tooltip-item-details">
-                                الكمية: ${currentQuantity} من ${
-          item.quantity
-        }${returnedText}
+                                الكمية: ${currentQuantity} من ${item.quantity
+          }${returnedText}
                                 <br>
-                                السعر: <span style="${
-                                  hasDiscount
-                                    ? "text-decoration: line-through;"
-                                    : ""
-                                }">${(
-          item.selling_price ||
-          item.price ||
-          0
-        ).toFixed(2)}</span>
-                                ${
-                                  hasDiscount
-                                    ? ` → ${discountedUnitPrice.toFixed(2)} ج.م`
-                                    : ""
-                                }
+                                السعر: <span style="${hasDiscount
+            ? "text-decoration: line-through;"
+            : ""
+          }">${(
+            item.selling_price ||
+            item.price ||
+            0
+          ).toFixed(2)}</span>
+                                ${hasDiscount
+            ? ` → ${discountedUnitPrice.toFixed(2)} ج.م`
+            : ""
+          }
                                 ${discountHTML}
                             </div>
                         </div>
@@ -603,38 +704,34 @@ const InvoiceManager = {
                         <span>الإجمالي قبل الخصم:</span>
                         <span>${beforeDiscount.toFixed(2)} ج.م</span>
                     </div>
-                    ${
-                      discountAmount > 0
-                        ? `
+                    ${discountAmount > 0
+          ? `
                     <div class="tooltip-discount-row text-danger">
                         <span>قيمة الخصم:</span>
                         <span>-${discountAmount.toFixed(2)} ج.م</span>
                     </div>`
-                        : ""
-                    }
-                    ${
-                      totalReturnedAmount > 0
-                        ? `
+          : ""
+        }
+                    ${totalReturnedAmount > 0
+          ? `
                     <div class="tooltip-discount-row text-warning">
                         <span>إجمالي المرتجع:</span>
                         <span>- ${totalReturnedAmount.toFixed(2)} ج.م</span>
                     </div>`
-                        : ""
-                    }
-                    ${
-                      discountAmount > 0
-                        ? `
+          : ""
+        }
+                    ${discountAmount > 0
+          ? `
                     <div class="tooltip-discount-row">
                         <small class="text-muted">
-                            نوع الخصم: ${
-                              discountScope === "items"
-                                ? "على البنود"
-                                : "على الفاتورة"
-                            } (${discountPercent.toFixed(1)}%)
+                            نوع الخصم: ${discountScope === "items"
+            ? "على البنود"
+            : "على الفاتورة"
+          } (${discountPercent.toFixed(1)}%)
                         </small>
                     </div>`
-                        : ""
-                    }
+          : ""
+        }
                 </div>
             `;
     }
@@ -644,6 +741,13 @@ const InvoiceManager = {
                 بنود الفاتورة ${invoice.invoice_number || invoice.id}
             </div>
             ${itemsList}
+            ${invoice.description ? `
+                <div class="tooltip-notes-section mt-2 pt-2 border-top">
+                    <small class="text-muted d-block mb-1">الملاحظات:</small>
+                    <div class="small p-2 bg-light rounded text-dark" style="border-right: 3px solid var(--info)">
+                        ${invoice.description}
+                    </div>
+                </div>` : ''}
             ${discountSection}
             <div class="tooltip-total">
                 <span>الإجمالي النهائي:</span>
@@ -822,14 +926,14 @@ const InvoiceManager = {
 
 
 
-        if (invoice&& invoice.status!=="returned") {
+        if (invoice && invoice.status !== "returned") {
           PrintManager.printSingleInvoice(invoice.id);
-        } else  if (invoice&& invoice.status==="returned"){
+        } else if (invoice && invoice.status === "returned") {
           // إذا لم تجدها في البيانات المحلية، استخدم الرقم الظاهر
           PrintManager.printSingleInvoice(invoiceNumber);
         }
         else {
-                     Swal.fire('خطأ', 'فاتورة مرتجع لا يمكن طباعتها', 'error');
+          Swal.fire('خطأ', 'فاتورة مرتجع لا يمكن طباعتها', 'error');
 
         }
       });
@@ -935,16 +1039,14 @@ const InvoiceManager = {
                 data-bs-title="
                     الإجمالي قبل الخصم: ${beforeDiscount.toFixed(2)} ج.م<br>
                     قيمة الخصم: -${discountAmount.toFixed(2)} ج.م<br>
-                    ${
-                      totalReturnedAmount > 0
-                        ? `إجمالي المرتجع: -${totalReturnedAmount.toFixed(
-                            2
-                          )} ج.م<br>`
-                        : ""
-                    }
-                    نوع الخصم: ${
-                      discountScope === "items" ? "على البنود" : "على الفاتورة"
-                    }
+                    ${totalReturnedAmount > 0
+          ? `إجمالي المرتجع: -${totalReturnedAmount.toFixed(
+            2
+          )} ج.م<br>`
+          : ""
+        }
+                    نوع الخصم: ${discountScope === "items" ? "على البنود" : "على الفاتورة"
+        }
                 ">
                 <!-- السعر الأصلي -->
                 <div class="amount-original text-muted text-decoration-line-through">
@@ -959,13 +1061,12 @@ const InvoiceManager = {
                 <!-- تفاصيل الخصم -->
                 
                 <div class="discount-details text-danger">
-                    ${
-                      totalReturnedAmount > 0
-                        ? `المرتجعات: -${totalReturnedAmount.toFixed(
-                            2
-                          )} ج.م<br>`
-                        : ""
-                    }
+                    ${totalReturnedAmount > 0
+          ? `المرتجعات: -${totalReturnedAmount.toFixed(
+            2
+          )} ج.م<br>`
+          : ""
+        }
     </div>
 
                 <!-- السعر النهائي بعد الخصم والمرتجع -->
@@ -973,19 +1074,16 @@ const InvoiceManager = {
                     ${afterDiscount.toFixed(2)} ج.م
                 </div>
                 <!-- بادج الخصم -->
-                <div class="discount-badge badge ${
-                  discountScope === "items" ? "bg-info" : "bg-secondary"
-                } position-top-10 end-10">
-                    ${
-                      discountScope === "items"
-                        ? '<i class="fas fa-tag me-1"></i>'
-                        : '<i class="fas fa-file-invoice me-1"></i>'
-                    }
-                    ${
-                      discountType === "percent"
-                        ? `${discountValue}%`
-                        : `${discountAmount.toFixed(2)} ج.م`
-                    }
+                <div class="discount-badge badge ${discountScope === "items" ? "bg-info" : "bg-secondary"
+        } position-top-10 end-10">
+                    ${discountScope === "items"
+          ? '<i class="fas fa-tag me-1"></i>'
+          : '<i class="fas fa-file-invoice me-1"></i>'
+        }
+                    ${discountType === "percent"
+          ? `${discountValue}%`
+          : `${discountAmount.toFixed(2)} ج.م`
+        }
                 </div>
             </div>
         </div>
@@ -1009,34 +1107,28 @@ const InvoiceManager = {
       );
       if (discountDetailsElement) {
         discountDetailsElement.innerHTML = `
-            <div class="card ${
-              discountScope === "items" ? "border-info" : "border-secondary"
-            } mb-3">
-                <div class="card-header ${
-                  discountScope === "items" ? "bg-info" : "bg-secondary"
-                } text-white py-2 d-flex justify-content-between align-items-center">
+            <div class="card ${discountScope === "items" ? "border-info" : "border-secondary"
+          } mb-3">
+                <div class="card-header ${discountScope === "items" ? "bg-info" : "bg-secondary"
+          } text-white py-2 d-flex justify-content-between align-items-center">
                     <div>
-                        <i class="fas ${
-                          discountScope === "items"
-                            ? "fa-tag"
-                            : "fa-file-invoice"
-                        } me-2"></i>
-                        تفاصيل الخصم - ${
-                          discountScope === "items"
-                            ? "على البنود"
-                            : "على الفاتورة"
-                        }
+                        <i class="fas ${discountScope === "items"
+            ? "fa-tag"
+            : "fa-file-invoice"
+          } me-2"></i>
+                        تفاصيل الخصم - ${discountScope === "items"
+            ? "على البنود"
+            : "على الفاتورة"
+          }
                     </div>
-                    <span class="badge ${
-                      discountScope === "items"
-                        ? "bg-light text-info"
-                        : "bg-light text-secondary"
-                    }">
-                        ${
-                          discountType === "percent"
-                            ? "نسبة مئوية"
-                            : "مبلغ ثابت"
-                        }
+                    <span class="badge ${discountScope === "items"
+            ? "bg-light text-info"
+            : "bg-light text-secondary"
+          }">
+                        ${discountType === "percent"
+            ? "نسبة مئوية"
+            : "مبلغ ثابت"
+          }
                     </span>
                 </div>
                 <div class="card-body p-3">
@@ -1044,31 +1136,28 @@ const InvoiceManager = {
                         <div class="col-6">
                             <small class="text-muted">الإجمالي قبل الخصم</small>
                             <div class="fw-bold">${beforeDiscount.toFixed(
-                              2
-                            )} ج.م</div>
+            2
+          )} ج.م</div>
                         </div>
                         <div class="col-6">
                             <small class="text-muted">قيمة الخصم</small>
-                            <div class="${
-                              discountScope === "items"
-                                ? "text-info"
-                                : "text-secondary"
-                            } fw-bold">
+                            <div class="${discountScope === "items"
+            ? "text-info"
+            : "text-secondary"
+          } fw-bold">
                                 -${discountAmount.toFixed(2)} ج.م
                             </div>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-6">
-                            <small class="text-muted">${
-                              discountType === "percent" ? "النسبة" : "المبلغ"
-                            }</small>
+                            <small class="text-muted">${discountType === "percent" ? "النسبة" : "المبلغ"
+          }</small>
                             <div class="fw-bold">
-                                ${
-                                  discountType === "percent"
-                                    ? `${discountValue}%`
-                                    : `${discountValue} ج.م`
-                                }
+                                ${discountType === "percent"
+            ? `${discountValue}%`
+            : `${discountValue} ج.م`
+          }
                             </div>
                         </div>
                         <div class="col-6">
@@ -1078,9 +1167,8 @@ const InvoiceManager = {
                             </div>
                         </div>
                     </div>
-                    ${
-                      discountScope === "items"
-                        ? `
+                    ${discountScope === "items"
+            ? `
                     <div class="row mt-2">
                         <div class="col-12">
                             <small class="text-muted">ملاحظة</small>
@@ -1091,8 +1179,8 @@ const InvoiceManager = {
                         </div>
                     </div>
                     `
-                        : ""
-                    }
+            : ""
+          }
                 </div>
             </div>
         `;
@@ -1131,30 +1219,6 @@ const InvoiceManager = {
       .closest("table")
       .querySelector("thead tr");
 
-    // تحديث رؤوس الأعمدة حسب نوع الخصم
-    // if (discountScope === 'items' && discountAmount > 0) {
-    //     thead.innerHTML = `
-    //         <tr>
-    //           <th>الصنف</th>
-    //           <th>الكمية</th>
-    //           <th>السعر</th>
-    //           <th>قبل الخصم</th>
-    //           <th>الخصم</th>
-    //           <th>بعد الخصم</th>
-    //           <th>مرتجع</th>
-    //         </tr>
-    //     `;
-    // } else {
-    //     thead.innerHTML = `
-    //         <tr>
-    //           <th>الصنف</th>
-    //           <th>الكمية</th>
-    //           <th>السعر</th>
-    //           <th>الإجمالي</th>
-    //           <th>مرتجع</th>
-    //         </tr>
-    //     `;
-    // }
 
     // تحديث رؤوس الأعمدة حسب نوع الخصم
     if (discountScope === "items" && discountAmount > 0) {
@@ -1198,8 +1262,8 @@ const InvoiceManager = {
         );
         const itemBeforeDiscount = parseFloat(
           item.total_before_discount ||
-            item.item_total_before_discount ||
-            item.quantity * (item.selling_price || item.price || 0)
+          item.item_total_before_discount ||
+          item.quantity * (item.selling_price || item.price || 0)
         );
         const itemAfterDiscount = itemBeforeDiscount - itemDiscountAmount;
 
@@ -1252,9 +1316,8 @@ const InvoiceManager = {
             : (discountAmount / beforeDiscount) * 100;
 
         totalRow.innerHTML = `
-                <td colspan="${
-                  discountScope === "items" ? "4" : "3"
-                }" class="text-end">المبلغ الإجمالي:</td>
+                <td colspan="${discountScope === "items" ? "4" : "3"
+          }" class="text-end">المبلغ الإجمالي:</td>
                 <td colspan="${discountScope === "items" ? "3" : "2"}">
                     <div class="amount-with-discount">
                         <div class="amount-original text-muted text-decoration-line-through">
@@ -1263,19 +1326,16 @@ const InvoiceManager = {
                         <div class="amount-final">
                             ${afterDiscount.toFixed(2)} ج.م
                         </div>
-                        <div class="discount-badge badge ${
-                          discountScope === "items" ? "bg-info" : "bg-secondary"
-                        }">
-                            ${
-                              discountScope === "items"
-                                ? '<i class="fas fa-tag me-1"></i>'
-                                : '<i class="fas fa-file-invoice me-1"></i>'
-                            }
-                            ${
-                              discountType === "percent"
-                                ? `${discountValue}%`
-                                : `${discountAmount.toFixed(2)} ج.م`
-                            } خصم
+                        <div class="discount-badge badge ${discountScope === "items" ? "bg-info" : "bg-secondary"
+          }">
+                            ${discountScope === "items"
+            ? '<i class="fas fa-tag me-1"></i>'
+            : '<i class="fas fa-file-invoice me-1"></i>'
+          }
+                            ${discountType === "percent"
+            ? `${discountValue}%`
+            : `${discountAmount.toFixed(2)} ج.م`
+          } خصم
                         </div>
                     </div>
                 </td>
@@ -1283,12 +1343,10 @@ const InvoiceManager = {
       } else {
         // بدون خصم
         totalRow.innerHTML = `
-                <td colspan="${
-                  discountScope === "items" ? "4" : "3"
-                }" class="text-end">المبلغ الإجمالي:</td>
-                <td colspan="${
-                  discountScope === "items" ? "3" : "2"
-                }" class="fw-bold">
+                <td colspan="${discountScope === "items" ? "4" : "3"
+          }" class="text-end">المبلغ الإجمالي:</td>
+                <td colspan="${discountScope === "items" ? "3" : "2"
+          }" class="fw-bold">
                     ${afterDiscount.toFixed(2)} ج.م
                 </td>
             `;
@@ -1334,44 +1392,41 @@ const InvoiceManager = {
     row.innerHTML = `
                 <td>
                     <strong>${item.product_name || "منتج"}</strong>
-                    ${
-                      item.returned_quantity > 0
-                        ? `<div class="mt-1">
+                    ${item.returned_quantity > 0
+        ? `<div class="mt-1">
                             <span class="badge bg-warning return-history-badge">
                                 مرتجع: ${item.returned_quantity}
                             </span>
                         </div>`
-                        : ""
-                    }
+        : ""
+      }
                 </td>
 
 
 
                 <td>
                     <div class="d-flex flex-column">
-                    ${
-                      item.returned_quantity > 0
-                        ? `  <span class="text-muted small">أصلي: ${item.quantity}</span>
+                    ${item.returned_quantity > 0
+        ? `  <span class="text-muted small">أصلي: ${item.quantity}</span>
                         <span class="fw-bold mt-1">حالي: ${currentQuantity}</span>`
-                        : `<span class="text-muted small">أصلي: ${item.quantity}</span>`
-                    }
+        : `<span class="text-muted small">أصلي: ${item.quantity}</span>`
+      }
                     </div>
                 </td>
 
                 <td>${(item.selling_price || item.price || 0).toFixed(
-                  2
-                )} ج.م</td>
+        2
+      )} ج.م</td>
                 
                 <td>
 
                     <div class="d-flex flex-column">
-        ${
-          item.returned_quantity >= item.quantity
-            ? `<span class="text-muted small" style="text-decoration: line-through;">
+        ${item.returned_quantity >= item.quantity
+        ? `<span class="text-muted small" style="text-decoration: line-through;">
             ${originalTotal.toFixed(2)} ج.م
         </span>`
-            : ""
-        }
+        : ""
+      }
 
     <span class="fw-bold mt-1">${currentTotal.toFixed(2)} ج.م</span>
 
@@ -1419,6 +1474,14 @@ const InvoiceManager = {
         (inv) => inv.id === AppData.activeFilters.invoiceId
       );
     }
+    // فلترة باسم الشغلانة
+    if (AppData.activeFilters.workOrderSearch) {
+      const workOrderTerm = AppData.activeFilters.workOrderSearch.toLowerCase();
+      filtered = filtered.filter(
+        (inv) => inv.workOrderName && inv.workOrderName.toLowerCase().includes(workOrderTerm)
+      );
+    }
+
     if (AppData.activeFilters.productSearch) {
       const searchTerm = AppData.activeFilters.productSearch.toLowerCase();
       // هنا سنحتاج لتحسين الـ API لدعم البحث في البنود
@@ -1596,7 +1659,14 @@ const InvoiceManager = {
         PrintManager.printMultipleInvoices();
       }
     });
+
+    // عند الضغط على زر الخصم الإضافي
+
+
+
+
   },
+
 
   // دوال أخرى كما هي
   getInvoiceById(invoiceId) {

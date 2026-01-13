@@ -26,7 +26,7 @@ $result = $stmt->get_result();
 header('Content-Type: application/json');
 if ($row = $result->fetch_assoc()) {
     // حساب الصافي
-    $row['net_amount'] = floatval($row['total_after_discount']) - floatval($row['total_returns_amount']);
+    $row['net_amount'] = floatval($row['total_after_discount']) ;
     echo json_encode($row);
 } else {
     echo json_encode(['error' => 'Invoice not found']);

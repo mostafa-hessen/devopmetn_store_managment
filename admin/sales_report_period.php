@@ -113,36 +113,43 @@ if (!$start_ok || !$end_ok) {
         $sql = "SELECT
                     io.id as invoice_id,
                     io.created_at as invoice_date,
+                    io.customer_id,
                     COALESCE(c.name, '—') as customer_name,
                     c.mobile as customer_phone,
-                    io.total_before_discount,
-                    io.discount_type,
-                    io.discount_value,
-                    io.discount_amount,
-                    io.total_after_discount,
+                    -- قيم الكارت تأتي من جدول الفاتورة
+                    io.total_before_discount as card_total_before,
+                    io.total_after_discount as card_total_after,
+                    io.discount_amount as card_discount_amount,
+                    -- قيم الإحصائيات تأتي من جدول البنود
+                    COALESCE(ioi_sum.items_total_before, 0) as items_total_before,
+                    COALESCE(ioi_sum.items_total_after, 0) as items_total_after,
+                    COALESCE(ioi_sum.items_total_discount, 0) as items_total_discount,
+                    COALESCE(ioi_sum.items_total_returns, 0) as items_total_returns,
                     io.paid_amount,
                     io.remaining_amount,
                     io.notes,
                     io.delivered,
                     io.work_order_id,
-                    wo.id as work_order_id,
                     wo.title as work_order_title,
-                    wo.status as work_order_status,
                     CASE 
                         WHEN io.remaining_amount = 0 THEN 'paid'
                         WHEN io.paid_amount > 0 AND io.remaining_amount > 0 THEN 'partial'
                         ELSE 'pending'
-                    END AS payment_status,
-                    COALESCE(SUM(r.total_amount), 0) as total_returns_amount
+                    END AS payment_status
                 FROM invoices_out io
-
-            -- WHERE io.delivered NOT IN ('canceled','reverted')
+                LEFT JOIN (
+                    SELECT invoice_out_id, 
+                           SUM(total_before_discount) as items_total_before,
+                           SUM(total_after_discount) as items_total_after,
+                           SUM(discount_amount) as items_total_discount,
+                           SUM(returned_quantity * unit_price_after_discount) as items_total_returns
+                    FROM invoice_out_items
+                    GROUP BY invoice_out_id
+                ) ioi_sum ON io.id = ioi_sum.invoice_out_id
                 LEFT JOIN customers c ON io.customer_id = c.id
                 LEFT JOIN work_orders wo ON io.work_order_id = wo.id
-                LEFT JOIN returns r ON r.invoice_id = io.id AND r.status IN ('approved', 'completed')
                 $sql_where
-                        AND io.delivered NOT IN ('canceled','reverted')
-
+                    AND io.delivered NOT IN ('canceled','reverted')
                 GROUP BY io.id
                 ORDER BY io.created_at DESC";
 
@@ -153,15 +160,29 @@ if (!$start_ok || !$end_ok) {
             
             if ($stmt->execute()) {
                 $result = $stmt->get_result();
+                
+                $total_sales_before_discount_sum = 0;
+                $total_sales_after_discount_sum = 0;
+                $total_discounts_amount_sum = 0;
+                $total_returns_amount_sum = 0;
+                $total_net_amount_sum = 0;
+
                 while ($row = $result->fetch_assoc()) {
-                    // احسب صافي المبيعات بعد المرتجعات
-                    $net_amount = floatval($row['total_after_discount']) - floatval($row['total_returns_amount']);
+                    $total_sales_before_discount_sum += floatval($row['items_total_before']);
+                    $total_sales_after_discount_sum += floatval($row['items_total_after']);
+                    $total_discounts_amount_sum += floatval($row['items_total_discount']);
+                    $total_returns_amount_sum += floatval($row['items_total_returns']);
+
+                    // الصافي النهائي للفاتورة = بعد الخصم - المرتجعات
+                    $net_amount = floatval($row['card_total_after']) - floatval($row['items_total_returns']);
+                    $total_net_amount_sum += floatval($row['items_total_after']);
                     $row['net_amount'] = $net_amount;
                     
                     $sales_data[] = $row;
-                    $total_sales_amount_period += floatval($row['total_after_discount']);
-                    $net_sales_after_returns += $net_amount;
                 }
+                
+                // الصافي النهائي للفترة
+                $final_net_sales_period = $total_net_amount_sum - $total_returns_amount_sum;
                 
                 $total_invoices_period = count($sales_data);
                 if ($total_invoices_period == 0) {
@@ -564,15 +585,18 @@ require_once BASE_DIR . 'partials/sidebar.php';
     position: fixed;
     top: 0;
     left: 0;
-    width: 400px;
+    width: 900px;
     height: 100vh;
     background: var(--surface);
-    box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.15);
     z-index: 1000;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    overflow-y: auto;
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    overflow: hidden; /* تغيير من visible إلى hidden لمنع خروج الأزرار */
     padding: 20px;
+    padding-top: 80px; /* زيادة الهامش العلوي لتجنب التداخل مع الناف بار */
+    display: flex;
+    flex-direction: column;
 }
 
 .details-sidebar.active {
@@ -582,11 +606,95 @@ require_once BASE_DIR . 'partials/sidebar.php';
 .details-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 20px;
     padding-bottom: 15px;
     border-bottom: 2px solid var(--border);
+    flex-shrink: 0;
 }
+
+.header-info-side {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.header-actions-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.sidebar-nav-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    padding: 5px;
+    border-radius: 30px;
+    border: 1px solid var(--border);
+}
+
+.nav-btn-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.nav-btn-sm:hover:not(:disabled) {
+    background: var(--primary);
+    color: white;
+}
+
+.nav-btn-sm:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.details-counter-sm {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary);
+    padding: 0 5px;
+}
+
+.close-sidebar-btn {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff1f2;
+    color: #e11d48;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.close-sidebar-btn:hover {
+    background: #e11d48;
+    color: white;
+}
+
+#detailsTitle {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text);
+}
+
 
 .details-header h3 {
     margin: 0;
@@ -915,18 +1023,6 @@ require_once BASE_DIR . 'partials/sidebar.php';
                     </select>
                 </div>
 
-                <!-- فلتر التسليم -->
-                <div class="filter-group">
-                    <label>حالة التسليم</label>
-                    <select name="delivered">
-                        <option value="">كل الحالات</option>
-                        <option value="yes" <?php echo $delivered_filter == 'yes' ? 'selected' : ''; ?>>مسلم</option>
-                        <option value="no" <?php echo $delivered_filter == 'no' ? 'selected' : ''; ?>>مؤجل</option>
-                        <option value="partial" <?php echo $delivered_filter == 'partial' ? 'selected' : ''; ?>>جزئي</option>
-                        <option value="canceled" <?php echo $delivered_filter == 'canceled' ? 'selected' : ''; ?>>ملغى</option>
-                    </select>
-                </div>
-
                 <!-- البحث المتقدم -->
                 <div class="filter-group">
                     <label>بحث شامل</label>
@@ -979,33 +1075,45 @@ require_once BASE_DIR . 'partials/sidebar.php';
 
                 <div class="stat-card card-sales">
                     <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
-                    <div class="stat-value"><?php echo number_format($total_sales_amount_period, 2); ?></div>
-                    <div class="stat-label">إجمالي المبيعات</div>
-                </div>
-
-                <div class="stat-card card-net">
-                    <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
-                    <div class="stat-value"><?php echo number_format($net_sales_after_returns, 2); ?></div>
-                    <div class="stat-label">صافي المبيعات</div>
+                    <div class="stat-value"><?php echo number_format($total_sales_before_discount_sum ?? 0, 2); ?></div>
+                    <div class="stat-label">إجمالي المبيعات (قبل الخصم)</div>
                 </div>
 
                 <div class="stat-card card-discounts">
                     <div class="stat-icon"><i class="fas fa-tag"></i></div>
-                    <div class="stat-value">
-                        <?php
-                        $total_discounts = 0;
-                        foreach($sales_data as $invoice) {
-                            $total_discounts += floatval($invoice['discount_amount']);
-                        }
-                        echo number_format($total_discounts, 2);
-                        ?>
-                    </div>
+                    <div class="stat-value text-danger"><?php echo number_format($total_discounts_amount_sum ?? 0, 2); ?></div>
                     <div class="stat-label">إجمالي الخصومات</div>
+                </div>
+
+                <div class="stat-card card-net">
+                    <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-value"><?php echo number_format($total_net_amount_sum ?? 0, 2); ?></div>
+                    <div class="stat-label">الصافي بعد الخصم</div>
+                </div>
+                
+                <div class="stat-card card-returns">
+                    <div class="stat-icon"><i class="fas fa-undo"></i></div>
+                    <div class="stat-value text-danger"><?php echo number_format($total_returns_amount_sum ?? 0, 2); ?></div>
+                    <div class="stat-label">إجمالي المرتجعات</div>
+                </div>
+            </div>
+
+            <!-- الصافي النهائي المتميز -->
+            <div class="final-net-banner" style="margin-bottom: 25px;">
+                <div class="stat-card card-final" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; display: flex; align-items: center; justify-content: space-between; padding: 25px 40px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div class="stat-icon" style="margin-bottom: 0;"><i class="fas fa-check-double" style="color: white; font-size: 2.5rem; opacity: 0.9;"></i></div>
+                        <div>
+                            <div class="stat-label" style="color: white; opacity: 0.9; text-align: right; font-size: 1.1rem; margin-bottom: 5px;">الصافي النهائي للمبيعات</div>
+                            <div style="font-size: 0.85rem; color: white; opacity: 0.7;">(الصافي بعد الخصم - المرتجعات)</div>
+                        </div>
+                    </div>
+                    <div class="stat-value" style="color: white; font-size: 2.8rem; margin-bottom: 0;"><?php echo number_format($final_net_sales_period ?? 0, 2); ?> <small style="font-size: 1.2rem;">ج.م</small></div>
                 </div>
             </div>
 
             <!-- إجراءات الطباعة -->
-            <div class="print-actions">
+            <div class="print-actions d-none">
                 <label class="select-all">
                     <input type="checkbox" id="selectAll">
                     تحديد الكل
@@ -1027,12 +1135,17 @@ require_once BASE_DIR . 'partials/sidebar.php';
                             
                             $delivered_text = '';
                             if ($invoice['delivered'] == 'yes') $delivered_text = 'مسلم';
-                            elseif ($invoice['delivered'] == 'no') $delivered_text = 'مؤجل';
                             elseif ($invoice['delivered'] == 'partial') $delivered_text = 'جزئي';
                             elseif ($invoice['delivered'] == 'canceled') $delivered_text = 'ملغى';
                             
-                            $discount_amount = floatval($invoice['discount_amount']);
-                            $returns_amount = floatval($invoice['total_returns_amount']);
+                            // قيم الكارت تأتي من جدول الفاتورة
+                            $total_before = floatval($invoice['card_total_before']);
+                            $total_after = floatval($invoice['card_total_after']);
+                            // الخصم يأتي من مجموع خصومات البنود
+                            $discount_amount = floatval($invoice['items_total_discount']);
+                            
+                            // المرتجعات تأتي من البنود
+                            $returns_amount = floatval($invoice['items_total_returns']);
                             ?>
                             
                             <div class="invoice-card" data-invoice-id="<?php echo $invoice['invoice_id']; ?>">
@@ -1040,18 +1153,18 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                     <div class="invoice-header">
                                         <span class="invoice-number">#<?php echo $invoice['invoice_id']; ?></span>
                                         <span class="invoice-status <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
-                                        <?php if ($delivered_text): ?>
-                                            <span class="invoice-status status-partial"><?php echo $delivered_text; ?></span>
-                                        <?php endif; ?>
+                                    
                                         <?php if ($invoice['work_order_id']): ?>
                                             <span style="color: var(--muted); font-size: 0.85rem;">
-                                                <i class="fas fa-project-diagram"></i> شغلانة
+                                                <i class="fas fa-project-diagram"></i> <?php echo htmlspecialchars($invoice['work_order_title']); ?>
                                             </span>
                                         <?php endif; ?>
                                     </div>
                                     
                                     <div class="invoice-customer">
-                                        <?php echo htmlspecialchars($invoice['customer_name']); ?>
+                                        <a target="_blank" href="../client/customer_details.php?customer_id=<?php echo $invoice['customer_id']; ?>" onclick="event.stopPropagation();">
+                                             <?php echo htmlspecialchars($invoice['customer_name']); ?>
+                                        </a>
                                     </div>
                                     
                                     <div class="invoice-meta">
@@ -1072,9 +1185,9 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                 <div class="invoice-right">
                                     <div class="invoice-amounts">
                                         <?php if ($discount_amount > 0): ?>
-                                            <div class="amount-before"><?php echo number_format(floatval($invoice['total_before_discount']), 2); ?> ج.م</div>
+                                            <div class="amount-before"><?php echo number_format($total_before, 2); ?> ج.م</div>
                                         <?php endif; ?>
-                                        <div class="amount-after"><?php echo number_format($invoice['net_amount'], 2); ?> ج.م</div>
+                                        <div class="amount-after"><?php echo number_format($total_after, 2); ?> ج.م</div>
                                         
                                         <?php if ($discount_amount > 0): ?>
                                             <div class="amount-discount">
@@ -1095,12 +1208,12 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                             <i class="fas fa-eye"></i> عرض
                                         </button>
                                         <?php if ($returns_amount > 0): ?>
-                                            <button class="btn-returns view-returns" 
+                                            <button class="btn-returns view-returns d-none" 
                                                     data-invoice-id="<?php echo $invoice['invoice_id']; ?>">
                                                 <i class="fas fa-undo"></i> مرتجع
                                             </button>
                                         <?php endif; ?>
-                                        <button class="btn-print print-invoice" 
+                                        <button class="btn-print print-invoice d-none" 
                                                 data-invoice-id="<?php echo $invoice['invoice_id']; ?>">
                                             <i class="fas fa-print"></i> طباعة
                                         </button>
@@ -1121,30 +1234,57 @@ require_once BASE_DIR . 'partials/sidebar.php';
 </div>
 
 <!-- السايدبار الجانبي للتفاصيل -->
-<aside class="details-sidebar " id="detailsSidebar">
-      <div class="details-navigation mt-2 " id="detailsNavigation">
-        <button id="prevInvoice"><i class="fas fa-chevron-right"></i> السابقة</button>
-        <button id="nextInvoice">التالية <i class="fas fa-chevron-left"></i></button>
-    </div>
+<aside class="details-sidebar" id="detailsSidebar">
+    
     <div class="details-header">
-        <h3 id="detailsTitle">تفاصيل الفاتورة</h3>
-        <button class="close-details" id="closeDetails">&times;</button>
+        <div class="header-info-side">
+            <h3 id="detailsTitle">تفاصيل الفاتورة</h3>
+            <div class="sidebar-nav-row">
+                <button id="prevInvoice" class="nav-btn-sm" title="الفاتورة السابقة">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <div id="invoiceCounter" class="details-counter-sm">0 من 0</div>
+                <button id="nextInvoice" class="nav-btn-sm" title="الفاتورة التالية">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+        </div>
+        <div class="header-actions-side">
+            <button class="close-sidebar-btn" id="closeDetails" title="إغلاق">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
     </div>
     
-    <div class="details-content" id="detailsContent">
+    <div class="details-content" id="detailsContent" style="flex: 1; overflow-y: auto; padding-right: 5px;">
         <!-- سيتم ملء المحتوى بواسطة JavaScript -->
     </div>
+</aside>
     
   
 </aside>
+<div id="invoicesDataContainer" style="display:none;">
+    <?php echo json_encode($sales_data); ?>
+</div>
 
 <script>
 class SalesReport {
     constructor() {
         this.currentInvoiceIndex = 0;
         this.selectedInvoices = new Set();
-        this.invoicesData = <?php echo json_encode($sales_data); ?>;
+        this.updateInvoicesData();
         this.init();
+    }
+
+    updateInvoicesData() {
+        try {
+            const dataElem = document.getElementById('invoicesDataContainer');
+            this.invoicesData = JSON.parse(dataElem.textContent);
+            console.log('Data Updated:', this.invoicesData.length, 'invoices');
+        } catch (e) {
+            console.error('Error parsing invoices data:', e);
+            this.invoicesData = [];
+        }
     }
 
     init() {
@@ -1245,6 +1385,22 @@ class SalesReport {
             const statsCards = doc.querySelector('.stats-cards');
             if (statsCards) {
                 document.querySelector('.stats-cards').outerHTML = statsCards.outerHTML;
+            }
+
+            // تحديث بانر الصافي النهائي
+            const finalBanner = doc.querySelector('.final-net-banner');
+            if (finalBanner) {
+                const existingBanner = document.querySelector('.final-net-banner');
+                if (existingBanner) {
+                    existingBanner.outerHTML = finalBanner.outerHTML;
+                }
+            }
+
+            // تحديث البيانات البرمجية
+            const newDataContainer = doc.querySelector('#invoicesDataContainer');
+            if (newDataContainer) {
+                document.getElementById('invoicesDataContainer').textContent = newDataContainer.textContent;
+                this.updateInvoicesData();
             }
             
             this.hideLoading();
@@ -1412,6 +1568,8 @@ updateCurrentInvoiceIndex(invoiceId) {
 }
 
     buildInvoiceDetails(invoice) {
+        console.log(invoice);
+        
         return `
             <div class="details-section">
                 <h4><i class="fas fa-info-circle"></i> معلومات الفاتورة</h4>
@@ -1438,13 +1596,21 @@ updateCurrentInvoiceIndex(invoiceId) {
                     <span class="detail-value">${invoice.work_order_title || 'شغلانة #' + invoice.work_order_id}</span>
                 </div>
                 ` : ''}
+                <div class="detail-row">
+                    <span class="detail-label">الملاحظات</span>
+                    <span class="detail-value" style="font-size: 0.85rem; color: var(--muted);">${invoice.notes || '—'}</span>
+                </div>
             </div>
 
             <div class="details-section">
                 <h4><i class="fas fa-user"></i> معلومات العميل</h4>
                 <div class="detail-row">
                     <span class="detail-label">الاسم</span>
-                    <span class="detail-value">${invoice.customer_name || '—'}</span>
+                    <span class="detail-value">
+                        <a href="../client/customer_details.php?customer_id=${invoice.customer_id}" target="_blank">
+                            ${invoice.customer_name || '—'}
+                        </a>
+                    </span>
                 </div>
                 ${invoice.customer_phone ? `
                 <div class="detail-row">
@@ -1509,42 +1675,54 @@ updateCurrentInvoiceIndex(invoiceId) {
             let itemsHTML = '';
             if (items && items.length > 0) {
                 itemsHTML = `
-                    <table class="items-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>المنتج</th>
-                                <th>الكمية</th>
-                                <th>مرتجع</th>
-                                <th>المتبقي</th>
-                                <th>سعر الوحدة</th>
-                                <th>الإجمالي</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="table-responsive" style="overflow-x: auto;">
+                        <table class="items-table" style="min-width: 800px;">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>المنتج</th>
+                                    <th>الكمية</th>
+                                    <th>سعر (قبل)</th>
+                                    <th>خصم/وحدة</th>
+                                    <th>سعر (بعد)</th>
+                                    <th>خصم كلي</th>
+                                    <th>مرتجع</th>
+                                    <th>المتبقي</th>
+                                    <th>الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                 `;
                 
                 items.forEach((item, index) => {
-                    if (item.return_flag === 1) return; // تخطي البنود المرتجعة كلياً
+                    const remainingQty = parseFloat(item.available_for_return || 0);
+                    const sellingPrice = parseFloat(item.selling_price || 0);
+                    const unitDiscount = parseFloat(item.quantity) > 0 ? (parseFloat(item.discount_amount) / parseFloat(item.quantity)) : 0;
+                    const priceAfter = sellingPrice - unitDiscount;
+                    const totalDiscount = parseFloat(item.discount_amount || 0);
                     
-                    const remainingQty = parseFloat(item.quantity) - parseFloat(item.returned_quantity);
-                    const unitPriceAfterDiscount = parseFloat(item.unit_price_after_discount) || 
-                                                  (parseFloat(item.selling_price) - (parseFloat(item.discount_amount) / parseFloat(item.quantity)));
-                    
+                    const itemTotal = remainingQty * priceAfter;
+
                     itemsHTML += `
                         <tr>
                             <td>${index + 1}</td>
-                            <td>${item.product_name}</td>
+                            <td>
+                                <div class="fw-bold">${item.product_name}</div>
+                                ${item.work_order_title ? `<small class="text-muted" style="display:block;">شغلانة: ${item.work_order_title}</small>` : ''}
+                            </td>
                             <td class="text-center">${this.formatNumber(item.quantity)}</td>
+                            <td class="text-end">${this.formatCurrency(sellingPrice)}</td>
+                            <td class="text-end text-danger">${this.formatCurrency(unitDiscount)}</td>
+                            <td class="text-end text-success">${this.formatCurrency(priceAfter)}</td>
+                            <td class="text-end">${this.formatCurrency(totalDiscount)}</td>
                             <td class="text-center ${item.returned_quantity > 0 ? 'text-danger' : ''}">
                                 ${item.returned_quantity > 0 ? this.formatNumber(item.returned_quantity) : '—'}
                             </td>
-                            <td class="text-center ${remainingQty > 0 ? 'text-success' : 'text-danger'}">
+                            <td class="text-center ${remainingQty > 0 ? 'text-success' : 'text-danger fw-bold'}">
                                 ${this.formatNumber(remainingQty)}
                             </td>
-                            <td class="text-end">${this.formatCurrency(unitPriceAfterDiscount)}</td>
                             <td class="text-end fw-bold">
-                                ${this.formatCurrency(item.total_after_discount || item.item_net_total)}
+                                ${this.formatCurrency(itemTotal)}
                             </td>
                         </tr>
                     `;
@@ -1786,6 +1964,13 @@ updateCurrentInvoiceIndex(invoiceId) {
     }
 
     setupSidebarEvents() {
+        // إغلاق السايدبار بالضغط على المفاتيح (Esc)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('detailsSidebar').classList.remove('active');
+            }
+        });
+
         // إغلاق السايدبار
         document.getElementById('closeDetails').addEventListener('click', () => {
             document.getElementById('detailsSidebar').classList.remove('active');
@@ -1812,9 +1997,14 @@ updateCurrentInvoiceIndex(invoiceId) {
         });
 
         // إغلاق السايدبار عند النقر خارجها
-        document.getElementById('detailsSidebar').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('detailsSidebar')) {
-                document.getElementById('detailsSidebar').classList.remove('active');
+        document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('detailsSidebar');
+            // إذا كان السايدبار مفتوحاً والنقرة ليست بداخله وليست على زر عرض أو أي زر يفتح السايدبار
+            if (sidebar.classList.contains('active') && 
+                !sidebar.contains(e.target) && 
+                !e.target.closest('.view-details') &&
+                !e.target.closest('.invoice-card')) {
+                sidebar.classList.remove('active');
             }
         });
     }
@@ -1822,9 +2012,30 @@ updateCurrentInvoiceIndex(invoiceId) {
     updateNavigationButtons() {
         const prevBtn = document.getElementById('prevInvoice');
         const nextBtn = document.getElementById('nextInvoice');
+        const counter = document.getElementById('invoiceCounter');
+        
+        // في RTL: السابق (Index+) والتالي (Index-)؟ 
+        // لنفترض الترتيب كما هو في المصفوفة (الأحدث أولاً)
+        // التالي هو Index + 1 (أقدم)
+        // السابق هو Index - 1 (أحدث)
         
         prevBtn.disabled = this.currentInvoiceIndex === 0;
         nextBtn.disabled = this.currentInvoiceIndex === this.invoicesData.length - 1;
+        
+        if (this.invoicesData.length > 0) {
+            counter.textContent = `${this.currentInvoiceIndex + 1} من ${this.invoicesData.length}`;
+            counter.closest('.sidebar-nav-row').style.display = 'flex';
+        } else {
+            counter.closest('.sidebar-nav-row').style.display = 'none';
+        }
+
+        if (this.invoicesData.length <= 1) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+        } else {
+            prevBtn.style.display = 'flex';
+            nextBtn.style.display = 'flex';
+        }
     }
 
     setupSearchLoading() {

@@ -6,7 +6,7 @@ $invoiceId = intval($_GET['id']);
 
 $sql = "SELECT io.*, c.name as customer_name, c.mobile as customer_phone,
                wo.title as work_order_title, wo.description as work_order_description,
-               SUM(r.total_amount) as total_returns_amount,
+               COALESCE(ioi_sum.total_returns, 0) as total_returns_amount,
                CASE 
                    WHEN io.remaining_amount = 0 THEN 'paid'
                    WHEN io.paid_amount > 0 AND io.remaining_amount > 0 THEN 'partial'
@@ -15,7 +15,11 @@ $sql = "SELECT io.*, c.name as customer_name, c.mobile as customer_phone,
         FROM invoices_out io
         LEFT JOIN customers c ON io.customer_id = c.id
         LEFT JOIN work_orders wo ON io.work_order_id = wo.id
-        LEFT JOIN returns r ON r.invoice_id = io.id AND r.status IN ('approved', 'completed')
+        LEFT JOIN (
+            SELECT invoice_out_id, SUM(returned_quantity * unit_price_after_discount) as total_returns
+            FROM invoice_out_items
+            GROUP BY invoice_out_id
+        ) ioi_sum ON io.id = ioi_sum.invoice_out_id
         WHERE io.id = ?
         GROUP BY io.id";
 

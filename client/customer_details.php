@@ -143,7 +143,15 @@
                 <label for="dateTo" class="form-label">إلى تاريخ</label>
                 <input type="date" class="form-control" id="dateTo" />
               </div>
-              <div class="col-md-6">
+              <div class="col-md-3">
+                <label for="workOrderSearchFilter" class="form-label">بحث باسم الشغلانة</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="workOrderSearchFilter"
+                  placeholder="اسم الشغلانة..." />
+              </div>
+              <div class="col-md-3">
                 <label for="productSearch" class="form-label">بحث بالصنف</label>
                 <input
                   type="text"
@@ -239,6 +247,17 @@
                 type="button"
                 role="tab">
                 <i class="fas fa-wallet me-2"></i> حركات المحفظة
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="adjustments-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#adjustments"
+                type="button"
+                role="tab">
+                <i class="fas fa-edit me-2"></i> تعديلات الفواتير
               </button>
             </li>
           </ul>
@@ -351,6 +370,14 @@
             </div>
             <!-- تبويب المرتجعات -->
             <div class="tab-pane fade" id="returns" role="tabpanel">
+              <div class="mb-3 w-50">
+                   <label for="returnInvoiceSearch" class="form-label">بحث برقم الفاتورة</label>
+                   <input
+                     type="text"
+                     class="form-control"
+                     id="returnInvoiceSearch"
+                     placeholder="رقم الفاتورة..." />
+              </div>
               <div class="table-responsive-fixed custom-table-wrapper">
                 <table class=" custom-table">
                   <thead>
@@ -367,6 +394,44 @@
                     </tr>
                   </thead>
                   <tbody id="returnsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- تبويب تعديلات الفواتير -->
+            <div class="tab-pane fade" id="adjustments" role="tabpanel">
+              <div class="table-responsive-fixed custom-table-wrapper">
+                <div class="mb-3">
+                  <h5 class="mb-0"><i class="fas fa-edit"></i> سجل تعديلات الفواتير</h5>
+                  <small class="text-muted">جميع التعديلات التي تمت على فواتير العميل</small>
+                </div>
+                <table class="custom-table table-hover">
+                  <thead class="center"=>
+                    <tr>
+                      <th>التاريخ</th>
+                      <th>الفاتورة</th>
+                      <th>نوع التعديل</th>
+                      <th>الخصم الإضافي</th>
+                      <th>قبل التعديل</th>
+                      <th>بعد التعديل</th>
+                   
+                      <th>الربح قبل</th>
+                      <th>الربح بعد</th>
+                      <!-- <th>طريقة الإرجاع</th>
+                      <th>مبلغ الإرجاع</th> -->
+                      <th>السبب</th>
+                      <th>المستخدم</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adjustmentsTableBody">
+                    <tr>
+                      <td colspan="14" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -1425,7 +1490,156 @@
     <div id="printSection" class="print-section" style="display: none"></div>
 
   
-  
+  <!-- Modal -->
+<!-- Modal -->
+<div class="modal fade" id="extraDiscountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title">تطبيق خصم إضافي</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="extraDiscountType" class="form-label">نوع الخصم</label>
+          <select id="extraDiscountType" class="form-select" onchange="updateDiscountInputLabel()">
+            <option value="amount" selected>مبلغ ثابت (ج.م)</option>
+            <option value="percent">نسبة مئوية (%)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="extraDiscountAmount" class="form-label" id="discountAmountLabel">قيمة الخصم (ج.م)</label>
+          <input type="number" id="extraDiscountAmount" class="form-control" value="0" min="0" step="0.01">
+          <small class="text-muted" id="discountAmountHint"></small>
+        </div>
+        <div class="mb-3">
+          <label for="extraDiscountScope" class="form-label">تطبيق الخصم</label>
+          <select id="extraDiscountScope" class="form-select">
+            <option value="invoice" selected>على الفاتورة (توزيع نسبي)</option>
+            <option value="items">على البنود (توزيع نسبي)</option>
+          </select>
+          <small class="text-muted">سيتم توزيع الخصم على جميع البنود غير المرتجعة بنسب عادلة</small>
+        </div>
+        <div class="mb-3">
+          <label for="extraDiscountReason" class="form-label">السبب (اختياري)</label>
+          <input type="text" id="extraDiscountReason" class="form-control" placeholder="مثال: عميل جملة - خصم كمية">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-warning" id="confirmExtraDiscountBtn">تطبيق الخصم</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// دالة لتحديث تسمية حقل الخصم حسب النوع
+function updateDiscountInputLabel() {
+    const discountType = document.getElementById('extraDiscountType').value;
+    const amountLabel = document.getElementById('discountAmountLabel');
+    const amountInput = document.getElementById('extraDiscountAmount');
+    const amountHint = document.getElementById('discountAmountHint');
+    
+    if (discountType === 'percent') {
+        amountLabel.textContent = 'قيمة الخصم (%)';
+        amountInput.max = 100;
+        amountInput.step = '0.01';
+        amountHint.textContent = 'أدخل النسبة من 0 إلى 100';
+    } else {
+        amountLabel.textContent = 'قيمة الخصم (ج.م)';
+        amountInput.removeAttribute('max');
+        amountInput.step = '0.01';
+        amountHint.textContent = 'أدخل المبلغ بالجنيه المصري';
+    }
+}
+
+// تهيئة التسمية عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    updateDiscountInputLabel();
+    
+    // تحميل التعديلات عند فتح tab التعديلات
+    const adjustmentsTab = document.getElementById('adjustments-tab');
+    if (adjustmentsTab) {
+        adjustmentsTab.addEventListener('shown.bs.tab', function() {
+            loadInvoiceAdjustments();
+        });
+    }
+});
+
+// تحميل تعديلات الفواتير
+async function loadInvoiceAdjustments() {
+    try {
+        const customerId = <?php echo $customer_id; ?>;
+        const tbody = document.getElementById('adjustmentsTableBody');
+        
+        if (!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="14" class="text-center"><div class="spinner-border text-primary"></div></td></tr>';
+        
+        const response = await fetch(`<?php echo BASE_URL; ?>api/get_invoice_adjustments.php?customer_id=${customerId}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            tbody.innerHTML = `<tr><td colspan="14" class="text-center text-danger">${result.message || 'فشل في جلب التعديلات'}</td></tr>`;
+            return;
+        }
+        
+        if (result.adjustments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted">لا توجد تعديلات مسجلة</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        result.adjustments.forEach(adj => {
+            const refundMethodText = {
+                'cash': 'نقدي',
+                'wallet': 'محفظة',
+                'balance_reduction': 'تقليل الرصيد',
+                'none': '-'
+            };
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${new Date(adj.created_at).toLocaleDateString('ar-EG')}</td>
+                <td><a href="${getInvoiceUrl(adj.invoice_id)}" target="_blank">#${adj.invoice_id}</a></td>
+                <td>${adj.adjustment_type === 'discount_add' ? 'خصم إضافي' : adj.adjustment_type}</td>
+                <td>${formatCurrency(adj.discount_amount)}</td>
+                <td>${formatCurrency(adj.old_total_after_discount)}</td>
+                <td>${formatCurrency(adj.new_total_after_discount)}</td>
+         
+                <td>${formatCurrency(adj.old_profit_amount)}</td>
+                <td>${formatCurrency(adj.new_profit_amount)}</td>
+                <td><small>${escapeHtml(adj.reason)}</small></td>
+                <td>${adj.created_by_name || 'غير محدد'}</td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+    } catch (error) {
+        console.error('Error loading adjustments:', error);
+        const tbody = document.getElementById('adjustmentsTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center text-danger">حدث خطأ في تحميل التعديلات</td></tr>';
+        }
+    }
+}
+
+function formatCurrency(amount) {
+    return parseFloat(amount || 0).toFixed(2) + ' ج.م';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getInvoiceUrl(invoiceId) {
+    return `<?php echo BASE_URL; ?>invoices_out/view_invoice_detaiels.php?id=${invoiceId}`;
+}
+</script>
+
     <script type="module" src="js/init.js"></script>
     </script>
   <?php

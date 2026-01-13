@@ -20,12 +20,6 @@ const PrintManager = {
 
         printWindow.document.write(printContent);
         printWindow.document.close();
-
-        // الانتظار قليلاً ثم الطباعة
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 500);
     },
 
     // generateInvoicePrintContent(invoice) {
@@ -99,42 +93,42 @@ const PrintManager = {
     //                 box-sizing: border-box;
     //                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     //             }
-                
+
     //             body {
     //                 padding: 10px;
     //                 background: white;
     //                 color: #000;
     //                 font-size: 12px;
     //             }
-                
+
     //             .invoice {
     //                 width: 280px;
     //                 margin: 0 auto;
     //                 padding: 10px;
     //                 border: 1px solid #000;
     //             }
-                
+
     //             .header {
     //                 text-align: center;
     //                 padding-bottom: 10px;
     //                 margin-bottom: 10px;
     //                 border-bottom: 2px dashed #000;
     //             }
-                
+
     //             .store-name {
     //                 font-weight: 900;
     //                 font-size: 16px;
     //                 margin-bottom: 5px;
     //                 color: #000;
     //             }
-                
+
     //             .store-info {
     //                 font-weight: 700;
     //                 font-size: 10px;
     //                 margin-bottom: 2px;
     //                 color: #555;
     //             }
-                
+
     //             .invoice-info {
     //                 display: flex;
     //                 justify-content: space-between;
@@ -142,7 +136,7 @@ const PrintManager = {
     //                 font-weight: 700;
     //                 font-size: 10px;
     //             }
-                
+
     //             .customer-info {
     //                 margin-bottom: 10px;
     //                 padding: 8px;
@@ -151,7 +145,7 @@ const PrintManager = {
     //                 font-weight: 700;
     //                 font-size: 10px;
     //             }
-                
+
     //             table {
     //                 width: 100%;
     //                 border-collapse: collapse;
@@ -159,36 +153,36 @@ const PrintManager = {
     //                 font-weight: 700;
     //                 font-size: 10px;
     //             }
-                
+
     //             th, td {
     //                 padding: 6px 2px;
     //                 text-align: center;
     //                 border-bottom: 1px dashed #ddd;
     //             }
-                
+
     //             th {
     //                 background: #f1f8ff;
     //                 font-weight: 900;
     //             }
-                
+
     //             .totals {
     //                 margin-top: 10px;
     //                 font-size: 11px;
     //             }
-                
+
     //             .total-row {
     //                 display: flex;
     //                 justify-content: space-between;
     //                 padding: 4px 0;
     //             }
-                
+
     //             .total-final {
     //                 border-top: 2px dashed #000;
     //                 margin-top: 5px;
     //                 padding-top: 8px;
     //                 font-weight: 900;
     //             }
-                
+
     //             .payment-info {
     //                 margin: 10px 0;
     //                 padding: 8px;
@@ -197,17 +191,17 @@ const PrintManager = {
     //                 font-weight: 700;
     //                 font-size: 10px;
     //             }
-                
+
     //             .payment-details {
     //                 margin-top: 5px;
     //             }
-                
+
     //             .payment-row {
     //                 display: flex;
     //                 justify-content: space-between;
     //                 padding: 2px 0;
     //             }
-                
+
     //             .footer {
     //                 text-align: center;
     //                 margin-top: 15px;
@@ -217,7 +211,7 @@ const PrintManager = {
     //                 font-size: 9px;
     //                 color: #555;
     //             }
-                
+
     //             .barcode {
     //                 text-align: center;
     //                 margin: 10px 0;
@@ -226,7 +220,7 @@ const PrintManager = {
     //                 letter-spacing: 3px;
     //                 font-weight: 900;
     //             }
-                
+
     //             .status {
     //                 display: inline-block;
     //                 padding: 2px 8px;
@@ -235,18 +229,18 @@ const PrintManager = {
     //                 font-weight: 700;
     //                 margin-top: 5px;
     //             }
-                
+
     //             .status-pending { background: #fff3cd; color: #856404; }
     //             .status-partial { background: #d1ecf1; color: #0c5460; }
     //             .status-paid { background: #d4edda; color: #155724; }
     //             .status-returned { background: #f8d7da; color: #721c24; }
-                
+
     //             @media print {
     //                 body {
     //                     padding: 0;
     //                     margin: 0;
     //                 }
-                    
+
     //                 .invoice {
     //                     border: none;
     //                     width: 100%;
@@ -262,7 +256,7 @@ const PrintManager = {
     //                 <div class="store-info">السجل التجاري: 1234567890</div>
     //                 <div class="store-info">الهاتف: 01096590768</div>
     //             </div>
-                
+
     //             <div class="invoice-info">
     //                 <div>
     //                     <div>رقم الفاتورة: ${invoice.id}</div>
@@ -273,7 +267,7 @@ const PrintManager = {
     //                     <div>الكاشير: ${invoice.createdByName || 'مدير النظام'}</div>
     //                 </div>
     //             </div>
-                
+
     //             <div class="customer-info">
     //                 <div>العميل: ${customer.name}</div>
     //                 <div>الهاتف: ${customer.mobile}</div>
@@ -284,7 +278,7 @@ const PrintManager = {
     //                 status === 'paid' ? 'مسلم' : 'مرتجع'}
     //                 </div>
     //             </div>
-                
+
     //             <table>
     //                 <thead>
     //                     <tr>
@@ -299,39 +293,39 @@ const PrintManager = {
     //                     ${itemsHTML}
     //                 </tbody>
     //             </table>
-                
+
     //             <div class="totals">
     //                 <div class="total-row">
     //                     <span>الإجمالي:</span>
     //                     <span>${invoice.total.toFixed(2)} ج.م</span>
     //                 </div>
-                    
+
     //                 <div class="total-row">
     //                     <span>المدفوع:</span>
     //                     <span>${paid.toFixed(2)} ج.م</span>
     //                 </div>
-                    
+
     //                 <div class="total-row">
     //                     <span>المتبقي:</span>
     //                     <span>${remaining.toFixed(2)} ج.م</span>
     //                 </div>
-                    
+
     //                 <div class="total-row total-final">
     //                     <span>المبلغ الإجمالي:</span>
     //                     <span>${invoice.remaining.toFixed(2)} ج.م</span>
     //                 </div>
     //             </div>
-                
+
 
     //             <div class="barcode">*${invoice.id}*</div>
-                
+
     //             <div class="footer">
     //                 <div>شكراً لتعاملكم معنا</div>
     //                 <div>للاستفسار: 01096590768</div>
     //                 <div style="margin-top: 5px; font-size: 8px;">${new Date().toLocaleDateString('ar-EG')} ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
     //             </div>
     //         </div>
-            
+
     //         <script>
     //             // طباعة تلقائية بعد تحميل الصفحة
     //             window.onload = function() {
@@ -345,41 +339,32 @@ const PrintManager = {
     // `;
     // },
     generateInvoicePrintContent(invoice) {
-    const customer = AppData.currentCustomer;
+        const customer = AppData.currentCustomer;
 
-    // تنسيق التاريخ
-    const date = new Date(invoice.date);
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    const formattedDate = date.toLocaleDateString('ar-SA', options);
-    const timeString = invoice.time || '12:00 م';
+        // تنسيق التاريخ
+        const date = new Date(invoice.date);
+        const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+        const formattedDate = date.toLocaleDateString('ar-SA', options);
+        const timeString = invoice.time || '12:00 م';
 
-    // حساب المدفوع والمتبقي
-    const paid = invoice.paid || 0;
-    const remaining = invoice.remaining || 0;
-    const status = invoice.status;
-    
+        // حساب المدفوع والمتبقي
+        const paid = invoice.paid || 0;
+        const remaining = invoice.remaining || 0;
+        const status = invoice.status;
 
-    
-    // حساب بيانات الخصم
-    const discountAmount = parseFloat(invoice.discount_amount || 0);
-    const discountValue = parseFloat(invoice.discount_value || 0);
-    const discountType = invoice.discount_type || 'percent';
-    let beforeDiscount =0;
-    const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
+        // إنشاء بنود الفاتورة
+        let itemsHTML = '';
+        let beforeDiscount = 0;
 
-    // إنشاء بنود الفاتورة
-    let itemsHTML = '';
-    let subtotal = 0;
+        invoice.items.forEach((item) => {
 
-    invoice.items.forEach((item) => {
-        
-        if (!item.fullyReturned) {
-            const remainingQuantity = (item.available_for_return|| 0);
-            if (remainingQuantity > 0) {
-                const itemTotal = remainingQuantity * item.selling_price;
-                beforeDiscount += itemTotal;
+            if (!item.fullyReturned) {
+                const remainingQuantity = (item.available_for_return || 0);
+                if (remainingQuantity > 0) {
+                    const itemTotal = remainingQuantity * item.selling_price;
+                    beforeDiscount += itemTotal;
 
-                itemsHTML += `
+                    itemsHTML += `
             <tr>
                 <td style="width:10%; text-align:center;">
                     ${item.id}
@@ -402,12 +387,20 @@ const PrintManager = {
                 </td>
             </tr>
         `;
+                }
             }
-        }
-    });
+        });
 
-    // بناء HTML كامل للطباعة
-    return `
+        // حساب الخصم الجديد
+        // الخصم = الإجمالي قبل الخصم - (المدفوع + المتبقي)
+        const totalRequired = paid + remaining;
+        let calculatedDiscount = beforeDiscount - totalRequired;
+        if (calculatedDiscount < 0) calculatedDiscount = 0;
+
+        const afterDiscount = totalRequired;
+
+        // بناء HTML كامل للطباعة
+        return `
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head>
@@ -632,8 +625,8 @@ const PrintManager = {
                 <div class="status status-${status}">
                     حالة الفاتورة:
                     ${status === 'pending' ? 'مؤجل' :
-            status === 'partial' ? 'جزئي' :
-                status === 'paid' ? 'مسلم' : 'مرتجع'}
+                status === 'partial' ? 'جزئي' :
+                    status === 'paid' ? 'مسلم' : 'مرتجع'}
                 </div>
             </div>
             
@@ -653,7 +646,7 @@ const PrintManager = {
             </table>
             
             <!-- قسم الخصم إذا كان موجودًا -->
-            ${discountAmount > 0 ? `
+            ${calculatedDiscount > 0 ? `
             <div class="discount-section">
                 <div style="text-align: center; font-weight: 900; margin-bottom: 5px; color: #856404;">
                     <i class="fas fa-tag"></i> تفاصيل الخصم
@@ -664,7 +657,7 @@ const PrintManager = {
                 </div>
                 <div class="discount-row">
                     <span>قيمة الخصم:</span>
-                    <span class="text-danger">-${discountAmount.toFixed(2)} ج.م</span>
+                    <span class="text-danger">-${calculatedDiscount.toFixed(2)} ج.م</span>
                 </div>
               
                 <div class="discount-row" style="border-top: 1px dashed #856404; padding-top: 5px;">
@@ -704,26 +697,26 @@ const PrintManager = {
         </div>
         
         <script>
-            // طباعة تلقائية بعد تحميل الصفحة
             window.onload = function() {
-                setTimeout(() => {
-                    window.print();
-                }, 300);
+                window.print();
+            };
+            window.onafterprint = function() {
+                window.close();
             };
         </script>
     </body>
     </html>
 `;
-},
+    },
 
-printStatement(dateFrom, dateTo) {
-    const transactions = WalletManager.getStatementTransactions(dateFrom, dateTo);
-    
-    // افتح نافذة طباعة جديدة
-    const printWindow = window.open('', '_blank', 'width=1000,height=700');
-    
-    // إنشاء HTML كامل
-    let html = `
+    printStatement(dateFrom, dateTo) {
+        const transactions = WalletManager.getStatementTransactions(dateFrom, dateTo);
+
+        // افتح نافذة طباعة جديدة
+        const printWindow = window.open('', '_blank', 'width=1000,height=700');
+
+        // إنشاء HTML كامل
+        let html = `
         <!DOCTYPE html>
         <html dir="rtl">
         <head>
@@ -851,31 +844,31 @@ printStatement(dateFrom, dateTo) {
                 <tbody>
     `;
 
-    // حساب المجاميع
-    let totalIn = 0;
-    let totalOut = 0;
-    let lastBalance = 0;
-    let lastWallet = 0;
+        // حساب المجاميع
+        let totalIn = 0;
+        let totalOut = 0;
+        let lastBalance = 0;
+        let lastWallet = 0;
 
-    transactions.forEach((transaction, index) => {
-        // استخراج البيانات بطرق مختلفة للتأكد من وجودها
-        const createDate = transaction.created_at || transaction.transaction_date || transaction.date || "";
-        const recordDate = transaction.updated_at || transaction.created_at || "";
-        const type = transaction.type_text || transaction.type || "";
-        const description = transaction.description || "";
-        
-        const amount = parseFloat(transaction.amount) || 0;
-        const walletBefore = parseFloat(transaction.wallet_before) || 0;
-        const walletAfter = parseFloat(transaction.wallet_after) || 0;
-        const balanceBefore = parseFloat(transaction.balance_before) || 0;
-        const balanceAfter = parseFloat(transaction.balance_after) || 0;
-        
-       
+        transactions.forEach((transaction, index) => {
+            // استخراج البيانات بطرق مختلفة للتأكد من وجودها
+            const createDate = transaction.created_at || transaction.transaction_date || transaction.date || "";
+            const recordDate = transaction.updated_at || transaction.created_at || "";
+            const type = transaction.type_text || transaction.type || "";
+            const description = transaction.description || "";
 
-        const amountClass = amount > 0 ? 'positive' : 'negative';
-        const amountSign = amount > 0 ? '+' : '';
-        
-        html += `
+            const amount = parseFloat(transaction.amount) || 0;
+            const walletBefore = parseFloat(transaction.wallet_before) || 0;
+            const walletAfter = parseFloat(transaction.wallet_after) || 0;
+            const balanceBefore = parseFloat(transaction.balance_before) || 0;
+            const balanceAfter = parseFloat(transaction.balance_after) || 0;
+
+
+
+            const amountClass = amount > 0 ? 'positive' : 'negative';
+            const amountSign = amount > 0 ? '+' : '';
+
+            html += `
             <tr>
                 <td>${this.formatDateForPrint(createDate)}</td>
                 <td>${this.formatDateForPrint(recordDate)}</td>
@@ -888,9 +881,9 @@ printStatement(dateFrom, dateTo) {
                 <td>${balanceAfter.toFixed(2)}</td>
             </tr>
         `;
-    });
+        });
 
-    html += `
+        html += `
                 </tbody>
             </table>
             
@@ -916,43 +909,40 @@ printStatement(dateFrom, dateTo) {
                 
                 // طباعة عند تحميل الصفحة
                 window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        // إغلاق النافذة بعد ثانيتين من الطباعة
-                        setTimeout(function() {
-                            window.close();
-                        }, 2000);
-                    }, 500);
-                }
+                    window.print();
+                };
+                window.onafterprint = function() {
+                    window.close();
+                };
             </script>
         </body>
         </html>
     `;
 
-    // كتابة HTML واغلاق المستند
-    printWindow.document.write(html);
-    printWindow.document.close();
-},
+        // كتابة HTML واغلاق المستند
+        printWindow.document.write(html);
+        printWindow.document.close();
+    },
 
-// أضف هذه الدالة المساعدة خارج printStatement
- formatDateForPrint(dateStr) {
-    if (!dateStr) return "";
-    try {
-        const date = new Date(dateStr);
-        const formattedDate = date.toLocaleDateString('ar-EG', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-        const formattedTime = date.toLocaleTimeString('ar-EG', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        return formattedDate + " " + formattedTime;
-    } catch {
-        return dateStr;
-    }
-},
+    // أضف هذه الدالة المساعدة خارج printStatement
+    formatDateForPrint(dateStr) {
+        if (!dateStr) return "";
+        try {
+            const date = new Date(dateStr);
+            const formattedDate = date.toLocaleDateString('ar-EG', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const formattedTime = date.toLocaleTimeString('ar-EG', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            return formattedDate + " " + formattedTime;
+        } catch {
+            return dateStr;
+        }
+    },
     openPrintMultipleModal() {
         const container = document.getElementById("printInvoicesList");
         container.innerHTML = "";
@@ -978,125 +968,125 @@ printStatement(dateFrom, dateTo) {
         modal.show();
     },
 
-   printMultipleInvoices(invoices=[],workOrder=null) {
-    let invoiceIds = invoices;
+    printMultipleInvoices(invoices = [], workOrder = null) {
+        let invoiceIds = invoices;
 
-    if(!workOrder){
+        if (!workOrder) {
 
-        const selectedCheckboxes = document.querySelectorAll(
-            ".print-invoice-checkbox:checked"
-        );
-        if (selectedCheckboxes.length === 0) {
-            Swal.fire("تحذير", "يرجى اختيار فواتير للطباعة.", "warning");
-            return;
+            const selectedCheckboxes = document.querySelectorAll(
+                ".print-invoice-checkbox:checked"
+            );
+            if (selectedCheckboxes.length === 0) {
+                Swal.fire("تحذير", "يرجى اختيار فواتير للطباعة.", "warning");
+                return;
+            }
+
+            invoiceIds = Array.from(selectedCheckboxes).map((checkbox) =>
+                parseInt(checkbox.dataset.invoiceId)
+            );
         }
-    
-         invoiceIds = Array.from(selectedCheckboxes).map((checkbox) =>
-            parseInt(checkbox.dataset.invoiceId)
-        );
-    }
 
-    
-    // إنشاء تقرير مجمع
-    const report = {
-        invoicesCount: invoiceIds.length,
-        items: [],
-        totals: {
-            beforeDiscount: 0,
-            afterDiscount: 0,
-            discountAmount: 0,
-            totalCost: 0,
-            profitAmount: 0,
-            discountType: 'percent' // الافتراضي
-        },
-        payments: {
-            totalPaid: 0,
-            totalRemaining: 0
-        },
-        invoices: [],
-        customerName: AppData.currentCustomer?.name || 'غير محدد',
-        workOrder: workOrder?workOrder.name: null
-    };
 
-    // تجميع بيانات الفواتير المحددة
-    invoiceIds.forEach((inv) => {
+        // إنشاء تقرير مجمع
+        const report = {
+            invoicesCount: invoiceIds.length,
+            items: [],
+            totals: {
+                beforeDiscount: 0,
+                afterDiscount: 0,
+                discountAmount: 0,
+                totalCost: 0,
+                profitAmount: 0,
+                discountType: 'percent' // الافتراضي
+            },
+            payments: {
+                totalPaid: 0,
+                totalRemaining: 0
+            },
+            invoices: [],
+            customerName: AppData.currentCustomer?.name || 'غير محدد',
+            workOrder: workOrder ? workOrder.name : null
+        };
 
-        const invoice = workOrder ? inv : AppData.invoices.find((i) => i.id === inv);
-        
-        if (invoice) {
-            // بناء كائن الفاتورة كما في قاعدة البيانات
-            report.invoices.push({
-                id: invoice.id,
-                customer_id: invoice.customer_id,
-                delivered: invoice.delivered,
-                invoice_group: invoice.invoice_group,
-                total_before_discount: invoice.total_before_discount || invoice.total || 0,
-                total_after_discount: invoice.total_after_discount || invoice.total || 0,
-                discount_amount: invoice.discount_amount || 0,
-                discount_type: invoice.discount_type || 'percent',
-                discount_value: invoice.discount_value || 0,
-                total_cost: invoice.total_cost || 0,
-                profit_amount: invoice.profit_amount || 0,
-                paid_amount: invoice.paid_amount || invoice.paid || 0,
-                remaining_amount: invoice.remaining_amount || invoice.remaining || 0,
-                notes: invoice.notes,
-                created_at: invoice.created_at || invoice.date,
-                customer_name: invoice.customer_name || AppData.currentCustomer?.name
-            });
+        // تجميع بيانات الفواتير المحددة
+        invoiceIds.forEach((inv) => {
 
-            // جمع الإجماليات
-            report.totals.beforeDiscount += invoice.total_before_discount || invoice.total || 0;
-            report.totals.afterDiscount += invoice.total_after_discount || invoice.total || 0;
-            report.totals.discountAmount += invoice.discount_amount || 0;
-            report.totals.totalCost += invoice.total_cost || 0;
-            report.totals.profitAmount += invoice.profit_amount || 0;
-            
-            // جمع المدفوعات والمتبقي
-            report.payments.totalPaid += invoice.paid_amount || invoice.paid || 0;
-            report.payments.totalRemaining += invoice.remaining_amount || invoice.remaining || 0;
+            const invoice = workOrder ? inv : AppData.invoices.find((i) => i.id === inv);
 
-            // إضافة البنود غير المرتجعة بالكامل
-            invoice.items.forEach((item) => {
-                if (!item.fullyReturned) {
-                    const remainingQuantity =
-                        item.quantity - (item.returned_quantity || 0);
-                    if (remainingQuantity > 0) {
-                        // البحث عن المنتج إذا كان موجودًا بالفعل
-                        const existingItem = report.items.find(
-                            (i) =>
-                                i.name === item.product_name && 
-                                i.price === item.selling_price
-                        );
-                        if (existingItem) {
-                            existingItem.quantity += remainingQuantity;
-                            existingItem.total += remainingQuantity * item.selling_price;
-                            existingItem.cost_total += remainingQuantity * (item.cost_price || 0);
-                        } else {
-                            report.items.push({
-                                id: item.id,
-                                name: item.product_name,
-                                quantity: remainingQuantity,
-                                price: item.selling_price,
-                                total: remainingQuantity * item.selling_price,
-                                cost_price: item.cost_price || 0,
-                                cost_total: remainingQuantity * (item.cost_price || 0)
-                            });
+            if (invoice) {
+                // بناء كائن الفاتورة كما في قاعدة البيانات
+                report.invoices.push({
+                    id: invoice.id,
+                    customer_id: invoice.customer_id,
+                    delivered: invoice.delivered,
+                    invoice_group: invoice.invoice_group,
+                    total_before_discount: invoice.total_before_discount || invoice.total || 0,
+                    total_after_discount: invoice.total_after_discount || invoice.total || 0,
+                    discount_amount: invoice.discount_amount || 0,
+                    discount_type: invoice.discount_type || 'percent',
+                    discount_value: invoice.discount_value || 0,
+                    total_cost: invoice.total_cost || 0,
+                    profit_amount: invoice.profit_amount || 0,
+                    paid_amount: invoice.paid_amount || invoice.paid || 0,
+                    remaining_amount: invoice.remaining_amount || invoice.remaining || 0,
+                    notes: invoice.notes,
+                    created_at: invoice.created_at || invoice.date,
+                    customer_name: invoice.customer_name || AppData.currentCustomer?.name
+                });
+
+                // جمع الإجماليات
+                report.totals.beforeDiscount += invoice.total_before_discount || invoice.total || 0;
+                report.totals.afterDiscount += invoice.total_after_discount || invoice.total || 0;
+                report.totals.discountAmount += invoice.discount_amount || 0;
+                report.totals.totalCost += invoice.total_cost || 0;
+                report.totals.profitAmount += invoice.profit_amount || 0;
+
+                // جمع المدفوعات والمتبقي
+                report.payments.totalPaid += invoice.paid_amount || invoice.paid || 0;
+                report.payments.totalRemaining += invoice.remaining_amount || invoice.remaining || 0;
+
+                // إضافة البنود غير المرتجعة بالكامل
+                invoice.items.forEach((item) => {
+                    if (!item.fullyReturned) {
+                        const remainingQuantity =
+                            item.quantity - (item.returned_quantity || 0);
+                        if (remainingQuantity > 0) {
+                            // البحث عن المنتج إذا كان موجودًا بالفعل
+                            const existingItem = report.items.find(
+                                (i) =>
+                                    i.name === item.product_name &&
+                                    i.price === item.selling_price
+                            );
+                            if (existingItem) {
+                                existingItem.quantity += remainingQuantity;
+                                existingItem.total += remainingQuantity * item.selling_price;
+                                existingItem.cost_total += remainingQuantity * (item.cost_price || 0);
+                            } else {
+                                report.items.push({
+                                    id: item.id,
+                                    name: item.product_name,
+                                    quantity: remainingQuantity,
+                                    price: item.selling_price,
+                                    total: remainingQuantity * item.selling_price,
+                                    cost_price: item.cost_price || 0,
+                                    cost_total: remainingQuantity * (item.cost_price || 0)
+                                });
+                            }
                         }
                     }
-                }
-            });
-        }
-    });
+                });
+            }
+        });
 
-    // استخدام دالة الطباعة المجمعة
-    this.printAggregatedReport(report);
+        // استخدام دالة الطباعة المجمعة
+        this.printAggregatedReport(report);
 
-    // إغلاق المودال
-    // const modal = bootstrap.Modal.getInstance(
-    //     document.getElementById("printMultipleModal")
-    // );
-    // modal.hide();
-},
+        // إغلاق المودال
+        // const modal = bootstrap.Modal.getInstance(
+        //     document.getElementById("printMultipleModal")
+        // );
+        // modal.hide();
+    },
     printAggregatedReport(report) {
         const printWindow = window.open("", "_blank", "width=400,height=600");
         if (!printWindow) {
@@ -1109,36 +1099,36 @@ printStatement(dateFrom, dateTo) {
 
         printWindow.document.write(receiptContent);
         printWindow.document.close();
-
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 500);
     },
 
-   generateAggregatedReportContent(report) {
-    
-    
-    const today = new Date();
-    const formattedDate = today.toLocaleDateString('ar-SA');
-    const formattedTime = today.toLocaleTimeString('ar-SA', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    generateAggregatedReportContent(report) {
 
-    // استخدام بيانات المدفوعات من الـ report
-    const totalPaid = report.payments.totalPaid || 0;
-    const totalRemaining = report.payments.totalRemaining || 0;
-    
-    // حساب إجمالي تكلفة وربح المنتجات
-    const totalCost = report.items.reduce((sum, item) => sum + (item.cost_total || 0), 0);
-    const totalSales = report.items.reduce((sum, item) => sum + (item.total || 0), 0);
-    const totalProfit = totalSales - totalCost;
 
-    // إنشاء بنود المنتجات
-    let itemsHTML = '';
-    report.items.forEach((item, index) => {
-        itemsHTML += `
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('ar-SA');
+        const formattedTime = today.toLocaleTimeString('ar-SA', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        // استخدام بيانات المدفوعات من الـ report
+        const totalPaid = report.payments.totalPaid || 0;
+        const totalRemaining = report.payments.totalRemaining || 0;
+
+        // حساب إجمالي تكلفة وربح المنتجات
+        const totalCost = report.items.reduce((sum, item) => sum + (item.cost_total || 0), 0);
+        const totalSales = report.items.reduce((sum, item) => sum + (item.total || 0), 0);
+        const totalProfit = totalSales - totalCost;
+
+        // حساب الخصم الجديد
+        const totalRequired = totalPaid + totalRemaining;
+        let calculatedDiscount = totalSales - totalRequired;
+        if (calculatedDiscount < 0) calculatedDiscount = 0;
+
+        // إنشاء بنود المنتجات
+        let itemsHTML = '';
+        report.items.forEach((item, index) => {
+            itemsHTML += `
             <tr>
                 <td style="width:10%; text-align:center;">${index + 1}</td>
                 <td style="width:45%; text-align:right; padding-right:5px;">
@@ -1151,18 +1141,18 @@ printStatement(dateFrom, dateTo) {
                 </td>
             </tr>
         `;
-    });
+        });
 
-    // إنشاء قائمة الفواتير المختارة
-    let invoicesListHTML = '';
-    if (report.invoices && report.invoices.length > 0) {
-        report.invoices.forEach((inv, index) => {
-            const status = inv.delivered === 'yes' ? 'مسلم' : 
-                          inv.delivered === 'partial' ? 'جزئي' : 
-                          inv.delivered === 'no' ? 'معلق' :
-                          inv.delivered === 'canceled' ? 'ملغى' : 'مرتجع';
-            
-            invoicesListHTML += `
+        // إنشاء قائمة الفواتير المختارة
+        let invoicesListHTML = '';
+        if (report.invoices && report.invoices.length > 0) {
+            report.invoices.forEach((inv, index) => {
+                const status = inv.delivered === 'yes' ? 'مسلم' :
+                    inv.delivered === 'partial' ? 'جزئي' :
+                        inv.delivered === 'no' ? 'معلق' :
+                            inv.delivered === 'canceled' ? 'ملغى' : 'مرتجع';
+
+                invoicesListHTML += `
             <div style="padding: 3px 0; border-bottom: 1px dashed #eee; font-size: 9px;">
                 <div style="display: flex; justify-content: space-between;">
                     <span>#${inv.id}</span>
@@ -1171,16 +1161,16 @@ printStatement(dateFrom, dateTo) {
                 </div>
             </div>
             `;
-        });
-    }
+            });
+        }
 
-    return `
+        return `
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          ${report.workOrder ? `<title> فواتير شغلانه ${report.workOrder}</title>`: `<title>تقرير فواتير مجمع</title>`}
+          ${report.workOrder ? `<title> فواتير شغلانه ${report.workOrder}</title>` : `<title>تقرير فواتير مجمع</title>`}
         <style>
             * {
                 margin: 0;
@@ -1353,7 +1343,7 @@ printStatement(dateFrom, dateTo) {
     <body>
         <div class="report">
             <div class="header">
-          ${report.workOrder ? `<div class="report-title"> فواتير شغلانه ${report.workOrder}</div>`: `                <div class="report-title">تقرير فواتير مجمع</div>
+           ${report.workOrder ? `<div class="report-title"> فواتير شغلانه ${report.workOrder}</div>` : `                <div class="report-title">تقرير فواتير مجمع</div>
 `}
 
                 <div style="font-size: 10px;">نظام الفواتير الإلكتروني</div>
@@ -1380,7 +1370,7 @@ printStatement(dateFrom, dateTo) {
                     <span class="stat-label">منتج</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value">${report.totals.afterDiscount.toFixed(2)}</span>
+                    <span class="stat-value">${totalRequired.toFixed(2)}</span>
                     <span class="stat-label">الإجمالي</span>
                 </div>
             </div>
@@ -1412,11 +1402,11 @@ printStatement(dateFrom, dateTo) {
                 
                 <div class="total-row">
                     <span>الخصومات:</span>
-                    <span class="negative">- ${report.totals.discountAmount.toFixed(2)} ج.م</span>
+                    <span class="negative">- ${calculatedDiscount.toFixed(2)} ج.م</span>
                 </div>
                 <div class="total-row">
                     <span>المطلوب بعد الخصم:</span>
-                    <span > ${report.totals.afterDiscount.toFixed(2)} ج.م</span>
+                    <span > ${totalRequired.toFixed(2)} ج.م</span>
                 </div>
                 
                 <!-- قسم المدفوعات والمتبقي -->
@@ -1434,8 +1424,8 @@ printStatement(dateFrom, dateTo) {
                         <div class="payment-row" style="border-top: 1px dashed #ccc; padding-top: 4px;">
                             <span>نسبة السداد:</span>
                             <span style="font-weight: 900;">
-                                ${report.totals.afterDiscount > 0 ? 
-                                    ((totalPaid / report.totals.afterDiscount) * 100).toFixed(1) : 0}%
+                                ${report.totals.afterDiscount > 0 ?
+                ((totalPaid / report.totals.afterDiscount) * 100).toFixed(1) : 0}%
                             </span>
                         </div>
                     </div>
@@ -1458,15 +1448,16 @@ printStatement(dateFrom, dateTo) {
         
         <script>
             window.onload = function() {
-                setTimeout(() => {
-                    window.print();
-                }, 300);
+                window.print();
+            };
+            window.onafterprint = function() {
+                window.close();
             };
         </script>
     </body>
     </html>
     `;
-},
+    },
     // في PrintManager:
     printWorkOrderInvoices(workOrderId) {
         const workOrder = AppData.workOrders.find(wo => wo.id === workOrderId);
@@ -1475,14 +1466,14 @@ printStatement(dateFrom, dateTo) {
             return;
         }
 
-        const relatedInvoices =        AppData.invoices.filter(inv =>{
+        const relatedInvoices = AppData.invoices.filter(inv => {
             console.log(inv.status);
-            
+
             return inv.work_order_id === workOrderId && inv.status !== 'returned';
         });
 
 
-        
+
 
         if (relatedInvoices.length === 0) {
             Swal.fire('تحذير', 'لا توجد فواتير في هذه الشغلانة', 'warning');
@@ -1490,13 +1481,13 @@ printStatement(dateFrom, dateTo) {
         }
 
         // إنشاء محتوى الطباعة المجمع
-         this.printMultipleInvoices( relatedInvoices , workOrder);
+        this.printMultipleInvoices(relatedInvoices, workOrder);
 
         // فتح نافذة طباعة جديدة
-     
+
 
         // الانتظار قليلاً ثم الطباعة
-    
+
     },
 
     generateWorkOrderPrintContent(workOrder, invoices) {
@@ -1734,52 +1725,52 @@ printStatement(dateFrom, dateTo) {
 
 
 
-// في PrintManager:
-printReturn(returnData) {
-    if (!returnData) {
-        Swal.fire('خطأ', 'بيانات المرتجع غير متوفرة', 'error');
-        return;
-    }
+    // في PrintManager:
+    printReturn(returnData) {
+        if (!returnData) {
+            Swal.fire('خطأ', 'بيانات المرتجع غير متوفرة', 'error');
+            return;
+        }
 
-    // إنشاء محتوى الطباعة للمرتجع
-    const printContent = this.generateReturnPrintContent(returnData);
+        // إنشاء محتوى الطباعة للمرتجع
+        const printContent = this.generateReturnPrintContent(returnData);
 
-    // فتح نافذة طباعة جديدة
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
-    if (!printWindow) {
-        Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
-        return;
-    }
+        // فتح نافذة طباعة جديدة
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!printWindow) {
+            Swal.fire('تحذير', 'يرجى السماح بالنوافذ المنبثقة للطباعة', 'warning');
+            return;
+        }
 
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+        printWindow.document.write(printContent);
+        printWindow.document.close();
 
-    // الانتظار قليلاً ثم الطباعة
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 500);
-},
+        // الانتظار قليلاً ثم الطباعة
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    },
 
- generateReturnPrintContent(returnData) {
-    const returnInfo = returnData.return || {};
-    const items = returnData.items || [];
-    const today = new Date().toLocaleDateString('ar-SA');
+    generateReturnPrintContent(returnData) {
+        const returnInfo = returnData.return || {};
+        const items = returnData.items || [];
+        const today = new Date().toLocaleDateString('ar-SA');
 
-    // تنسيق تاريخ المرتجع
-    const date = returnInfo.return_date ? new Date(returnInfo.return_date) : null;
-    const formattedDate = date ? date.toLocaleDateString('ar-SA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'غير محدد';
+        // تنسيق تاريخ المرتجع
+        const date = returnInfo.return_date ? new Date(returnInfo.return_date) : null;
+        const formattedDate = date ? date.toLocaleDateString('ar-SA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'غير محدد';
 
-    // إنشاء قائمة البنود
-    let itemsHTML = '';
-    let subtotal = 0;
-    items.forEach((item, index) => {
-        const quantity = parseFloat(item.quantity) || 0;
-        const returnPrice = parseFloat(item.return_price) || 0;
-        const itemTotal = quantity * returnPrice;
-        subtotal += itemTotal;
+        // إنشاء قائمة البنود
+        let itemsHTML = '';
+        let subtotal = 0;
+        items.forEach((item, index) => {
+            const quantity = parseFloat(item.quantity) || 0;
+            const returnPrice = parseFloat(item.return_price) || 0;
+            const itemTotal = quantity * returnPrice;
+            subtotal += itemTotal;
 
-        itemsHTML += `
+            itemsHTML += `
             <tr>
                 <td style="width:10%; text-align:center;">${index + 1}</td>
                 <td style="width:40%; text-align:right; padding-right:5px;">${item.product_name}</td>
@@ -1788,23 +1779,23 @@ printReturn(returnData) {
                 <td style="width:20%; text-align:left; padding-left:5px;">${itemTotal.toFixed(2)}</td>
             </tr>
         `;
-    });
+        });
 
-    // حالة المرتجع
-    const statusText = returnInfo.status === 'completed' ? 'مكتمل' :
-                       returnInfo.status === 'pending' ? 'معلق' :
-                       returnInfo.status === 'rejected' ? 'مرفوض' : 'معتمد جزئي';
+        // حالة المرتجع
+        const statusText = returnInfo.status === 'completed' ? 'مكتمل' :
+            returnInfo.status === 'pending' ? 'معلق' :
+                returnInfo.status === 'rejected' ? 'مرفوض' : 'معتمد جزئي';
 
-    // نوع المرتجع
-    const returnTypeText = returnInfo.return_type === 'full' ? 'مرتجع كامل' :
-                           returnInfo.return_type === 'partial' ? 'مرتجع جزئي' :
-                           returnInfo.return_type === 'exchange' ? 'استبدال' : 'مرتجع';
+        // نوع المرتجع
+        const returnTypeText = returnInfo.return_type === 'full' ? 'مرتجع كامل' :
+            returnInfo.return_type === 'partial' ? 'مرتجع جزئي' :
+                returnInfo.return_type === 'exchange' ? 'استبدال' : 'مرتجع';
 
-    // إجمالي المرتجع
-    const totalAmount = parseFloat(returnInfo.total_amount) || subtotal;
+        // إجمالي المرتجع
+        const totalAmount = parseFloat(returnInfo.total_amount) || subtotal;
 
-    // بناء HTML كامل للطباعة
-    return `
+        // بناء HTML كامل للطباعة
+        return `
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head>
@@ -1876,7 +1867,7 @@ printReturn(returnData) {
     </body>
     </html>
     `;
-}
+    }
 
 
 };

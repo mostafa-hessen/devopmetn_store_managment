@@ -1355,6 +1355,18 @@
 
                         <!-- قسم الدفع الكامل -->
                         <div class="full-payment" id="full-payment-section" style="display: none;">
+                            
+                            <!-- خيارات الدفع: تلقائي / يدوي -->
+                            <div id="payment-mode-selection" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; padding: 15px; border: 1px dashed #ddd; border-radius: 8px;">
+                                <button type="button" class="btn btn-success" id="btn-auto-fill" style="flex: 1; padding: 10px; font-weight: bold;">
+                                    <i class="fas fa-magic"></i> ملئ تلقائي
+                                </button>
+                                <button type="button" class="btn btn-outline" id="btn-manual-fill" style="flex: 1; padding: 10px; font-weight: bold;">
+                                    <i class="fas fa-hand-paper"></i> يدوي
+                                </button>
+                            </div>
+
+                            <div id="full-payment-content" style="display: none;">
                             <div class="payment-amounts">
                                 <div class="payment-amount">
                                     <div class="label">الإجمالي</div>
@@ -1407,6 +1419,7 @@
 
                             <!-- ملاحظات الدفع للدفع الكامل -->
 
+                            </div> <!-- End full-payment-content -->
                         </div>
 
                         <!-- قسم الدفع الجزئي -->
@@ -5323,7 +5336,16 @@ generateReceiptHTML(data) {
                     // تغيير العميل
                     if (DOM.changeCustomerBtn) {
                         DOM.changeCustomerBtn.addEventListener('click', () => {
-                            if (DOM.customersModal) DOM.customersModal.style.display = 'flex';
+                            if (DOM.customersModal) {
+                                DOM.customersModal.style.display = 'flex';
+                                // التركيز على حقل البحث
+                                if (DOM.customerSearch) {
+                                    setTimeout(() => {
+                                        DOM.customerSearch.value = ''; // تفريغ الحقل
+                                        DOM.customerSearch.focus();
+                                    }, 100);
+                                }
+                            }
                         });
                     }
 
@@ -5425,11 +5447,59 @@ generateReceiptHTML(data) {
                     // تبديل حالة الدفع
                     document.querySelectorAll('input[name="payment"]').forEach(radio => {
                         radio.addEventListener('change', (e) => {
-                            //    (e.target);
-
+                            if (e.target.value === 'paid') {
+                                // إعادة تعيين العرض عند اختيار "مدفوع"
+                                const modeSel = document.getElementById('payment-mode-selection');
+                                const content = document.getElementById('full-payment-content');
+                                if (modeSel && content) {
+                                    modeSel.style.display = 'flex';
+                                    content.style.display = 'none';
+                                }
+                            }
                             UI.updatePaymentSection();
                         });
                     });
+
+                    // أزرار الاختيار (تلقائي / يدوي)
+                    const btnAutoFill = document.getElementById('btn-auto-fill');
+                    const btnManualFill = document.getElementById('btn-manual-fill');
+
+                    if (btnAutoFill) {
+                        btnAutoFill.addEventListener('click', () => {
+                            const modeSel = document.getElementById('payment-mode-selection');
+                            const content = document.getElementById('full-payment-content');
+                            if (modeSel && content) {
+                                modeSel.style.display = 'none';
+                                content.style.display = 'block';
+                            }
+                            
+                            // تنفيذ الملئ التلقائي
+                            const total = Helpers.calculateTotal();
+                            AppState.payments = []; // مسح المدفوعات السابقة
+                            
+                            AppState.payments.push({
+                                id: Date.now(),
+                                amount: total,
+                                method: AppState.currentPaymentMethod || 'cash',
+                                notes: 'دفعة تلقائية',
+                                date: new Date().toLocaleDateString('ar-EG')
+                            });
+                            
+                            UI.updatePaymentSection();
+                            Helpers.showToast('تمت إضافة الدفعة التلقائية', 'success');
+                        });
+                    }
+
+                    if (btnManualFill) {
+                         btnManualFill.addEventListener('click', () => {
+                            const modeSel = document.getElementById('payment-mode-selection');
+                            const content = document.getElementById('full-payment-content');
+                            if (modeSel && content) {
+                                modeSel.style.display = 'none';
+                                content.style.display = 'block';
+                            }
+                        });
+                    }
 
 
                     // طرق الدفع للدفع الكامل

@@ -5,9 +5,12 @@ $invoiceId = intval($_GET['id']);
 
 $sql = "SELECT ioi.*, p.name as product_name, p.product_code as product_code,
                (ioi.quantity - ioi.returned_quantity) as remaining_quantity,
-               (ioi.total_after_discount ) as item_net_total
+               (ioi.total_after_discount ) as item_net_total,
+               wo.title as work_order_title
         FROM invoice_out_items ioi
         JOIN products p ON ioi.product_id = p.id
+        LEFT JOIN invoices_out io ON ioi.invoice_out_id = io.id
+        LEFT JOIN work_orders wo ON io.work_order_id = wo.id
         WHERE ioi.invoice_out_id = ? 
         AND ioi.returned_quantity < ioi.quantity
         ORDER BY ioi.id";

@@ -21,9 +21,10 @@ const WorkOrderManager = {
 
         this.currentCustomerId = customerId;
         await this.fetchWorkOrders();
-        await this.eventy();
         //    this.attachInvoiceEventListeners();
+        await this.eventy();
     },
+
 
     // جلب الشغلانات من الـ API وتخزينها في AppData
     async fetchWorkOrders() {
@@ -83,9 +84,9 @@ const WorkOrderManager = {
         }
     },
 
-     createTooltipContainer(invoice) {
-        
-    return `        <div class="invoice-items-tooltip "style=" 
+    createTooltipContainer(invoice) {
+
+        return `        <div class="invoice-items-tooltip "style=" 
         overflow: hidden;
         height: 0;
         transition: all 1s ease-in-out;
@@ -101,14 +102,14 @@ const WorkOrderManager = {
             </div>
         </div>
     `;
-},
+    },
 
-setupTooltipStyles() {
-    if (document.querySelector('#work-order-tooltip-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'work-order-tooltip-styles';
-    style.textContent = `
+    setupTooltipStyles() {
+        if (document.querySelector('#work-order-tooltip-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'work-order-tooltip-styles';
+        style.textContent = `
         /* ===== Tooltip Positioning FIX ===== */
         /* إصلاح كامل لموقع وتكديس الـ tooltip */
         
@@ -259,27 +260,27 @@ setupTooltipStyles() {
             }
         }
     `;
-    document.head.appendChild(style);
-},
+        document.head.appendChild(style);
+    },
 
 
-// تحديث دالة buildItemsTooltip لإظهار الخصم
-  buildItemsTooltip(invoice) {
-    const items = invoice.items || [];
+    // تحديث دالة buildItemsTooltip لإظهار الخصم
+    buildItemsTooltip(invoice) {
+        const items = invoice.items || [];
 
-    const discountAmount = parseFloat(invoice.discount_amount || 0);
-    const discountValue = parseFloat(invoice.discount_value || 0);
-    const discountType = invoice.discount_type || "percent";
-    const discountScope = invoice.discount_scope || "invoice";
-    const beforeDiscount = parseFloat(
-      invoice.total_before_discount || invoice.total || 0
-    );
-    const afterDiscount = parseFloat(
-      invoice.total_after_discount || invoice.total || 0
-    );
+        const discountAmount = parseFloat(invoice.discount_amount || 0);
+        const discountValue = parseFloat(invoice.discount_value || 0);
+        const discountType = invoice.discount_type || "percent";
+        const discountScope = invoice.discount_scope || "invoice";
+        const beforeDiscount = parseFloat(
+            invoice.total_before_discount || invoice.total || 0
+        );
+        const afterDiscount = parseFloat(
+            invoice.total_after_discount || invoice.total || 0
+        );
 
-    if (items.length === 0) {
-      return `
+        if (items.length === 0) {
+            return `
                 <div class="tooltip-header">
                     بنود الفاتورة ${invoice.invoice_number || invoice.id}
                 </div>
@@ -287,81 +288,77 @@ setupTooltipStyles() {
                     لا توجد بنود
                 </div>
             `;
-    }
-
-    let totalReturnedAmount = 0; // جديد: لحساب إجمالي المرتجعات
-
-    const itemsList = items
-      .map((item) => {
-        const returnedQuantity = item.returned_quantity || 0;
-        const currentQuantity = item.quantity - returnedQuantity;
-        const originalTotal =
-          item.total_before_discount ||
-          item.quantity * (item.selling_price || item.price || 0);
-        const discountedUnitPrice =
-          item.unit_price_after_discount ||
-          item.selling_price ||
-          item.price ||
-          0;
-        const currentTotal = currentQuantity * discountedUnitPrice; // جديد: الإجمالي بعد الخصم والمرتجع
-
-        // حساب إجمالي المرتجع
-        if (returnedQuantity > 0) {
-          totalReturnedAmount += returnedQuantity * discountedUnitPrice;
         }
 
-        const itemDiscount =
-          discountScope === "items" ? parseFloat(item.discount_amount || 0) : 0;
-        const hasDiscount = itemDiscount > 0;
+        let totalReturnedAmount = 0; // جديد: لحساب إجمالي المرتجعات
 
-        let discountHTML = "";
-        if (hasDiscount) {
-          const itemDiscountPercent = (
-            (itemDiscount / originalTotal) *
-            100
-          ).toFixed(1);
-          discountHTML = `
+        const itemsList = items
+            .map((item) => {
+                const returnedQuantity = item.returned_quantity || 0;
+                const currentQuantity = item.quantity - returnedQuantity;
+                const originalTotal =
+                    item.total_before_discount ||
+                    item.quantity * (item.selling_price || item.price || 0);
+                const discountedUnitPrice =
+                    item.unit_price_after_discount ||
+                    item.selling_price ||
+                    item.price ||
+                    0;
+                const currentTotal = currentQuantity * discountedUnitPrice; // جديد: الإجمالي بعد الخصم والمرتجع
+
+                // حساب إجمالي المرتجع
+                if (returnedQuantity > 0) {
+                    totalReturnedAmount += returnedQuantity * discountedUnitPrice;
+                }
+
+                const itemDiscount =
+                    discountScope === "items" ? parseFloat(item.discount_amount || 0) : 0;
+                const hasDiscount = itemDiscount > 0;
+
+                let discountHTML = "";
+                if (hasDiscount) {
+                    const itemDiscountPercent = (
+                        (itemDiscount / originalTotal) *
+                        100
+                    ).toFixed(1);
+                    discountHTML = `
                         <div class="tooltip-item-discount">
                             <small class="text-danger">
                                 <i class="fas fa-tag me-1"></i>
                                 خصم: ${itemDiscount.toFixed(
-                                  2
-                                )} ج.م (${itemDiscountPercent}%)
+                        2
+                    )} ج.م (${itemDiscountPercent}%)
                             </small>
                         </div>
                     `;
-        }
+                }
 
-        const returnedText =
-          returnedQuantity > 0
-            ? `<br><small class="text-warning">(مرتجع: ${returnedQuantity})</small>`
-            : "";
+                const returnedText =
+                    returnedQuantity > 0
+                        ? `<br><small class="text-warning">(مرتجع: ${returnedQuantity})</small>`
+                        : "";
 
-        return `
+                return `
                     <div class="tooltip-item">
                         <div>
-                            <div class="tooltip-item-name">${
-                              item.product_name || "منتج"
-                            }</div>
+                            <div class="tooltip-item-name">${item.product_name || "منتج"
+                    }</div>
                             <div class="tooltip-item-details">
-                                الكمية: ${currentQuantity} من ${
-          item.quantity
-        }${returnedText}
+                                الكمية: ${currentQuantity} من ${item.quantity
+                    }${returnedText}
                                 <br>
-                                السعر: <span style="${
-                                  hasDiscount
-                                    ? "text-decoration: line-through;"
-                                    : ""
-                                }">${(
-          item.selling_price ||
-          item.price ||
-          0
-        ).toFixed(2)}</span>
-                                ${
-                                  hasDiscount
-                                    ? ` → ${discountedUnitPrice.toFixed(2)} ج.م`
-                                    : ""
-                                }
+                                السعر: <span style="${hasDiscount
+                        ? "text-decoration: line-through;"
+                        : ""
+                    }">${(
+                        item.selling_price ||
+                        item.price ||
+                        0
+                    ).toFixed(2)}</span>
+                                ${hasDiscount
+                        ? ` → ${discountedUnitPrice.toFixed(2)} ج.م`
+                        : ""
+                    }
                                 ${discountHTML}
                             </div>
                         </div>
@@ -370,60 +367,56 @@ setupTooltipStyles() {
                         </div>
                     </div>
                 `;
-      })
-      .join("");
+            })
+            .join("");
 
-    // بناء قسم الخصم + المرتجعات
-    let discountSection = "";
-    if (discountAmount > 0 || totalReturnedAmount > 0) {
-      const discountPercent =
-        discountType === "percent"
-          ? discountValue
-          : (discountAmount / beforeDiscount) * 100;
+        // بناء قسم الخصم + المرتجعات
+        let discountSection = "";
+        if (discountAmount > 0 || totalReturnedAmount > 0) {
+            const discountPercent =
+                discountType === "percent"
+                    ? discountValue
+                    : (discountAmount / beforeDiscount) * 100;
 
-      discountSection = `
+            discountSection = `
                 <div class="tooltip-discount-section">
                     <div class="tooltip-discount-row">
                         <span>الإجمالي قبل الخصم:</span>
                         <span>${beforeDiscount.toFixed(2)} ج.م</span>
                     </div>
-                    ${
-                      discountAmount > 0
-                        ? `
+                    ${discountAmount > 0
+                    ? `
                     <div class="tooltip-discount-row text-danger">
                         <span>قيمة الخصم:</span>
                         <span>-${discountAmount.toFixed(2)} ج.م</span>
                     </div>`
-                        : ""
-                    }
-                    ${
-                      totalReturnedAmount > 0
-                        ? `
+                    : ""
+                }
+                    ${totalReturnedAmount > 0
+                    ? `
                     <div class="tooltip-discount-row text-warning">
                         <span>إجمالي المرتجع:</span>
                         <span>- ${totalReturnedAmount.toFixed(2)} ج.م</span>
                     </div>`
-                        : ""
-                    }
-                    ${
-                      discountAmount > 0
-                        ? `
+                    : ""
+                }
+                    ${discountAmount > 0
+                    ? `
                     <div class="tooltip-discount-row">
                         <small class="text-muted">
-                            نوع الخصم: ${
-                              discountScope === "items"
-                                ? "على البنود"
-                                : "على الفاتورة"
-                            } (${discountPercent.toFixed(1)}%)
+                            نوع الخصم: ${discountScope === "items"
+                        ? "على البنود"
+                        : "على الفاتورة"
+                    } (${discountPercent.toFixed(1)}%)
                         </small>
                     </div>`
-                        : ""
-                    }
+                    : ""
+                }
                 </div>
             `;
-    }
+        }
 
-    return `
+        return `
             <div class="tooltip-header">
                 بنود الفاتورة ${invoice.invoice_number || invoice.id}
             </div>
@@ -434,12 +427,12 @@ setupTooltipStyles() {
                 <span class="fw-bold">${afterDiscount.toFixed(2)} ج.م</span>
             </div>
         `;
-  },
+    },
 
-// تحديث CSS للـ Tooltip
-setupTooltipStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
+    // تحديث CSS للـ Tooltip
+    setupTooltipStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
         .tooltip-discount-badge {
             background: linear-gradient(135deg, #6c757d, #495057);
             color: white;
@@ -470,96 +463,96 @@ setupTooltipStyles() {
             border: 1px solid #ffeaa7;
         }
     `;
-    document.head.appendChild(style);
-},
+        document.head.appendChild(style);
+    },
 
-setupTooltipHover(row, invoiceId) {
-    const itemsCell = row.querySelector('.work-order-item-hover');
-    const tooltip = row.querySelector(`#tooltip-${invoiceId}`);
-    const tooltipContent = tooltip.querySelector(`#tooltip-content-${invoiceId}`);
-    
-    let timeoutId;
-    
-    itemsCell.addEventListener('mouseenter', async () => {
-        // إلغاء أي timeout سابق
-        clearTimeout(timeoutId);
-        
-        // إظهار الـ tooltip فوراً
-        tooltip.style.height ='fit-content';
-        tooltip.style.opacity ='1';
-        
-        // البحث عن الفاتورة في البيانات المحلية
-        const invoice = AppData.invoices?.find(inv => inv.id == invoiceId);
-        
-        if (invoice?.items) {
-            
-            // إذا كانت البيانات موجودة محلياً
-            const tooltipHTML = this.buildItemsTooltip(invoice);
-            (tooltipHTML);
-            
-            tooltipContent.innerHTML = tooltipHTML;
-        } else {
-            try {
-                // إذا لم توجد محلياً، تحميل من API
-                const invoiceDetails = await this.loadInvoiceDetails(invoiceId);
-                
-                if (invoiceDetails?.items) {
-                    // حفظ في البيانات المحلية لاستخدامها لاحقاً
-                    if (!invoice.items) {
-                        invoice.items = invoiceDetails.items;
+    setupTooltipHover(row, invoiceId) {
+        const itemsCell = row.querySelector('.work-order-item-hover');
+        const tooltip = row.querySelector(`#tooltip-${invoiceId}`);
+        const tooltipContent = tooltip.querySelector(`#tooltip-content-${invoiceId}`);
+
+        let timeoutId;
+
+        itemsCell.addEventListener('mouseenter', async () => {
+            // إلغاء أي timeout سابق
+            clearTimeout(timeoutId);
+
+            // إظهار الـ tooltip فوراً
+            tooltip.style.height = 'fit-content';
+            tooltip.style.opacity = '1';
+
+            // البحث عن الفاتورة في البيانات المحلية
+            const invoice = AppData.invoices?.find(inv => inv.id == invoiceId);
+
+            if (invoice?.items) {
+
+                // إذا كانت البيانات موجودة محلياً
+                const tooltipHTML = this.buildItemsTooltip(invoice);
+                (tooltipHTML);
+
+                tooltipContent.innerHTML = tooltipHTML;
+            } else {
+                try {
+                    // إذا لم توجد محلياً، تحميل من API
+                    const invoiceDetails = await this.loadInvoiceDetails(invoiceId);
+
+                    if (invoiceDetails?.items) {
+                        // حفظ في البيانات المحلية لاستخدامها لاحقاً
+                        if (!invoice.items) {
+                            invoice.items = invoiceDetails.items;
+                        }
+
+                        const tooltipHTML = this.buildItemsTooltip(invoiceDetails);
+                        tooltipContent.innerHTML = tooltipHTML;
                     }
-                    
-                    const tooltipHTML = this.buildItemsTooltip(invoiceDetails);
-                    tooltipContent.innerHTML = tooltipHTML;
-                }
-            } catch (error) {
-                tooltipContent.innerHTML = `
+                } catch (error) {
+                    tooltipContent.innerHTML = `
                     <div class="tooltip-error text-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i>
                         فشل في تحميل البنود
                     </div>
                 `;
+                }
             }
-        }
-    });
-    
-    itemsCell.addEventListener('mouseleave', () => {
-        // تأخير إخفاء الـ tooltip لمدة 300ms لتجنب الاختفاء السريع
-        timeoutId = setTimeout(() => {
-            // tooltip.style.display = 'none';
-               tooltip.style.height ='0';
-        tooltip.style.opacity ='0';
-            // إعادة تعيين الـ loading للمرة القادمة
-            tooltipContent.innerHTML = `
-                <div class="tooltip-loading">
-                    <i class="fas fa-spinner fa-spin me-2"></i> جاري تحميل البنود...
-                </div>
-            `;
-        }, 300);
-    });
-    
-    tooltip.addEventListener('mouseenter', () => {
-        clearTimeout(timeoutId);
-        // tooltip.style.display = 'block';
-           tooltip.style.height ='fit-content';
-        tooltip.style.opacity ='1';
+        });
 
-        ('Tooltip mouseenter - remain visible');
-    });
-    
-    tooltip.addEventListener('mouseleave', () => {
-        timeoutId = setTimeout(() => {
-            // tooltip.style.display = 'none';
-               tooltip.style.height ='0';
-        tooltip.style.opacity ='0';
-            tooltipContent.innerHTML = `
+        itemsCell.addEventListener('mouseleave', () => {
+            // تأخير إخفاء الـ tooltip لمدة 300ms لتجنب الاختفاء السريع
+            timeoutId = setTimeout(() => {
+                // tooltip.style.display = 'none';
+                tooltip.style.height = '0';
+                tooltip.style.opacity = '0';
+                // إعادة تعيين الـ loading للمرة القادمة
+                tooltipContent.innerHTML = `
                 <div class="tooltip-loading">
                     <i class="fas fa-spinner fa-spin me-2"></i> جاري تحميل البنود...
                 </div>
             `;
-        }, 300);
-    });
-},
+            }, 300);
+        });
+
+        tooltip.addEventListener('mouseenter', () => {
+            clearTimeout(timeoutId);
+            // tooltip.style.display = 'block';
+            tooltip.style.height = 'fit-content';
+            tooltip.style.opacity = '1';
+
+            ('Tooltip mouseenter - remain visible');
+        });
+
+        tooltip.addEventListener('mouseleave', () => {
+            timeoutId = setTimeout(() => {
+                // tooltip.style.display = 'none';
+                tooltip.style.height = '0';
+                tooltip.style.opacity = '0';
+                tooltipContent.innerHTML = `
+                <div class="tooltip-loading">
+                    <i class="fas fa-spinner fa-spin me-2"></i> جاري تحميل البنود...
+                </div>
+            `;
+            }, 300);
+        });
+    },
 
     getCustomerIdFromURL() {
         // طريقة 1: من query string
@@ -851,11 +844,11 @@ setupTooltipHover(row, invoiceId) {
                     throw new Error('الشغلانة غير موجودة');
                 }
 
-              
- 
-    
-    // 3. إنشاء خلية الإجمالي مع عرض الخصم - دي اللي هتتعدل
-    
+
+
+
+                // 3. إنشاء خلية الإجمالي مع عرض الخصم - دي اللي هتتعدل
+
 
 
 
@@ -880,33 +873,34 @@ setupTooltipHover(row, invoiceId) {
                 لا توجد فواتير لهذه الشغلانة
             </td>
         </tr>
-    `;}
-                 
+    `;
+                }
 
-          invoices.length > 0 && invoices.forEach((invoice) => {
-    // حساب بيانات الخصم لكل فاتورة
-    const discountAmount = parseFloat(invoice.discount_amount || 0);
-    const discountValue = parseFloat(invoice.discount_value || 0);
-    const discountType = invoice.discount_type || 'percent';
-    const beforeDiscount = parseFloat(invoice.total_before_discount || invoice.total || 0);
-    const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
-    
-    
-    let totalCellHTML = '';
-    
 
-            
-    if (discountAmount > 0) {
-        // حساب نسبة الخصم
-        let discountPercentage;
-        if (discountType === 'percent') {
-            discountPercentage = discountValue;
-        } else {
-            discountPercentage = beforeDiscount > 0 ? 
-                ((discountAmount / beforeDiscount) * 100) : 0;
-        }
-        
-        totalCellHTML = `
+                invoices.length > 0 && invoices.forEach((invoice) => {
+                    // حساب بيانات الخصم لكل فاتورة
+                    const discountAmount = parseFloat(invoice.discount_amount || 0);
+                    const discountValue = parseFloat(invoice.discount_value || 0);
+                    const discountType = invoice.discount_type || 'percent';
+                    const beforeDiscount = parseFloat(invoice.total_before_discount || invoice.total || 0);
+                    const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
+
+
+                    let totalCellHTML = '';
+
+
+
+                    if (discountAmount > 0) {
+                        // حساب نسبة الخصم
+                        let discountPercentage;
+                        if (discountType === 'percent') {
+                            discountPercentage = discountValue;
+                        } else {
+                            discountPercentage = beforeDiscount > 0 ?
+                                ((discountAmount / beforeDiscount) * 100) : 0;
+                        }
+
+                        totalCellHTML = `
             <div class="d-flex flex-column align-items-start">
                 <!-- السعر الأصلي (عليه خط) -->
                 <span class="text-muted text-decoration-line-through" style="font-size: 11px;">
@@ -922,28 +916,27 @@ setupTooltipHover(row, invoiceId) {
                 </span>
             </div>
         `;
-    } else {
-        totalCellHTML = `
+                    } else {
+                        totalCellHTML = `
             <span class="fw-bold">${afterDiscount.toFixed(2)}</span>
         `;
-    }
-    
-    // استخدم totalCellHTML هنا حسب احتياجك
-  
+                    }
+
+                    // استخدم totalCellHTML هنا حسب احتياجك
+
                     const row = document.createElement("tr");
                     row.style.transition = "all 1s ease-in-out";
                     const statusInfo = AppData.getInvoiceStatusText(invoice.status);
 
                     // إنشاء tooltip للبنود
                     // let itemsTooltip = "";
-    const tooltipContainer = this.createTooltipContainer(invoice);
-    
-    
-    console.log(invoice);
-    
-    
+                    const tooltipContainer = this.createTooltipContainer(invoice);
 
-                 
+
+
+
+
+
 
                     // تحديد لون المبلغ المتبقي
                     let remainingColor = "text-danger";
@@ -964,7 +957,7 @@ setupTooltipHover(row, invoiceId) {
                         </td>
                         <td>${invoice.created_at}</td>
                    
-                    <td>  ${totalCellHTML||0} </td>
+                    <td>  ${totalCellHTML || 0} </td>
                         <td>${invoice.paid?.toFixed(2)} ج.م</td>
                         <td><span class="${remainingColor} fw-bold">${invoice.remaining?.toFixed(2)} ج.م</span></td>
                         <td><span class="status-badge ${statusInfo.class}">${statusInfo.text}</span></td>
@@ -986,21 +979,41 @@ setupTooltipHover(row, invoiceId) {
                         <i class="fas fa-undo"></i>
                     </button>
                     ` : ""}
-                    <button class="btn btn-sm btn-outline-secondary print-invoice-work-order" 
+
+                             ${invoice.status !== "returned" && invoice.status !== "paid" && invoice.status !== "partial"
+                            ? `
+          
+<a class="btn btn-warning btn-sm applyExtraDiscountBtnWorkOrder"
+   href="http://localhost/store_v1/admin/adjust_invoice.php?id=${invoice.id}&customer_id=${this.currentCustomerId}"
+   title="تطبيق خصم إضافي على الفاتورة">
+    <i class="fas fa-tag me-1"></i>
+    خصم إضافي
+</a>
+
+
+                    `
+                            : ""
+                        }
+      
+               
+                  ${invoice.status !== "returned"
+                            ? `
+                        <button class="btn btn-sm btn-outline-secondary print-invoice-work-order" 
                             data-invoice-id="${invoice.id}">
                         <i class="fas fa-print"></i>
                     </button>
                 </div>
+`: ""}
                         </td>
                     `;
 
                     tbody.appendChild(row);
                     this.setupTooltipHover(row, invoice.id);
                 }
-            
-            
-            
-            );
+
+
+
+                );
 
                 // إضافة مستمعي الأحداث للأزرار داخل المودال
 
@@ -1008,7 +1021,7 @@ setupTooltipHover(row, invoiceId) {
                 // فتح المودال
                 const modal = new bootstrap.Modal(
                     document.getElementById("workOrderInvoicesModal")
-                
+
                 );
                 modal.show();
             } else {
