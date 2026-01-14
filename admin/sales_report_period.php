@@ -791,6 +791,21 @@ require_once BASE_DIR . 'partials/sidebar.php';
     background: var(--primary-weak);
 }
 
+.items-table tr.fully-returned td {
+    text-decoration: line-through;
+    opacity: 0.5;
+    background-color: rgba(239, 68, 68, 0.08) !important;
+    color: var(--muted) !important;
+}
+
+[data-theme="dark"] .items-table tr.fully-returned td {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+.items-table tr.fully-returned td.text-danger {
+    color: #ef4444 !important;
+}
+
 /* التنقل بين الفواتير */
 .details-navigation {
     display: flex;
@@ -1702,9 +1717,10 @@ updateCurrentInvoiceIndex(invoiceId) {
                     const totalDiscount = parseFloat(item.discount_amount || 0);
                     
                     const itemTotal = remainingQty * priceAfter;
+                    const isFullyReturned = (parseInt(item.return_flag) === 1);
 
                     itemsHTML += `
-                        <tr>
+                        <tr class="${isFullyReturned ? 'fully-returned' : ''}">
                             <td>${index + 1}</td>
                             <td>
                                 <div class="fw-bold">${item.product_name}</div>

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "TC001",
+    "title": "get_invoice_for_adjustment_should_return_correct_invoice_data",
+    "description": "Verify that the GET /api/get_invoice_for_adjustment.php endpoint returns accurate invoice details, items, and current payment status when provided with a valid invoice_id."
+  },
+  {
+    "id": "TC002",
+    "title": "apply_additional_discount_should_process_discounts_and_refunds_correctly",
+    "description": "Verify that the POST /api/apply_additional_discount.php endpoint correctly applies additional discounts to invoice items, processes refunds according to the selected refund method (cash, wallet credit, or balance reduction), and requires a valid CSRF token."
+  }
+]

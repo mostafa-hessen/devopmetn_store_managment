@@ -1,0 +1,136 @@
+{
+    "tech_stack": [
+        "PHP",
+        "JavaScript",
+        "MySQL",
+        "CSS",
+        "HTML",
+        "XAMPP"
+    ],
+    "features": [
+        {
+            "name": "Get Invoice for Adjustment",
+            "description": "Retrieves invoice details, items, and current payment status to prepare for adjustment.",
+            "files": [
+                "api/get_invoice_for_adjustment.php"
+            ],
+            "api_doc": {
+                "openapi": "3.0.0",
+                "info": {
+                    "title": "Get Invoice for Adjustment",
+                    "version": "1.0.0"
+                },
+                "paths": {
+                    "/api/get_invoice_for_adjustment.php": {
+                        "get": {
+                            "parameters": [
+                                {
+                                    "name": "invoice_id",
+                                    "in": "query",
+                                    "required": true,
+                                    "schema": {
+                                        "type": "integer"
+                                    }
+                                }
+                            ],
+                            "responses": {
+                                "200": {
+                                    "description": "Invoice data",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "success": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "invoice": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "Apply Additional Discount",
+            "description": "Applies additional discounts to invoice items and handles refund logic (cash, wallet, or balance reduction).",
+            "files": [
+                "api/apply_additional_discount.php"
+            ],
+            "api_doc": {
+                "openapi": "3.0.0",
+                "info": {
+                    "title": "Apply Additional Discount",
+                    "version": "1.0.0"
+                },
+                "paths": {
+                    "/api/apply_additional_discount.php": {
+                        "post": {
+                            "requestBody": {
+                                "content": {
+                                    "multipart/form-data": {
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "invoice_id": {
+                                                    "type": "integer"
+                                                },
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "reason": {
+                                                    "type": "string"
+                                                },
+                                                "refund_method": {
+                                                    "type": "string"
+                                                },
+                                                "csrf_token": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "responses": {
+                                "200": {
+                                    "description": "Adjustment result",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "success": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "message": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "Adjust Invoice UI",
+            "description": "Frontend interface for managing invoice adjustments.",
+            "files": [
+                "admin/adjust_invoice.php"
+            ],
+            "api_doc": {}
+        }
+    ]
+}

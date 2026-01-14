@@ -1,0 +1,297 @@
+[
+  {
+    "id": "TC001",
+    "title": "Retrieve Invoice Details Successfully",
+    "description": "Verify that the system retrieves and displays correct invoice details, items, and payment status when a valid invoice ID is provided.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the invoice adjustment page."
+      },
+      {
+        "type": "action",
+        "description": "Input a valid invoice ID in the invoice ID field."
+      },
+      {
+        "type": "action",
+        "description": "Submit the request to fetch invoice details."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that invoice details, including item list and current payment status, are displayed accurately and correspond to the requested invoice ID."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Retrieve Invoice Details with Invalid Invoice ID",
+    "description": "Verify behavior when requesting invoice details with an invalid or non-existent invoice ID.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the invoice adjustment page."
+      },
+      {
+        "type": "action",
+        "description": "Input an invalid or non-existent invoice ID."
+      },
+      {
+        "type": "action",
+        "description": "Submit the request to fetch invoice details."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the system returns an error message indicating the invoice was not found or is invalid, and no invoice details are displayed."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Apply Additional Discount Successfully with Cash Refund",
+    "description": "Verify applying an additional discount to invoice items with valid inputs and using cash as the refund method processes correctly with updated invoice status.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the invoice adjustment page."
+      },
+      {
+        "type": "action",
+        "description": "Select a valid invoice and retrieve its details."
+      },
+      {
+        "type": "action",
+        "description": "Select one or more invoice items and specify valid discount amounts."
+      },
+      {
+        "type": "action",
+        "description": "Provide a valid reason for the additional discount."
+      },
+      {
+        "type": "action",
+        "description": "Select 'cash' as the refund method."
+      },
+      {
+        "type": "action",
+        "description": "Submit the discount adjustment request with a valid CSRF token."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system responds with success, reflecting updated invoice balance and showing confirmation message."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Apply Additional Discount Successfully with Wallet Credit Refund",
+    "description": "Verify additional discount application with wallet credit refund processes correctly and updates balances accordingly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the invoice adjustment page."
+      },
+      {
+        "type": "action",
+        "description": "Retrieve details for a valid invoice."
+      },
+      {
+        "type": "action",
+        "description": "Specify discount amounts on invoice items."
+      },
+      {
+        "type": "action",
+        "description": "Provide a valid reason for discount."
+      },
+      {
+        "type": "action",
+        "description": "Select 'wallet credit' as the refund method."
+      },
+      {
+        "type": "action",
+        "description": "Submit the adjustment request with a valid CSRF token."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm success response, validate wallet balance is correctly credited and invoice status is updated."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Apply Additional Discount Successfully with Balance Reduction Refund",
+    "description": "Verify that the system correctly processes additional discounts using balance reduction as refund method and updates invoice/payment balances.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the invoice adjustment page."
+      },
+      {
+        "type": "action",
+        "description": "Select a valid invoice and fetch its details."
+      },
+      {
+        "type": "action",
+        "description": "Apply additional discounts to items with valid amounts."
+      },
+      {
+        "type": "action",
+        "description": "Enter a reason for the discount."
+      },
+      {
+        "type": "action",
+        "description": "Choose 'balance reduction' as the refund method."
+      },
+      {
+        "type": "action",
+        "description": "Submit the adjustment request including a valid CSRF token."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify success response and confirm invoice and payment balances reflect balance reduction."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Apply Additional Discount with Missing Required Fields",
+    "description": "Check system behavior when required form fields (invoice ID, items, reason, refund method) are missing during discount application.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the invoice adjustment page."
+      },
+      {
+        "type": "action",
+        "description": "Submit the discount adjustment request omitting required fields one at a time (e.g., no invoice ID, no items, no reason, or no refund method)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system rejects the request each time with clear validation error messages specifying the missing fields."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Apply Additional Discount with Invalid Discount Amounts",
+    "description": "Validate that the system handles invalid discount values such as negative amounts, zero, or exceeding item price appropriately during discount application.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Fetch a valid invoice."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to apply additional discounts with invalid values (negative discount, zero, or greater than item price)."
+      },
+      {
+        "type": "action",
+        "description": "Submit the discount adjustment request with valid CSRF token."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the system rejects the request with appropriate error messages describing invalid discount amounts."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Apply Additional Discount Without CSRF Token",
+    "description": "Verify that adjustment API requests without a valid CSRF token are rejected to ensure secure operations.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Submit a discount application request with all valid data but omit the CSRF token or provide an invalid one."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the API request is rejected with an appropriate security error preventing unauthorized operations."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Frontend UI Allows Input and Modification of Adjustment Parameters",
+    "description": "Ensure the frontend interface allows administrators to input/select invoice ID, choose items, enter discount amounts, specify reason, and select refund method without errors.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Load the invoice adjustment frontend page."
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid invoice ID and fetch details."
+      },
+      {
+        "type": "action",
+        "description": "Select various invoice items."
+      },
+      {
+        "type": "action",
+        "description": "Enter discount amounts for selected items."
+      },
+      {
+        "type": "action",
+        "description": "Input a valid reason in the reason input area."
+      },
+      {
+        "type": "action",
+        "description": "Select each available refund method option."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm no UI errors occur during input and that all fields accept and display the data correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Handle Network / Server Errors Gracefully on Invoice Retrieval",
+    "description": "Verify that network or server errors during invoice data retrieval are handled gracefully with user-friendly error messages.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate network failure or server error when requesting invoice details."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the frontend displays a meaningful message to the user indicating failure to retrieve invoice data."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Handle Network / Server Errors Gracefully on Discount Application",
+    "description": "Validate the system shows proper error messages and does not apply invalid adjustments if server or network errors occur during discount application.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate network or server failure during additional discount API request."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the system does not apply the discount, shows an informative error message, and leaves the invoice state consistent."
+      }
+    ]
+  }
+]
