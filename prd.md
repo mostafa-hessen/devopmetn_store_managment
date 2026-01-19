@@ -26,7 +26,7 @@ and not return flage =1
 اجمالي الخصومات --> discount_amount from invoice_out_items
 المرتجعات --> 
 اعملي زي صفحه 
-sale_
+
 
 
 

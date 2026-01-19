@@ -76,14 +76,7 @@
           'badge' => '',
           'priority' => 5
       ],
-      [
-          'title' => 'التقارير',
-          'icon' => 'fas fa-chart-pie',
-          'url' => BASE_URL . 'admin/gross_profit_report.php',
-          'color' => 'danger',
-          'badge' => '',
-          'priority' => 6
-      ],
+
       [
           'title' => 'منتجات قاربت على النفاذ',
           'icon' => 'fas fa-exclamation-circle',
@@ -273,6 +266,28 @@
     .theme-toggle:hover {
       transform: rotate(180deg);
       background: var(text);
+  }
+
+  .no-caret::after {
+      display: none !important;
+  }
+  
+  .reports-dropdown .dropdown-item {
+      border-radius: 8px;
+      margin: 2px 8px;
+      transition: all 0.3s;
+  }
+  
+  .reports-dropdown .dropdown-item:hover {
+      background: rgba(102, 126, 234, 0.1);
+      transform: translateX(-5px);
+  }
+  
+  .reports-dropdown .dropdown-header {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6c757d;
   }
 
   .backup-btn {
@@ -529,6 +544,65 @@
                           <?php endif; ?>
                       </a>
                       <?php endforeach; ?>
+
+                      <!-- زر التقارير المنسدلة المطور -->
+                      <div class="dropdown mx-1">
+                          <a href="#" class="shortcut-link btn btn-sm btn-warning position-relative dropdown-toggle no-caret" 
+                             id="reportsHeaderDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                             data-bs-toggle="tooltip" data-bs-placement="bottom" title="مركز التقارير">
+                              <i class="fas fa-chart-pie text-white"></i>
+                          </a>
+                          <ul class="dropdown-menu dropdown-menu-end shadow-lg reports-dropdown border-0 mt-3" 
+                              aria-labelledby="reportsHeaderDropdown" style="min-width: 250px; border-radius: 15px; padding: 10px 0;">
+                              <li class="dropdown-header mb-2 px-3">
+                                  <i class="fas fa-chart-bar me-2"></i>التقارير والتحليلات
+                              </li>
+                              <li>
+                                  <a class="dropdown-item d-flex align-items-center py-2" href="<?php echo BASE_URL; ?>admin/gross_profit_report.php">
+                                      <div class="icon-box bg-success-light me-3 rounded-circle d-flex align-items-center justify-content-center" style="width:35px; height:35px; background: rgba(40, 167, 69, 0.1);">
+                                          <i class="fas fa-chart-line text-success"></i>
+                                      </div>
+                                      <div>
+                                          <div class="fw-bold">إجمالي الأرباح</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">متابعة أداء المحل العام</small>
+                                      </div>
+                                  </a>
+                              </li>
+                              <li>
+                                  <a class="dropdown-item d-flex align-items-center py-2" href="<?php echo BASE_URL; ?>admin/net_profit_report.php">
+                                      <div class="icon-box bg-primary-light me-3 rounded-circle d-flex align-items-center justify-content-center" style="width:35px; height:35px; background: rgba(0, 123, 255, 0.1);">
+                                          <i class="fas fa-funnel-dollar text-primary"></i>
+                                      </div>
+                                      <div>
+                                          <div class="fw-bold">صافي الأرباح</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">الأرباح بعد الخصم والمصاريف</small>
+                                      </div>
+                                  </a>
+                              </li>
+                              <li>
+                                  <a class="dropdown-item d-flex align-items-center py-2" href="<?php echo BASE_URL; ?>admin/sales_report_period.php">
+                                      <div class="icon-box bg-info-light me-3 rounded-circle d-flex align-items-center justify-content-center" style="width:35px; height:35px; background: rgba(23, 162, 184, 0.1);">
+                                          <i class="fas fa-file-invoice-dollar text-info"></i>
+                                      </div>
+                                      <div>
+                                          <div class="fw-bold">تقارير المبيعات</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">حركة المبيعات خلال فترة</small>
+                                      </div>
+                                  </a>
+                              </li>
+                              <li>
+                                  <a class="dropdown-item d-flex align-items-center py-2" href="<?php echo BASE_URL; ?>admin/top_selling_products_report.php">
+                                      <div class="icon-box bg-danger-light me-3 rounded-circle d-flex align-items-center justify-content-center" style="width:35px; height:35px; background: rgba(220, 53, 69, 0.1);">
+                                          <i class="fas fa-fire text-danger"></i>
+                                      </div>
+                                      <div>
+                                          <div class="fw-bold">الأكثر مبيعاً</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">المنتجات الأعلى طلباً</small>
+                                      </div>
+                                  </a>
+                              </li>
+                          </ul>
+                      </div>
                   </div>
                   
                   <!-- زر المزيد للاختصارات الإضافية -->
@@ -816,37 +890,42 @@
               </li>
    
               
-              <!-- قسم التقارير مع قائمة منسدلة -->
+              <!-- قسم التقارير المتقدم -->
               <li class="nav-item mt-3">
-                  <small class="text-white-50 px-3">التقارير</small>
+                  <small class="text-white-50 px-3">التقارير والتحليلات</small>
               </li>
               <li class="nav-item">
-                  <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="collapse" data-bs-target="#reportsCollapse" aria-expanded="false">
-                      <i class="fas fa-chart-pie me-3"></i>
-                      <span>التقارير</span>
+                  <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="collapse" data-bs-target="#reportsCollapse" aria-expanded="false">
+                      <i class="fas fa-chart-pie me-3 text-warning"></i>
+                      <span>مركز التقارير</span>
                       <i class="fas fa-chevron-down ms-auto"></i>
                   </a>
-                  <div class="collapse" id="reportsCollapse">
-                      <ul class="nav flex-column ps-4">
+                  <div class="collapse <?php echo (in_array($current_page, ['sales_report_period.php', 'gross_profit_report.php', 'net_profit_report.php', 'top_selling_products_report.php'])) ? 'show' : ''; ?>" id="reportsCollapse">
+                      <ul class="nav flex-column ps-3">
                           <li class="nav-item">
-                              <a class="nav-link <?php echo ($current_page == 'gross_profit_report.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/gross_profit_report.php">
-                                  <i class="fas fa-chart-line me-2"></i>
-                                  <span>الأرباح الإجمالية</span>
+                              <a class="nav-link <?php echo ($current_page == 'sales_report_period.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/sales_report_period.php">
+                                  <i class="fas fa-file-invoice-dollar me-2"></i>
+                                  <span>تقارير المبيعات</span>
                               </a>
                           </li>
                           <li class="nav-item">
-                              <a class="nav-link" href="<?php echo BASE_URL; ?>admin/net_profit_report.php">
-                                  <i class="fas fa-money-bill-wave me-2"></i>
+                              <a class="nav-link <?php echo ($current_page == 'gross_profit_report.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/gross_profit_report.php">
+                                  <i class="fas fa-chart-line me-2"></i>
+                                  <span>إجمالي الأرباح</span>
+                              </a>
+                          </li>
+                          <li class="nav-item">
+                              <a class="nav-link <?php echo ($current_page == 'net_profit_report.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/net_profit_report.php">
+                                  <i class="fas fa-funnel-dollar me-2"></i>
                                   <span>صافي الأرباح</span>
                               </a>
                           </li>
                           <li class="nav-item">
-                              <a class="nav-link" href="<?php echo BASE_URL; ?>admin/sales_report_period.php">
-                                  <i class="fas fa-chart-bar me-2"></i>
-                                  <span>تقارير المبيعات</span>
+                              <a class="nav-link <?php echo ($current_page == 'top_selling_products_report.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/top_selling_products_report.php">
+                                  <i class="fas fa-fire me-2 text-danger"></i>
+                                  <span>المنتجات الأكثر مبيعاً</span>
                               </a>
                           </li>
-                        
                       </ul>
                   </div>
               </li>

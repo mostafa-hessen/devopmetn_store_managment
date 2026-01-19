@@ -202,17 +202,20 @@ function fetchReturnJSON($return_id, $conn) {
         return;
     }
 
-    // جلب بنود المرتجع
+    // جلب بنود المرتجع مع السعر من عنصر الفاتورة الأصلية (عبر الدفعة)
     $items = [];
     $sql_items = "SELECT pri.*, 
                          p.name AS product_name,
                          p.product_code,
                          b.expiry,
+                         b.expiry,
                          b.qty AS batch_qty,
-                         b.remaining AS batch_remaining
+                         b.remaining AS batch_remaining,
+                         COALESCE(pii.cost_price_per_unit, b.unit_cost) as unit_price
                   FROM purchase_return_items pri
                   JOIN products p ON p.id = pri.product_id
                   JOIN batches b ON b.id = pri.batch_id
+                  LEFT JOIN purchase_invoice_items pii ON pii.batch_id = b.id
                   WHERE pri.purchase_return_id = ? 
                   ORDER BY pri.id ASC";
     
@@ -228,6 +231,8 @@ function fetchReturnJSON($return_id, $conn) {
     $sti->execute();
     $res = $sti->get_result();
     while ($r = $res->fetch_assoc()) {
+        // حساب الإجمالي لكل بند
+        $r['line_total'] = (float)$r['quantity'] * (float)$r['unit_price'];
         $items[] = $r;
     }
     $sti->close();
@@ -265,6 +270,7 @@ function listReturns($conn) {
     $selected_supplier_id = isset($_GET['supplier_filter_val']) ? intval($_GET['supplier_filter_val']) : '';
     $selected_status = isset($_GET['status_filter_val']) ? trim($_GET['status_filter_val']) : '';
     $selected_return_type = isset($_GET['type_filter_val']) ? trim($_GET['type_filter_val']) : '';
+    $exclude_return_type = isset($_GET['exclude_type']) ? trim($_GET['exclude_type']) : '';
     $search_return_id = isset($_GET['return_out_id']) ? intval($_GET['return_out_id']) : 0;
     $start_date = isset($_GET['start_date']) ? trim($_GET['start_date']) : '';
     $end_date = isset($_GET['end_date']) ? trim($_GET['end_date']) : '';
@@ -309,6 +315,12 @@ function listReturns($conn) {
     if (!empty($selected_return_type)) {
         $conds[] = "pr.return_type = ?";
         $params[] = $selected_return_type;
+        $types .= 's';
+    }
+
+    if (!empty($exclude_return_type)) {
+        $conds[] = "pr.return_type != ?";
+        $params[] = $exclude_return_type;
         $types .= 's';
     }
 
@@ -876,6 +888,9 @@ function createPurchaseReturn($conn, $data, $current_user_id, $current_user_role
                                             WHERE id = ?";
                 
                 $stmt_update_invoice = $conn->prepare($sql_update_invoice_item);
+                if (!$stmt_update_invoice) {
+                    throw new Exception("فشل تحضير استعلام تحديث بند الفاتورة: " . $conn->error);
+                }
                 $stmt_update_invoice->bind_param("di", $quantity, $invoice_item_id);
                 $stmt_update_invoice->execute();
                 $stmt_update_invoice->close();

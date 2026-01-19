@@ -625,12 +625,47 @@ require_once BASE_DIR . 'partials/sidebar.php';
     font-weight: 900
   }
 
-  /* small: sticky header support class */
   #mp-manage-products .my-table th.sticky {
     position: sticky;
     top: 0;
     z-index: 6;
     background: var(--surface);
+  }
+  
+  /* Loader styles */
+  .mp-loader {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border-left-color: var(--primary);
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  
+  /* Column Background Highlights */
+  #mp-manage-products .col-accent-1 {
+    background-color: rgba(245, 158, 11, 0.05); /* Light Amber tint */
+    border-left: 1px dashed rgba(245, 158, 11, 0.2);
+    border-right: 1px dashed rgba(245, 158, 11, 0.2);
+  }
+  #mp-manage-products .col-accent-2 {
+    background-color: rgba(124, 58, 237, 0.05); /* Light Violet tint */
+    border-left: 1px dashed rgba(124, 58, 237, 0.2);
+    border-right: 1px dashed rgba(124, 58, 237, 0.2);
+  }
+  
+  /* Dark mode adjustments - More distinct & premium look */
+  html[data-theme="dark"] #mp-manage-products .col-accent-1 {
+    background: linear-gradient(to bottom, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+    border-left: 1px solid rgba(245, 158, 11, 0.3);
+    border-right: 1px solid rgba(245, 158, 11, 0.3);
+  }
+  html[data-theme="dark"] #mp-manage-products .col-accent-2 {
+    background: linear-gradient(to bottom, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05));
+    border-left: 1px solid rgba(139, 92, 246, 0.3);
+    border-right: 1px solid rgba(139, 92, 246, 0.3);
   }
 </style>
 <div id="mp-manage-products">
@@ -688,8 +723,8 @@ require_once BASE_DIR . 'partials/sidebar.php';
                 <th>متبقي (Active)</th>
                 <th>حد الطلب</th>
                 <th>سعر الشراء</th>
-                <th>سعر بيع أساسي</th>
-                <th>سعر بيع قطاعي</th>
+                <th class="col-accent-1">سعر بيع أساسي</th>
+                <th class="col-accent-2">سعر بيع قطاعي</th>
                 <th>آخر سعر شراء </th>
                 <th>قيمة المتبقي</th>
                 <th>إجراءات</th>
@@ -944,6 +979,13 @@ require_once BASE_DIR . 'partials/sidebar.php';
      ========================= */
   async function fetchProducts(q = '') {
     const url = '?action=products' + (q ? '&q=' + encodeURIComponent(q) : '');
+    
+    // Show loader
+    const tbody = document.querySelector('#productsTable tbody');
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="13"><div class="mp-loader"></div><div style="text-align:center;color:var(--muted);font-weight:700">جاري تحميل المنتجات...</div></td></tr>';
+    }
+
     try {
       const json = await fetchJson(url);
       if (!json.ok) {
@@ -968,6 +1010,7 @@ require_once BASE_DIR . 'partials/sidebar.php';
     } catch (e) {
       console.error('fetchProducts', e);
       showToast('تعذر الاتصال بالخادم', 'error');
+      if(tbody) tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:red;padding:20px">فشل التحميل. <button class="btn btn-ghost" onclick="fetchProducts()">إعادة المحاولة</button></td></tr>';
     }
   }
 
@@ -998,8 +1041,8 @@ require_once BASE_DIR . 'partials/sidebar.php';
       <td>${ lowWarn ? '<span class="warn-low">' + formatNum(rem, {min:4,max:4}) + '</span>' : '<span class="badge green">' + formatNum(rem, {min:4,max:4}) + '</span>' }</td>
       <td>${formatNum(reorder)}</td>
       <td class="small monos">${lastInfo}</td>
-      <td class="monos ">${formatNum(p.base_selling_price || p.selling_price || 0)}</td>
-      <td class="monos  ">${formatNum(p.retail_price || p.retail_price || 0)}</td>
+      <td class="monos col-accent-1"><span class="price_badge price-accent1" style="font-size:14px">${formatNum(p.base_selling_price || p.selling_price || 0)}</span></td>
+      <td class="monos col-accent-2"><span class="price_badge price-accent2" style="font-size:14px">${formatNum(p.retail_price || 0)}</span></td>
       <td class="monos">${formatNum(p.last_purchase_price ||0)}</td>
       <td class="monos">${formatNum(p.stock_value_active || 0)}</td>
       <td class="actions">

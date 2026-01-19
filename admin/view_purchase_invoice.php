@@ -85,21 +85,27 @@ if (isset($_GET['action']) && $_GET['action'] === 'search_products') {
   header('Content-Type: application/json; charset=utf-8');
   $q = trim($_GET['q'] ?? '');
   $out = [];
-  if ($q === '') {
-    $stmt = $conn->prepare("SELECT id, product_code, name, selling_price, cost_price, current_stock, unit_of_measure FROM products ORDER BY name LIMIT 1000");
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($r = $res->fetch_assoc()) $out[] = $r;
-    $stmt->close();
-  } else {
-    $like = "%$q%";
-    $stmt = $conn->prepare("SELECT id, product_code, name, selling_price, cost_price, current_stock, unit_of_measure FROM products WHERE name LIKE ? OR product_code LIKE ? ORDER BY name LIMIT 1000");
-    $stmt->bind_param("ss", $like, $like);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($r = $res->fetch_assoc()) $out[] = $r;
-    $stmt->close();
+  $sql = "
+    SELECT p.id, p.product_code, p.name, p.selling_price, p.cost_price, p.current_stock, p.unit_of_measure,
+    (SELECT b2.unit_cost FROM batches b2 WHERE b2.product_id = p.id AND b2.status IN ('active','consumed') ORDER BY b2.received_at DESC, b2.created_at DESC, b2.id DESC LIMIT 1) AS last_purchase_price,
+    (SELECT b2.sale_price FROM batches b2 WHERE b2.product_id = p.id AND b2.status IN ('active','consumed') ORDER BY b2.received_at DESC, b2.created_at DESC, b2.id DESC LIMIT 1) AS last_batch_sale_price,
+    (SELECT SUM(remaining) FROM batches b3 WHERE b3.product_id = p.id AND b3.status='active') AS batch_stock
+    FROM products p
+  ";
+  if ($q !== '') {
+    $sql .= " WHERE p.name LIKE ? OR p.product_code LIKE ? ";
   }
+  $sql .= " ORDER BY p.name LIMIT 1000";
+
+  $stmt = $conn->prepare($sql);
+  if ($q !== '') {
+    $like = "%$q%";
+    $stmt->bind_param("ss", $like, $like);
+  }
+  $stmt->execute();
+  $res = $stmt->get_result();
+  while ($r = $res->fetch_assoc()) $out[] = $r;
+  $stmt->close();
   json_out(['ok' => true, 'results' => $out]);
 }
 
@@ -1389,9 +1395,12 @@ require_once BASE_DIR . 'partials/sidebar.php';
   <!-- left: products -->
   <div class="col-lg-4">
     <div class="soft">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px; gap:5px">
         <strong>المنتجات</strong>
-        <input id="product_search" placeholder="بحث باسم أو كود..." style="padding:6px;border-radius:6px;border:1px solid var(--border); width:58%;color:var(--text); background:var(--bg)">
+        <div style="display:flex;gap:5px;flex:1;justify-content:flex-end">
+           <input id="product_search" placeholder="بحث..." style="padding:6px;border-radius:6px;border:1px solid var(--border); width:100%;color:var(--text); background:var(--bg)">
+           <button class="btn btn-sm btn-primary" onclick="openAddProductModal()" title="إضافة منتج جديد" style="white-space:nowrap"><i class="fa fa-plus"></i></button>
+        </div>
       </div>
      <div id="product_list" style="max-height:520px; overflow:auto;">
 <?php foreach ($products_list as $p):
@@ -1646,6 +1655,83 @@ require_once BASE_DIR . 'partials/sidebar.php';
   </div>
 </div>
 
+<!-- Add Product Modal (Ported from manage_products.php) -->
+<div id="productModal" class="mp-modal-backdrop" aria-hidden="true">
+  <div class="mp-modal" role="dialog" aria-modal="true">
+    <h3>إضافة منتج جديد</h3>
+    <form id="productForm">
+      <input type="hidden" name="id" value="0">
+      <div class="form-grid" style="margin-top:12px; display:grid; grid-template-columns: repeat(2, 1fr); gap:12px">
+        <div>
+          <label class="kv">كود المنتج</label>
+          <input name="product_code" class="form-control" required>
+        </div>
+        <div>
+          <label class="kv">اسم المنتج</label>
+          <input name="name" class="form-control" required>
+        </div>
+        <div>
+          <label class="kv">الوحدة</label>
+          <input name="unit_of_measure" class="form-control" required>
+        </div>
+        <div>
+          <label class="kv">سعر الشراء الأساسي</label>
+          <input name="cost_price" type="number" step="0.01" class="form-control">
+        </div>
+        <div>
+          <label class="kv">سعر البيع الأساسي</label>
+          <input name="selling_price" type="number" step="0.01" class="form-control">
+        </div>
+        <div>
+          <label class="kv">سعر البيع القطاعي</label>
+          <input name="retail_price" type="number" step="0.01" class="form-control">
+        </div>
+        <div>
+            <label class="kv">حد الطلب</label>
+            <input name="reorder_level" type="number" step="0.01" class="form-control">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="kv">الوصف</label>
+          <textarea name="description" class="form-control" style="height:70px"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px">
+        <button type="button" class="btn btn-outline-secondary" onclick="closeProductModal()">إلغاء</button>
+        <button type="submit" class="btn btn-primary">حفظ</button>
+      </div>
+    </form>
+    <!-- Simple Loader Overlay -->
+    <div id="pModalLoader" style="position:absolute;inset:0;background:rgba(255,255,255,0.7);display:none;align-items:center;justify-content:center;border-radius:12px;z-index:10">
+       <div class="spinner-border text-primary" role="status"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Scoped modal styles similar to manage_products */
+#productModal.mp-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1300;
+    padding: 20px;
+}
+#productModal .mp-modal {
+    width: 100%;
+    max-width: 800px;
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+#productModal .kv { font-weight: 700; margin-bottom: 4px; display:block; font-size:13px}
+</style>
+
 <div id="toast_holder"></div>
 
 <script>
@@ -1677,21 +1763,171 @@ require_once BASE_DIR . 'partials/sidebar.php';
     const invoiceSupplierId = <?php echo json_encode(intval($invoice['supplier_id'] ?? 0)); ?>;
     const predictedInvoiceId = <?php echo intval($next_invoice_id ?? 0); ?>;
 
-    const productsLocal = Array.from(qa('.product-item')).map(el => ({
-      id: parseInt(el.dataset.id || 0, 10),
-      name: el.dataset.name,
-      code: el.dataset.code,
-      cost: parseFloat(el.dataset.cost || 0),
-      selling: parseFloat(el.dataset.selling || 0),
-      stock: parseFloat(el.dataset.stock || 0),
-      el: el
-    }));
+    const productsLocal = []; // Will be populated by renderProducts
+
+    // Expose functions to global scope
+    window.openAddProductModal = function() {
+        document.getElementById('productModal').style.display = 'flex';
+        document.getElementById('productForm').reset();
+    };
+    window.closeProductModal = function() {
+        document.getElementById('productModal').style.display = 'none';
+        document.getElementById('pModalLoader').style.display = 'none';
+    };
+
+    // Product Form Submit
+    document.getElementById('productForm').addEventListener('submit', async function(e){
+        e.preventDefault();
+        const fd = new FormData(this);
+        // We post to manage_products.php
+        // Note: Make sure manage_products.php is accessible relative to this file
+        const saveUrl = 'manage_products.php?action=save_product'; 
+        
+        // Show loader
+        document.getElementById('pModalLoader').style.display = 'flex';
+
+        try {
+            const res = await fetch(saveUrl, {
+                method: 'POST',
+                body: fd
+            });
+            const json = await res.json();
+            
+            document.getElementById('pModalLoader').style.display = 'none';
+
+            if(json.ok){
+                showToast(json.msg || 'تم إضافة المنتج', 'success');
+                closeProductModal();
+                refreshProductList(); // Reload sidebar data
+            } else {
+                showToast(json.error || 'خطأ في الحفظ', 'error');
+            }
+        } catch(err) {
+            console.error(err);
+            document.getElementById('pModalLoader').style.display = 'none';
+            showToast('خطأ في الاتصال', 'error');
+        }
+    });
+
+    function refreshProductList() {
+        // Show loading state in sidebar?
+        const listEl = document.getElementById('product_list');
+        listEl.style.opacity = '0.5';
+        
+        fetch('?action=search_products')
+        .then(r => r.json())
+        .then(res => {
+            listEl.style.opacity = '1';
+            if(res.ok && res.results) {
+                renderProductList(res.results);
+            }
+        })
+        .catch(e => {
+            console.error(e);
+            listEl.style.opacity = '1';
+        });
+    }
+
+    function renderProductList(data) {
+        const listEl = document.getElementById('product_list');
+        listEl.innerHTML = '';
+        productsLocal.length = 0; // clear existing
+
+        data.forEach(p => {
+            // Logic to determine display cost/source
+            let cost = parseFloat(p.cost_price || 0);
+            let selling = parseFloat(p.selling_price || 0);
+            let costSource = 'product';
+            let sellingSource = 'product';
+
+            if(p.last_purchase_price != null) {
+                cost = parseFloat(p.last_purchase_price);
+                costSource = 'batch';
+            }
+            if(p.last_batch_sale_price != null) {
+                selling = parseFloat(p.last_batch_sale_price);
+                sellingSource = 'batch';
+            }
+
+            // Fallback stock logic similar to PHP
+            // search_products returns 'batch_stock' from subquery or 'current_stock'
+            // My updated query returns 'batch_stock', but fall back to 'current_stock'
+            let stock = 0;
+            if (p.batch_stock != null) stock = parseFloat(p.batch_stock);
+            else stock = parseFloat(p.current_stock || 0);
+
+            // push to local cache
+            productsLocal.push({
+                id: parseInt(p.id),
+                name: p.name,
+                code: p.product_code,
+                cost: cost,
+                selling: selling,
+                stock: stock,
+                el: null // will set below
+            });
+
+            // Create DOM
+            const div = document.createElement('div');
+            div.className = 'product-item' + (stock <= 0 ? ' out-of-stock' : '');
+            div.dataset.id = p.id;
+            // storing dataset for direct click usage if needed, but productsLocal is better source
+            div.dataset.name = p.name;
+            div.dataset.code = p.product_code;
+
+            div.innerHTML = `
+                <div>
+                  <div style="font-weight:700">${escapeHtml(p.name)}</div>
+                  <div class="small-muted">
+                    كود: ${escapeHtml(p.product_code)} — رصيد: <span class="stock-number">${stock}</span>
+                  </div>
+                  <div class="small-muted" style="font-size:12px;">
+                    سعر شراء: ${cost.toFixed(2)} ج.م
+                    <small style="color:#666;">(من: ${costSource === 'batch' ? 'الدفعة' : 'المخزن'})</small>
+                    — بيع: ${selling.toFixed(2)} ج.م
+                  </div>
+                </div>
+                <div style="text-align:left">
+                  <div style="font-weight:700">${cost.toFixed(2)} ج.م</div>
+                  ${stock <= 0 ? '<div class="badge-out mt-1">نفذ</div>' : ''}
+                </div>
+            `;
+            listEl.appendChild(div);
+            // Update the object ref
+            productsLocal[productsLocal.length-1].el = div;
+        });
+    }
+
+    // Initialize productsLocal from initial PHP-rendered DOM (for first load)
+    qa('.product-item').forEach(el => {
+        productsLocal.push({
+            id: parseInt(el.dataset.id || 0, 10),
+            name: el.dataset.name,
+            code: el.dataset.code,
+            cost: parseFloat(el.dataset.cost || 0),
+            selling: parseFloat(el.dataset.selling || 0),
+            stock: parseFloat(el.dataset.stock || 0),
+            el: el
+        });
+    });
 
     q('#product_search').addEventListener('input', function(e) {
       const qv = (e.target.value || '').trim().toLowerCase();
+      // If user types, we filter locally or server? 
+      // Current logic was local filtering. 
+      // But if we have 1000 limit, local is fine.
+      // However, the original code had a server search hooked? No, the original code:
+      // "q('#product_search').addEventListener('input'..." filtered productsLocal. 
+      // The `?action=search_products` was separate but maybe not used by the input before?
+      // Wait, looking at lines 1690 in original: YES, it filtered productsLocal.
+      // BUT, fetchProducts logic I added above also supports server search? 
+      // Let's stick to LOCAL filtering for responsiveness, unless the user wants server search.
+      // "Search by product name or code"
+      // If newly added product is in the list (via refreshProductList), local filter works.
+      
       productsLocal.forEach(p => {
         const show = !qv || (p.name && p.name.toLowerCase().includes(qv)) || (p.code && p.code.toLowerCase().includes(qv));
-        p.el.style.display = show ? '' : 'none';
+        if(p.el) p.el.style.display = show ? '' : 'none';
       });
     });
 
