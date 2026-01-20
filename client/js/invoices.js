@@ -712,14 +712,15 @@ const InvoiceManager = {
                     </div>`
           : ""
         }
-                    ${totalReturnedAmount > 0
+        ${totalReturnedAmount > 0
           ? `
                     <div class="tooltip-discount-row text-warning">
-                        <span>إجمالي المرتجع:</span>
-                        <span>- ${totalReturnedAmount.toFixed(2)} ج.م</span>
+                        <span>قيمة المرتجعات:</span>
+                        <span>-${totalReturnedAmount.toFixed(2)} ج.م</span>
                     </div>`
           : ""
         }
+       
                     ${discountAmount > 0
           ? `
                     <div class="tooltip-discount-row">
@@ -998,207 +999,76 @@ const InvoiceManager = {
       invoice.workOrderName || "لا يوجد";
 
     // حساب بيانات الخصم
+    // **تحديث عرض الإجمالي بالشكل الجديد (حقول منفصلة)**
+    const discountScope = invoice.discount_scope || "invoice";
+
+    // 1. حساب القيم
     const discountAmount = parseFloat(invoice.discount_amount || 0);
-    const discountValue = parseFloat(invoice.discount_value || 0);
-    const discountType = invoice.discount_type || "percent";
     const beforeDiscount = parseFloat(
       invoice.total_before_discount || invoice.total || 0
     );
     const afterDiscount = parseFloat(
       invoice.total_after_discount || invoice.total || 0
     );
-    const discountScope = invoice.discount_scope || "invoice"; // ← إضافة هذا
-    // **تحديث عرض الإجمالي بالشكل الجديد**
-    // **تحديث عرض الإجمالي بالشكل الجديد**
-    const totalElement = document.getElementById("invoiceItemsTotal");
-    if (discountAmount > 0) {
-      const discountPercentage =
-        discountType === "percent"
-          ? discountValue
-          : (discountAmount / beforeDiscount) * 100;
 
-      // حساب إجمالي المرتجع
-      let totalReturnedAmount = 0;
-      (invoice.items || []).forEach((item) => {
-        const returnedQuantity = item.returned_quantity || 0;
-        const unitPriceAfterDiscount =
-          item.unit_price_after_discount ||
-          item.selling_price ||
-          item.price ||
-          0;
-        totalReturnedAmount += returnedQuantity * unitPriceAfterDiscount;
-      });
+    // حساب إجمالي المرتجع
+    let totalReturnedAmount = 0;
+    (invoice.items || []).forEach((item) => {
+      const returnedQuantity = item.returned_quantity || 0;
+      const unitPriceAfterDiscount =
+        item.unit_price_after_discount ||
+        item.selling_price ||
+        item.price ||
+        0;
+      totalReturnedAmount += returnedQuantity * unitPriceAfterDiscount;
+    });
 
-      totalElement.innerHTML = `
-        <div class="amount-with-discount position-relative">
-            <!-- Tooltip عند المرور -->
-            <div class="discount-tooltip" 
-                data-bs-toggle="tooltip" 
-                data-bs-html="true"
-                data-bs-placement="top"
-                data-bs-title="
-                    الإجمالي قبل الخصم: ${beforeDiscount.toFixed(2)} ج.م<br>
-                    قيمة الخصم: -${discountAmount.toFixed(2)} ج.م<br>
-                    ${totalReturnedAmount > 0
-          ? `إجمالي المرتجع: -${totalReturnedAmount.toFixed(
-            2
-          )} ج.م<br>`
-          : ""
-        }
-                    نوع الخصم: ${discountScope === "items" ? "على البنود" : "على الفاتورة"
-        }
-                ">
-                <!-- السعر الأصلي -->
-                <div class="amount-original text-muted text-decoration-line-through">
-                    ${beforeDiscount.toFixed(2)} ج.م
-                </div>
-                <div
-                class="discount-separator my-1 border-top border-dashed text-primary">
-                    قيمة الخصم: -${discountAmount.toFixed(2)} ج.م<br>
+    // 2. تحديث الحقول في المودال
+    const elGross = document.getElementById("invoiceItemsGrossTotal");
+    const elDiscount = document.getElementById("invoiceItemsDiscount");
+    const elReturns = document.getElementById("invoiceItemsReturnsAmount");
+    const elNet = document.getElementById("invoiceItemsNetTotal");
 
-                
-                </div>
-                <!-- تفاصيل الخصم -->
-                
-                <div class="discount-details text-danger">
-                    ${totalReturnedAmount > 0
-          ? `المرتجعات: -${totalReturnedAmount.toFixed(
-            2
-          )} ج.م<br>`
-          : ""
-        }
-    </div>
+    // أ. الإجمالي قبل الخصم
+    if (elGross) elGross.textContent = beforeDiscount.toFixed(2) + " ج.م";
 
-                <!-- السعر النهائي بعد الخصم والمرتجع -->
-                <div class="amount-final fw-bold">
-                    ${afterDiscount.toFixed(2)} ج.م
-                </div>
-                <!-- بادج الخصم -->
-                <div class="discount-badge badge ${discountScope === "items" ? "bg-info" : "bg-secondary"
-        } position-top-10 end-10">
-                    ${discountScope === "items"
-          ? '<i class="fas fa-tag me-1"></i>'
-          : '<i class="fas fa-file-invoice me-1"></i>'
-        }
-                    ${discountType === "percent"
-          ? `${discountValue}%`
-          : `${discountAmount.toFixed(2)} ج.م`
-        }
-                </div>
-            </div>
-        </div>
-    `;
-
-      // تفعيل الـ tooltips
-      const tooltipTriggerList = document.querySelectorAll(
-        '[data-bs-toggle="tooltip"]'
-      );
-      tooltipTriggerList.forEach((tooltipTriggerEl) => {
-        new bootstrap.Tooltip(tooltipTriggerEl, {
-          html: true,
-          boundary: "viewport",
-        });
-      });
-
-      // **عرض تفاصيل الخصم في قسم خاص**
-      // **عرض تفاصيل الخصم في قسم خاص**
-      const discountDetailsElement = document.getElementById(
-        "invoiceDiscountDetails"
-      );
-      if (discountDetailsElement) {
-        discountDetailsElement.innerHTML = `
-            <div class="card ${discountScope === "items" ? "border-info" : "border-secondary"
-          } mb-3">
-                <div class="card-header ${discountScope === "items" ? "bg-info" : "bg-secondary"
-          } text-white py-2 d-flex justify-content-between align-items-center">
-                    <div>
-                        <i class="fas ${discountScope === "items"
-            ? "fa-tag"
-            : "fa-file-invoice"
-          } me-2"></i>
-                        تفاصيل الخصم - ${discountScope === "items"
-            ? "على البنود"
-            : "على الفاتورة"
-          }
-                    </div>
-                    <span class="badge ${discountScope === "items"
-            ? "bg-light text-info"
-            : "bg-light text-secondary"
-          }">
-                        ${discountType === "percent"
-            ? "نسبة مئوية"
-            : "مبلغ ثابت"
-          }
-                    </span>
-                </div>
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-6">
-                            <small class="text-muted">الإجمالي قبل الخصم</small>
-                            <div class="fw-bold">${beforeDiscount.toFixed(
-            2
-          )} ج.م</div>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted">قيمة الخصم</small>
-                            <div class="${discountScope === "items"
-            ? "text-info"
-            : "text-secondary"
-          } fw-bold">
-                                -${discountAmount.toFixed(2)} ج.م
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-6">
-                            <small class="text-muted">${discountType === "percent" ? "النسبة" : "المبلغ"
-          }</small>
-                            <div class="fw-bold">
-                                ${discountType === "percent"
-            ? `${discountValue}%`
-            : `${discountValue} ج.م`
-          }
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted">المبلغ المخصوم</small>
-                            <div class="fw-bold text-danger">
-                                ${discountAmount.toFixed(2)} ج.م
-                            </div>
-                        </div>
-                    </div>
-                    ${discountScope === "items"
-            ? `
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <small class="text-muted">ملاحظة</small>
-                            <div class="alert alert-info alert-sm py-1 mb-0">
-                                <i class="fas fa-info-circle me-1"></i>
-                                الخصم تم تطبيقه على مستوى البنود (كل بند له خصم منفصل)
-                            </div>
-                        </div>
-                    </div>
-                    `
-            : ""
-          }
-                </div>
-            </div>
-        `;
-
-        // في نهاية populateInvoiceModal()
-        this.setupItemDiscountTooltips();
+    // ب. قيمة الخصم
+    if (elDiscount) {
+      if (discountAmount > 0) {
+        elDiscount.textContent = "-" + discountAmount.toFixed(2) + " ج.م";
+        elDiscount.className = "fw-bold text-danger";
+      } else {
+        elDiscount.textContent = "0.00 ج.م";
+        elDiscount.className = "fw-bold text-muted";
       }
-    } else {
-      totalElement.textContent = `${afterDiscount.toFixed(2)} ج.م`;
     }
 
+    // ج. المرتجعات
+    if (elReturns) {
+      if (totalReturnedAmount > 0) {
+        elReturns.textContent = "-" + totalReturnedAmount.toFixed(2) + " ج.م";
+        elReturns.className = "fw-bold text-warning";
+      } else {
+        elReturns.textContent = "0.00 ج.م";
+        elReturns.className = "fw-bold text-muted";
+      }
+    }
+
+    // د. الصافي النهائي
+    if (elNet) elNet.textContent = afterDiscount.toFixed(2) + " ج.م";
+
+
     // **تحديث باقي المبالغ**
-    document.getElementById("invoiceItemsPaid").textContent =
-      parseFloat(invoice.paid_amount || invoice.paid || 0).toFixed(2) + " ج.م";
-    document.getElementById("invoiceItemsRemaining").textContent =
-      parseFloat(invoice.remaining_amount || invoice.remaining || 0).toFixed(
-        2
-      ) + " ج.م";
+    // **تحديث باقي المبالغ**
+    const elPaid = document.getElementById("invoiceItemsPaid");
+    if (elPaid) {
+      elPaid.textContent = parseFloat(invoice.paid_amount || invoice.paid || 0).toFixed(2) + " ج.م";
+    }
+
+    const elRemaining = document.getElementById("invoiceItemsRemaining");
+    if (elRemaining) {
+      elRemaining.textContent = parseFloat(invoice.remaining_amount || invoice.remaining || 0).toFixed(2) + " ج.م";
+    }
 
     // التحقق من وجود مرتجعات
     if (invoice.returns?.length > 0) {
@@ -1221,9 +1091,10 @@ const InvoiceManager = {
 
 
     // تحديث رؤوس الأعمدة حسب نوع الخصم
-    if (discountScope === "items" && discountAmount > 0) {
-      // **فواتير عليها خصم بنود: تظهر جميع الأعمدة حتى لو بعض البنود بدون خصم**
-      thead.innerHTML = `
+    if (thead) {
+      if (discountScope === "items" && discountAmount > 0) {
+        // **فواتير عليها خصم بنود: تظهر جميع الأعمدة حتى لو بعض البنود بدون خصم**
+        thead.innerHTML = `
             <tr>
             <th>الصنف</th>
             <th>الكمية</th>
@@ -1235,9 +1106,9 @@ const InvoiceManager = {
             <th>مرتجع</th>
             </tr>
         `;
-    } else {
-      // **فواتير بدون خصم بنود: تظهر العمود العادي فقط**
-      thead.innerHTML = `
+      } else {
+        // **فواتير بدون خصم بنود: تظهر العمود العادي فقط**
+        thead.innerHTML = `
             <tr>
             <th>الصنف</th>
             <th>الكمية</th>
@@ -1246,9 +1117,15 @@ const InvoiceManager = {
             <th>مرتجع</th>
             </tr>
         `;
+      }
     }
 
-    tbody.innerHTML = "";
+    if (tbody) {
+      tbody.innerHTML = "";
+    } else {
+      console.error("tbody #invoiceItemsDetails not found");
+      return;
+    }
 
     if (invoice.items?.length > 0) {
       let totalBeforeDiscount = 0;

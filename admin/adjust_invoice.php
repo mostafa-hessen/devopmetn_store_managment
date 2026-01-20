@@ -268,32 +268,40 @@ $back_url = $customer_id > 0
             <!-- ملخص الإجماليات -->
             <div class="summary-card">
                 <div class="row text-center mb-3">
-                    <div class="col-md-3 col-6 mb-3">
+                    <div class="col-md-4 col-6 mb-3">
                         <div class="summary-item">
                             <div class="summary-label">الإجمالي قبل الخصم</div>
                             <div class="summary-value" id="totalBefore">0.00</div>
                             <div class="summary-currency">ج.م</div>
+                            <div class="mt-2 pt-2 border-top text-center">
+                                <span class="badge bg-warning text-dark p-2" style="font-size: 0.9rem;">
+                                    إجمالي المرتجعات للكل: <span class="fw-bold" id="totalReturnsSub">0.00</span> ج.م
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-3 col-6 mb-3">
+
+                    <div class="col-md-4 col-6 mb-3">
                         <div class="summary-item">
-                            <div class="summary-label">إجمالي المرتجعات  من البنود الفعاله</div>
-                            <div class="summary-value text-warning" id="totalReturns">0.00</div>
-                            <div class="summary-currency">ج.م</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <div class="summary-item">
-                            <div class="summary-label">إجمالي الخصومات</div>
+                            <!-- <div class="summary-label">إجمالي الخصومات من الكميات الغير مرتجعه</div> -->
+                            <div class="summary-label">إجمالي الخصومات الحالي   </div>
                             <div class="summary-value text-danger" id="totalDiscounts">0.00</div>
                             <div class="summary-currency">ج.م</div>
+                            <div class="mt-2 pt-2 border-top text-center">
+                                <span class="badge bg-danger p-2" style="font-size: 0.9rem;">
+                                    إجمالي الخصومات الحالي + المضاف: <span class="fw-bold" id="totalDiscountsAll">0.00</span> ج.م
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-3 col-6 mb-3">
+                    <div class="col-md-4 col-6 mb-3">
                         <div class="summary-item">
                             <div class="summary-label">الصافي</div>
                             <div class="summary-value text-primary" id="totalAfter">0.00</div>
                             <div class="summary-currency">ج.م</div>
+                            <div class="mt-2 pt-2 border-top text-muted" dir="ltr" style="font-size: 0.8rem;">
+                                <span id="netCalculationDetails">0 - 0 - 0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -517,29 +525,63 @@ function displayItems() {
         const unitPriceAfterDiscount = item.unit_price_after_discount || 0;
         const currentTotalAfter = currentQuantity * unitPriceAfterDiscount;
         const returnedQty = item.returned_quantity || 0;
+        const isFullyReturned = returnedQty >= item.quantity;
         const isLocked = returnedQty > 0;
         
-        if (isLocked) {
-            row.classList.add('row-disabled');
+        if (isFullyReturned) {
+            row.classList.add('table-danger'); // خلفية حمراء
+            row.style.opacity = '0.7';
+            row.title = 'هذا البند مرتجع بالكامل ولا يمكن تعديله';
+        } else if (isLocked) {
+             // row.classList.add('row-disabled');
         }
+        
+        // حساب تفاصيل الخصم
+        const unitDiscount = (item.selling_price || 0) - (item.unit_price_after_discount || 0);
+        const activeDiscount = (item.available_for_return || 0) * unitDiscount;
+        const totalHistoryDiscount = (item.quantity || 0) * unitDiscount;
         
         row.innerHTML = `
             <td>
                 <strong>${item.product_name}</strong>
                 <span class="item-profit-indicator" data-item-id="${item.id}"></span>
-                ${isLocked ? `
+                ${isFullyReturned ? `
+                    <span class="badge bg-danger ms-1">
+                        <i class="fas fa-ban"></i> مرتجع بالكامل
+                    </span>
+                ` : isLocked ? `
                     <span class="badge-returned-lock" title="لا يمكن تعديل بنود بها مرتجعات">
-                        <i class="fas fa-lock"></i> غير قابل للتعديل (يوجد مرتجع)
+                        <i class="fas fa-lock"></i> غير قابل (مرتجع جزئي)
                     </span>
                 ` : ''}
             </td>
             <td class="text-center">
                 ${currentQuantity.toFixed(2)}
-                ${returnedQty > 0 ? `<br><small class="text-muted">مرتجع: ${returnedQty.toFixed(2)}</small>` : ''}
+                ${returnedQty > 0 ? `<div class="mt-1"><span class="badge bg-danger small">مرتجع: ${returnedQty.toFixed(2)}</span></div>` : ''}
             </td>
             <td class="text-center">${formatCurrency(item.selling_price)}</td>
-            <td class="text-center">${formatCurrency(item.returned_quantity > 0 ?item.total_before_discount/item.quantity * item.available_for_return :item.total_before_discount)}</td>
-            <td class="text-center">${formatCurrency(currentDiscount)}</td>
+            <td class="text-center">${formatCurrency(isFullyReturned ? (item.quantity * item.selling_price) : (item.returned_quantity > 0 ? item.total_before_discount/item.quantity * item.available_for_return : item.total_before_discount))}</td>
+            <td class="text-center">
+                ${totalHistoryDiscount > 0 ? `
+                <div class="mb-1">
+                    <span class="badge bg-info text-dark p-1" style="font-size: 0.75rem;" title="إجمالي الخصم التاريخي للبند">
+                        إجمالي خصم البند: ${formatCurrency(totalHistoryDiscount)}
+                    </span>
+                </div>
+                ` : ''}
+
+                ${unitDiscount > 0 ? `
+                <div class="mb-1">
+                    <span class="badge bg-light text-dark border p-1" style="font-size: 0.75rem;">
+                        خصم الوحدة: ${formatCurrency(unitDiscount)}
+                    </span>
+                </div>
+                ` : ''}
+                
+               
+                
+                ${totalHistoryDiscount <= 0 ? '<span class="text-muted small">لا يوجد خصم</span>' : ''}
+            </td>
             <td class="text-center">${formatCurrency(item.unit_price_after_discount || 0)}</td>
             <td class="text-center">
                 <select 
@@ -778,6 +820,7 @@ function calculateTotals() {
     let totalBeforeDiscount = 0;
     let totalReturns = 0; // إجمالي المرتجعات (للعرض فقط)
     let totalOldDiscounts = 0; // الخصومات القديمة للكمية المتبقية فقط
+    let totalOldDiscountsAll = 0; // الخصومات القديمة للكل
     let totalAdditionalDiscount = 0; // الخصم الإضافي الجديد
     let totalAfterDiscount = 0; // الصافي الحالي (قبل التعديل) للكمية المتبقية فقط
     let finalTotal = 0; // المطلوب النهائي (بعد التعديل) للكمية المتبقية فقط
@@ -785,10 +828,10 @@ function calculateTotals() {
     console.log(invoiceData);
     
     // حساب إجمالي المرتجعات (من API) - للعرض فقط
-    totalReturns = invoiceData.total_returns || 0;
     
     // حساب الخصومات الإضافية والإجماليات الجديدة بناءً على الكمية المتبقية فقط
     adjustedItems.forEach((item, index) => {
+        totalReturns += item.returned_quantity * item.unit_price_after_discount || 0;
         const availableQty = item.available_for_return || 0;
         const sellingPrice = item.selling_price || 0;
         const unitPriceAfterDiscount = item.unit_price_after_discount || 0;
@@ -805,11 +848,17 @@ function calculateTotals() {
         totalBeforeDiscount = invoiceData.total_before_discount || 0;
         totalCost += itemCost;
         
-        // حساب الخصم القديم للكمية المتبقية فقط
+        // حساب الخصم القديم للكل (شامل المرتجع)
+        const itemTotalBeforeAll = item.quantity * sellingPrice;
+        const itemTotalAfterAll = item.quantity * unitPriceAfterDiscount;
+        const oldDiscountAll = itemTotalBeforeAll - itemTotalAfterAll;
+        
+        // حساب الخصم القديم للكمية المتبقية فقط (الفعالة)
         const currentItemDiscount = item.discount_amount || 0;
-        // نحسب الخصم القديم بناءً على الفرق بين الإجمالي قبل وبعد الخصم للكمية المتبقية
         const oldDiscountForRemaining = itemTotalBefore - currentTotalAfter;
-        totalOldDiscounts += oldDiscountForRemaining;
+        
+        totalOldDiscountsAll += oldDiscountAll; // تجميع الخصم الكلي
+        totalOldDiscounts += oldDiscountForRemaining; // تجميع خصم المتبقي
         
         let additionalDiscount = 0;
         
@@ -890,8 +939,27 @@ function calculateTotals() {
     
     // تحديث العرض (جميع القيم بناءً على الكمية المتبقية فقط)
     document.getElementById('totalBefore').textContent = formatNumber(totalBeforeDiscount);
-    document.getElementById('totalReturns').textContent = formatNumber(totalReturns);
-    document.getElementById('totalDiscounts').textContent = formatNumber(totalOldDiscounts + totalAdditionalDiscount);
+    document.getElementById('totalReturnsSub').textContent = formatNumber(totalReturns); // تحديث القيمة الفرعية للمرتجعات
+    
+    // إجمالي الخصومات للكل (All Items) - شامل التاريخي والجديد المضاف حالياً
+    const finalTotalDiscountsAll = totalOldDiscountsAll + totalAdditionalDiscount;
+    
+    // عرض الإجمالي في الكارت الرئيسي
+    document.getElementById('totalDiscounts').textContent = formatNumber(totalOldDiscountsAll);
+    
+    // تحديث البادج الفرعي إذا لزم الأمر أو تركه كما هو للتوضيح
+    document.getElementById('totalDiscountsAll').textContent = formatNumber(finalTotalDiscountsAll);
+    
+    // تفاصيل معادلة الصافي: الإجمالي قبل - المرتجع - الخصم الكلي
+    document.getElementById('netCalculationDetails').innerHTML = `
+        <div class="d-flex justify-content-center align-items-center flex-wrap mt-2">
+            <span class="badge bg-secondary p-2 m-1">${formatNumber(totalBeforeDiscount)} (الإجمالي)</span>
+            <i class="fas fa-minus text-muted mx-1"></i>
+            <span class="badge bg-warning text-dark p-2 m-1">${formatNumber(totalReturns)} (مرتجع)</span>
+            <i class="fas fa-minus text-muted mx-1"></i>
+            <span class="badge bg-danger p-2 m-1">${formatNumber(totalOldDiscountsAll)} (خصم كلي)</span>
+        </div>
+    `;
     document.getElementById('totalAfter').textContent = formatNumber(totalAfterDiscount);
     document.getElementById('totalAdditionalDiscount').textContent = formatNumber(totalAdditionalDiscount);
     document.getElementById('finalTotal').textContent = formatNumber(finalTotal);
@@ -1198,18 +1266,24 @@ async function saveAdjustment() {
         document.getElementById('loaderOverlay').style.display = 'none';
         
         if (result.success) {
-            await Swal.fire({
-                icon: 'success',
-                title: 'تم بنجاح',
-                text: result.message || 'تم تطبيق التعديل بنجاح',
-                timer: 2000,
-                showConfirmButton: false
-            });
+            // إظهار رسالة النجاح والتحويل
+            const loaderOverlay = document.getElementById('loaderOverlay');
+            loaderOverlay.style.display = 'flex';
+            loaderOverlay.innerHTML = `
+                <div class="text-center text-white">
+                    <div class="loader-spinner mb-3 mx-auto"></div>
+                    <h4 class="mb-2">تم بنجاح!</h4>
+                    <p>سيتم تحويلك الآن لصفحة العميل...</p>
+                </div>
+            `;
             
-            // الرجوع لصفحة تفاصيل العميل
-            // window.location.href = '<?php echo $back_url; ?>';
+            // تأخير بسبط لرؤية الرسالة ثم التحويل
+            setTimeout(() => {
+                window.location.href = '<?php echo $back_url; ?>';
+            }, 1500);
             
         } else {
+            document.getElementById('loaderOverlay').style.display = 'none';
             Swal.fire('خطأ', result.message || 'فشل في تطبيق التعديل', 'error');
         }
         

@@ -91,7 +91,7 @@ try {
         FROM invoice_out_items ioi
         JOIN products p ON p.id = ioi.product_id
         WHERE ioi.invoice_out_id = ?
-        AND ioi.returned_quantity < ioi.quantity
+        /* AND ioi.returned_quantity < ioi.quantity */
         ORDER BY ioi.id
     ");
     

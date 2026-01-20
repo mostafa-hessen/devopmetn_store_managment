@@ -99,7 +99,7 @@ try {
         FROM invoice_out_items ioi
         JOIN products p ON ioi.product_id = p.id
         WHERE ioi.invoice_out_id = ? 
-        AND ioi.returned_quantity < ioi.quantity
+        /* AND ioi.returned_quantity < ioi.quantity */
         ORDER BY ioi.id
     ");
     $stmt->bind_param("i", $invoiceId);
@@ -262,32 +262,38 @@ try {
     $newInvoiceTotalBefore = 0;
     $newTotalAfterDiscount = 0;
     $newInvoiceTotalCost = 0;
+    $newInvoiceDiscountAmount = 0;
     
     foreach ($currentItems as $item) {
         $itemId = intval($item['id']);
-        $availableQty = floatval($item['quantity']) - floatval($item['returned_quantity']);
+        $totalQty = floatval($item['quantity']);
+        $returnedQty = floatval($item['returned_quantity']);
+        $availableQty = $totalQty - $returnedQty;
         $unitPriceBefore = floatval($item['selling_price']);
         $unitCost = floatval($item['cost_price_per_unit']);
         
-        $newInvoiceTotalBefore += ($unitPriceBefore * $availableQty);
+        // إجمالي قبل الخصم للكمية الأصلية بالكامل
+        $newInvoiceTotalBefore += ($unitPriceBefore * $totalQty);
+        
+        // التكلفة للكمية المتبقية فقط
         $newInvoiceTotalCost += ($unitCost * $availableQty);
         
         if (isset($updatedItemsMap[$itemId])) {
-            // بند معدل - نستخدم سعر الوحدة الجديد
+            // البند معدل
+            $newInvoiceDiscountAmount += $updatedItemsMap[$itemId]['new_discount_amount'];
             $newTotalAfterDiscount += ($updatedItemsMap[$itemId]['new_unit_price'] * $availableQty);
         } else {
-            // بند غير معدل - نستخدم سعر الوحدة الحالي
+            // البند غير معدل
+            $newInvoiceDiscountAmount += floatval($item['discount_amount']);
             $newTotalAfterDiscount += (floatval($item['unit_price_after_discount']) * $availableQty);
         }
     }
     
-    // حساب الخصم الإجمالي الجديد للفاتورة (الفرق بين الإجمالي قبل وبعد الخصم للكميات المتبقية)
-    $newInvoiceDiscountAmount = $newInvoiceTotalBefore - $newTotalAfterDiscount;
-    $oldTotalAfterDiscount = floatval($invoice['total_after_discount']);
-    
-    // حساب discount_type و discount_value للفاتورة
+    // حساب discount_type و discount_value للفاتورة (نسبة الخصم الإجمالية للكل)
     $newInvoiceDiscountType = 'percent';
     $newInvoiceDiscountValue = $newInvoiceTotalBefore > 0 ? ($newInvoiceDiscountAmount / $newInvoiceTotalBefore) * 100 : 0;
+    
+    $oldTotalAfterDiscount = floatval($invoice['total_after_discount']);
     
     // حساب الربح الجديد
     $newProfitAmount = $newTotalAfterDiscount - $newInvoiceTotalCost;
@@ -299,7 +305,7 @@ try {
     
     $stmtUpdateInvoice = $conn->prepare("
         UPDATE invoices_out 
-        SET total_before_discount = ?,
+        SET 
             discount_type = ?,
             discount_value = ?,
             discount_amount = ?,
@@ -311,8 +317,8 @@ try {
             updated_at = NOW()
         WHERE id = ?
     ");
-    $stmtUpdateInvoice->bind_param("dsdddddddi",
-        $newInvoiceTotalBefore,
+    $stmtUpdateInvoice->bind_param("sdddddddi",
+    
         $newInvoiceDiscountType,
         $newInvoiceDiscountValue,
         $newInvoiceDiscountAmount,

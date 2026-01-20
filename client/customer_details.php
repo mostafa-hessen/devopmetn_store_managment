@@ -415,8 +415,7 @@
                       <th>قبل التعديل</th>
                       <th>بعد التعديل</th>
                    
-                      <th>الربح قبل</th>
-                      <th>الربح بعد</th>
+
                       <!-- <th>طريقة الإرجاع</th>
                       <th>مبلغ الإرجاع</th> -->
                       <th>السبب</th>
@@ -1348,15 +1347,47 @@
             </div>
 
             <div class="row mt-3">
-              <div class="col-md-4">
-                <strong>الإجمالي:</strong> <span id="invoiceItemsTotal"></span>
-              </div>
-              <div class="col-md-4">
-                <strong>المدفوع:</strong> <span id="invoiceItemsPaid"></span>
-              </div>
-              <div class="col-md-4">
-                <strong>المتبقي:</strong>
-                <span id="invoiceItemsRemaining"></span>
+              <div class="col-12">
+                <div class="card border-0 shadow-sm" style="background-color: var(--surface-2);">
+                  <div class="card-body p-3">
+                    <div class="row g-3 text-center">
+                      <!-- Row 1: Calculations -->
+                      <div class="col-md-3 col-6 border-end" style="border-color: var(--border) !important;">
+                        <small class="text-muted d-block mb-1">الإجمالي (قبل الخصم)</small>
+                        <div id="invoiceItemsGrossTotal" class="fw-bold" style="color: var(--text);">0.00 ج.م</div>
+                      </div>
+                      
+                      <div class="col-md-3 col-6 border-end" style="border-color: var(--border) !important;">
+                        <small class="text-muted d-block mb-1">قيمة الخصم</small>
+                        <div id="invoiceItemsDiscount" class="fw-bold text-danger">0.00 ج.م</div>
+                      </div>
+
+                      <div class="col-md-3 col-6 border-end" style="border-color: var(--border) !important;">
+                        <small class="text-muted d-block mb-1">المرتجعات</small>
+                        <div id="invoiceItemsReturnsAmount" class="fw-bold text-warning">0.00 ج.م</div>
+                      </div>
+
+                      <div class="col-md-3 col-6">
+                        <small class="text-muted d-block mb-1">الصافي النهائي</small>
+                        <div id="invoiceItemsNetTotal" class="fw-bold fs-5" style="color: var(--primary);">0.00 ج.م</div>
+                      </div>
+
+                      <!-- Divider -->
+                      <div class="col-12"><hr class="my-1" style="color: var(--border);"></div>
+
+                      <!-- Row 2: Payment Status -->
+                      <div class="col-md-6 col-6 border-end" style="border-color: var(--border) !important;">
+                        <small class="text-muted d-block mb-1"><i class="fas fa-check-circle text-success me-1"></i>المدفوع</small>
+                        <div id="invoiceItemsPaid" class="fw-bold text-success fs-5">0.00 ج.م</div>
+                      </div>
+
+                      <div class="col-md-6 col-6">
+                        <small class="text-muted d-block mb-1"><i class="fas fa-exclamation-circle text-danger me-1"></i>المطلوب سداده</small>
+                        <div id="invoiceItemsRemaining" class="fw-bold text-danger fs-4">0.00 ج.م</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="row mt-2">
@@ -1608,8 +1639,7 @@ async function loadInvoiceAdjustments() {
                 <td>${formatCurrency(adj.old_total_after_discount)}</td>
                 <td>${formatCurrency(adj.new_total_after_discount)}</td>
          
-                <td>${formatCurrency(adj.old_profit_amount)}</td>
-                <td>${formatCurrency(adj.new_profit_amount)}</td>
+
                 <td><small>${escapeHtml(adj.reason)}</small></td>
                 <td>${adj.created_by_name || 'غير محدد'}</td>
             `;
