@@ -327,6 +327,57 @@ require_once BASE_DIR . 'partials/sidebar.php';
     .modal-box { background: var(--surface); width: 90%; max-width: 900px; max-height: 85vh; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .modal-body { padding: 20px; overflow-y: auto; }
+
+    /* --- Professional Top Search --- */
+    .top-search-section {
+        background: var(--surface);
+        border-radius: 15px;
+        padding: 18px 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+    }
+    .work-order-search-container { flex: 1; position: relative; }
+    .work-order-search-container input {
+        width: 100%; padding: 12px 45px 12px 45px; border-radius: 12px;
+        border: 2px solid var(--border); background: var(--surface-2);
+        font-size: 1rem; transition: all 0.3s; font-weight: 600;
+    }
+    .work-order-search-container input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); background: var(--surface); }
+    .work-order-search-container i.search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.1rem; pointer-events: none; }
+    
+    .clear-search-btn {
+        position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+        color: #ef4444; cursor: pointer; font-size: 1.1rem; display: none;
+        transition: all 0.2s; padding: 5px; z-index: 5;
+    }
+    .clear-search-btn:hover { transform: translateY(-50%) scale(1.1); color: #dc2626; }
+
+    .wo-suggestions {
+        position: absolute; top: calc(100% + 5px); right: 0; left: 0;
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 400px;
+        overflow-y: auto; z-index: 1000; display: none;
+    }
+    .wo-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
+    .wo-item:hover { background: rgba(99, 102, 241, 0.05); }
+    .wo-item:last-child { border-bottom: none; }
+    .wo-item-info { display: flex; flex-direction: column; gap: 4px; }
+    .wo-item-title { font-weight: 800; color: var(--primary); font-size: 0.95rem; }
+    .wo-item-customer { font-size: 0.85rem; color: var(--text-muted); }
+    .wo-item-status { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    
+    .status-pending-bg { background: #fef3c7; color: #92400e; }
+    .status-in_progress-bg { background: #e0f2fe; color: #0369a1; }
+    .status-completed-bg { background: #d1fae5; color: #065f46; }
+    .status-cancelled-bg { background: #fee2e2; color: #991b1b; }
 </style>
 
 <div class="page-wrapper">
@@ -422,6 +473,16 @@ require_once BASE_DIR . 'partials/sidebar.php';
                 </div>
                 <div style="font-size: 3.5rem; opacity: 0.1; transform: rotate(-10deg);">
                     <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+            </div>
+
+            <!-- البحث العلوي الذكي الجديد -->
+            <div class="top-search-section">
+                <div class="work-order-search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="woTopSearch" placeholder="ابحث عن شغلانة بالاسم أو الرقم في هذه الفترة..." autocomplete="off">
+                    <i class="fas fa-times-circle clear-search-btn" id="clearTopSearch"></i>
+                    <div class="wo-suggestions" id="woTopSuggestions"></div>
                 </div>
             </div>
             
@@ -591,30 +652,96 @@ require_once BASE_DIR . 'partials/sidebar.php';
     });
 
     function setupWorkOrderSearch() {
-        const input = document.getElementById('filter_work_order_input');
-        const list = document.getElementById('wo_suggestions');
-        input.addEventListener('input', function() {
-            clearTimeout(woTimer);
-            const val = this.value.trim();
-            if (val.length < 1) { list.classList.remove('active'); return; }
-            woTimer = setTimeout(() => {
-                fetch(`net_profit_report.php?action=search_work_orders&q=${encodeURIComponent(val)}`)
-                    .then(r => r.json())
-                    .then(d => {
-                        if (d.ok && d.results.length > 0) {
-                            list.innerHTML = d.results.map(wo => `
-                                <div class="suggestion-item" onclick="selectWorkOrder(${wo.id}, '${wo.title.replace(/'/g, "\\'")}', '${wo.customer_name||''}')">
-                                    <strong>${wo.title} (#${wo.id})</strong>
-                                    <small>${wo.customer_name || 'عميل غير مسجل'}</small>
+        const woInput = document.getElementById('woTopSearch');
+        const suggestionsBox = document.getElementById('woTopSuggestions');
+        const clearBtn = document.getElementById('clearTopSearch');
+        
+        // ربط مع الفلاتر الجانبية
+        const sideWoInput = document.getElementById('filter_work_order_input');
+        const sideWoId = document.getElementById('filter_work_order_id');
+        const sideClearBtn = document.getElementById('btn_clear_wo');
+
+        const resetSearch = () => {
+            if (woInput) woInput.value = '';
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (suggestionsBox) suggestionsBox.style.display = 'none';
+            
+            // مسح قيم الفلترة
+            if (sideWoInput) sideWoInput.value = '';
+            if (sideWoId) sideWoId.value = '';
+            if (sideClearBtn) sideClearBtn.style.display = 'none';
+            
+            reloadData();
+        };
+
+        woInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            if (woTimer) clearTimeout(woTimer);
+
+            if (query.length > 0) {
+                if (clearBtn) clearBtn.style.display = 'block';
+            } else {
+                resetSearch();
+                return;
+            }
+
+            woTimer = setTimeout(async () => {
+                try {
+                    const start = document.getElementById('start_date').value;
+                    const end = document.getElementById('end_date').value;
+                    
+                    suggestionsBox.innerHTML = '<div class="wo-item" style="justify-content: center; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</div>';
+                    suggestionsBox.style.display = 'block';
+
+                    const response = await fetch(`../api/search_work_orders.php?query=${encodeURIComponent(query)}&start_date=${start}&end_date=${end}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.suggestions.length > 0) {
+                        suggestionsBox.innerHTML = data.suggestions.map(wo => `
+                            <div class="wo-item" data-id="${wo.id}" data-title="${wo.title}">
+                                <div class="wo-item-info">
+                                    <span class="wo-item-title">#${wo.id} - ${wo.title}</span>
+                                    <span class="wo-item-customer"><i class="fas fa-user"></i> ${wo.customer_name}</span>
                                 </div>
-                            `).join('');
-                            list.classList.add('active');
-                        } else { list.classList.remove('active'); }
-                    });
+                                <span class="wo-item-status status-${wo.status}-bg">${wo.status_text}</span>
+                            </div>
+                        `).join('');
+
+                        suggestionsBox.querySelectorAll('.wo-item').forEach(item => {
+                            item.addEventListener('click', () => {
+                                const id = item.dataset.id;
+                                const title = item.dataset.title;
+                                
+                                // تحديث الحقول
+                                woInput.value = `#${id} - ${title}`;
+                                if (sideWoInput) sideWoInput.value = title;
+                                if (sideWoId) sideWoId.value = id;
+                                if (sideClearBtn) sideClearBtn.style.display = 'block';
+                                
+                                suggestionsBox.style.display = 'none';
+                                reloadData();
+                            });
+                        });
+                    } else {
+                        suggestionsBox.innerHTML = '<div class="wo-item" style="justify-content: center; color: var(--text-muted); flex-direction: column; gap: 8px; padding: 20px;">' + 
+                                                   '<i class="fas fa-search-minus fa-2x"></i>' +
+                                                   '<span>لا توجد نتائج في هذه الفترة</span>' +
+                                                   '<small style="font-size: 0.75rem;">تأكد من اختيار الفترة الصحيحة</small>' +
+                                                   '</div>';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    suggestionsBox.style.display = 'none';
+                }
             }, 300);
         });
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !list.contains(e.target)) list.classList.remove('active');
+
+        if (clearBtn) clearBtn.addEventListener('click', resetSearch);
+
+        document.addEventListener('click', (e) => {
+            if (!woInput.contains(e.target) && !suggestionsBox.contains(e.target) && (!clearBtn || !clearBtn.contains(e.target))) {
+                suggestionsBox.style.display = 'none';
+            }
         });
     }
 
@@ -627,6 +754,8 @@ require_once BASE_DIR . 'partials/sidebar.php';
     }
 
     function clearWorkOrderFilter() {
+        if (document.getElementById('woTopSearch')) document.getElementById('woTopSearch').value = '';
+        if (document.getElementById('clearTopSearch')) document.getElementById('clearTopSearch').style.display = 'none';
         document.getElementById('filter_work_order_input').value = '';
         document.getElementById('filter_work_order_id').value = '';
         document.getElementById('btn_clear_wo').style.display = 'none';

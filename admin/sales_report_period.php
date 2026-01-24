@@ -131,6 +131,7 @@ if (!$start_ok || !$end_ok) {
                     io.delivered,
                     io.work_order_id,
                     wo.title as work_order_title,
+                    wo.status as work_order_status,
                     CASE 
                         WHEN io.remaining_amount = 0 THEN 'paid'
                         WHEN io.paid_amount > 0 AND io.remaining_amount > 0 THEN 'partial'
@@ -989,13 +990,208 @@ require_once BASE_DIR . 'partials/sidebar.php';
     gap: 10px;
     z-index: 10000;
 }
+/* البحث العلوي الاحترافي */
+.top-search-section {
+    background: var(--surface);
+    border-radius: 15px;
+    padding: 18px 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+}
+
+.work-order-search-container {
+    flex: 1;
+    position: relative;
+}
+
+.work-order-search-container input {
+    width: 100%;
+    padding: 12px 45px 12px 45px; /* تم زيادة البادينج من الطرفين لمنع التداخل مع الأيقونات */
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--surface-2);
+    font-size: 1rem;
+    transition: all 0.3s;
+    font-weight: 600;
+}
+
+.work-order-search-container input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    background: var(--surface);
+}
+
+.work-order-search-container i.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 1.1rem;
+}
+
+.wo-suggestions {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.wo-suggestion-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.wo-suggestion-item:hover {
+    background: var(--primary-weak);
+}
+
+.wo-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.wo-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wo-title {
+    font-weight: 800;
+    color: var(--primary);
+    font-size: 0.95rem;
+}
+
+
+.wo-customer {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.wo-status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-pending-bg { background: #fef3c7; color: #92400e; }
+.status-in_progress-bg { background: #e0f2fe; color: #0369a1; }
+.status-completed-bg { background: #d1fae5; color: #065f46; }
+.status-cancelled-bg { background: #fee2e2; color: #991b1b; }
+
+.period-warning {
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    color: #92400e;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .top-search-section {
+    background: #1e1e1e;
+    border-color: #333;
+}
+
+[data-theme="dark"] .work-order-search-container input {
+    background: #2a2a2a;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .period-warning {
+    background: #2d2a1a;
+    border-color: #444;
+    color: #fbbf24;
+}
+
+.work_order_search-container i.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 1.1rem;
+    pointer-events: none;
+}
+
+.clear-search {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ef4444; /* لون أحمر واضح للمسح */
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: none;
+    transition: all 0.2s;
+    padding: 5px;
+    z-index: 5;
+}
+
+.clear-search:hover {
+    transform: translateY(-50%) scale(1.1);
+    color: #dc2626;
+}
 </style>
+
+
 
 <div class="sales-report-page">
     <div class="header-section">
         <h1><i class="fas fa-chart-line"></i> تقرير المبيعات المتقدم</h1>
         <div class="subtitle">إدارة شاملة للفواتير مع فلترة متقدمة وعرض تفصيلي</div>
     </div>
+
+    <!-- البحث العلوي -->
+    <div class="top-search-section">
+        <div class="work-order-search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="woTopSearch" placeholder="ابحث عن شغلانة (ID، اسم الشغلانة، العميل)..." autocomplete="off">
+            <i class="fas fa-times-circle clear-search" id="clearSearch"></i>
+            <div class="wo-suggestions" id="woTopSuggestions"></div>
+        </div>
+        <div class="top-actions">
+            <!-- يمكن إضافة أزرار سريعة هنا -->
+        </div>
+    </div>
+
+    <?php 
+    // إذا كنت لا تعرض فترة محددة (كلاهما اليوم)
+    if ($start_date_filter == $today && $end_date_filter == $today) {
+        echo '
+        <div class="period-warning">
+            <i class="fas fa-calendar-day"></i>
+            <span>تنبيه: أنت تعرض مبيعات "اليوم" فقط. يمكنك تغيير الفترة من الفلاتر الجانبية.</span>
+        </div>';
+    }
+    ?>
 
     <div class="sales-report-main">
         <!-- الفلاتر الجانبية -->
@@ -1041,10 +1237,13 @@ require_once BASE_DIR . 'partials/sidebar.php';
                 <!-- البحث المتقدم -->
                 <div class="filter-group">
                     <label>بحث شامل</label>
-                    <input type="text" name="advanced_search" 
-                           placeholder="رقم فاتورة، اسم عميل، ملاحظات..." 
-                           value="<?php echo htmlspecialchars($advanced_search); ?>"
-                           id="globalSearch">
+                    <div style="position: relative;">
+                        <input type="text" name="advanced_search" 
+                               placeholder="رقم فاتورة، اسم عميل، ملاحظات..." 
+                               value="<?php echo htmlspecialchars($advanced_search); ?>"
+                               id="globalSearch">
+                        <i class="fas fa-times-circle clear-search" id="clearGlobalSearch" style="left: 10px; right: auto;"></i>
+                    </div>
                     <div class="search-suggestions" id="searchSuggestions"></div>
                 </div>
 
@@ -1169,9 +1368,21 @@ require_once BASE_DIR . 'partials/sidebar.php';
                                         <span class="invoice-number">#<?php echo $invoice['invoice_id']; ?></span>
                                         <span class="invoice-status <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
                                     
-                                        <?php if ($invoice['work_order_id']): ?>
-                                            <span style="color: var(--muted); font-size: 0.85rem;">
+                                        <?php if ($invoice['work_order_id']): 
+                                            $wo_status_text = '';
+                                            $wo_status_class = '';
+                                            switch($invoice['work_order_status']) {
+                                                case 'pending': $wo_status_text = 'قيد التنفيذ'; $wo_status_class = 'status-pending-bg'; break;
+                                                case 'in_progress': $wo_status_text = 'جاري العمل'; $wo_status_class = 'status-in_progress-bg'; break;
+                                                case 'completed': $wo_status_text = 'مكتمل'; $wo_status_class = 'status-completed-bg'; break;
+                                                default: $wo_status_text = 'ملغي'; $wo_status_class = 'status-cancelled-bg';
+                                            }
+                                        ?>
+                                            <span style="color: var(--muted); font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
                                                 <i class="fas fa-project-diagram"></i> <?php echo htmlspecialchars($invoice['work_order_title']); ?>
+                                                <span class="wo-status-badge <?php echo $wo_status_class; ?>" style="font-size: 0.7rem; padding: 2px 8px;">
+                                                    <?php echo $wo_status_text; ?>
+                                                </span>
                                             </span>
                                         <?php endif; ?>
                                     </div>
@@ -1287,6 +1498,7 @@ class SalesReport {
     constructor() {
         this.currentInvoiceIndex = 0;
         this.selectedInvoices = new Set();
+        this.searchTimeout = null; // للتأخير (debouncing)
         this.updateInvoicesData();
         this.init();
     }
@@ -1303,6 +1515,9 @@ class SalesReport {
     }
 
     init() {
+        // إضافة أحداث البحث العلوي (الشغلانات)
+        this.setupWorkOrderSearch();
+
         // إضافة أحداث الفلاتر
         this.setupFilters();
         
@@ -1357,9 +1572,20 @@ class SalesReport {
         // البحث الآني
         const globalSearch = document.getElementById('globalSearch');
         const searchSuggestions = document.getElementById('searchSuggestions');
+        const clearGlobal = document.getElementById('clearGlobalSearch');
         
+        if (globalSearch.value) clearGlobal.style.display = 'block';
+
         globalSearch.addEventListener('input', (e) => {
             const query = e.target.value.trim();
+            
+            if (query.length > 0) {
+                clearGlobal.style.display = 'block';
+            } else {
+                clearGlobal.style.display = 'none';
+                this.submitFilters();
+            }
+
             if (query.length < 2) {
                 searchSuggestions.style.display = 'none';
                 return;
@@ -1368,6 +1594,120 @@ class SalesReport {
             // محاكاة اقتراحات البحث
             this.showSearchSuggestions(query);
         });
+
+        clearGlobal.addEventListener('click', () => {
+            globalSearch.value = '';
+            clearGlobal.style.display = 'none';
+            searchSuggestions.style.display = 'none';
+            this.submitFilters();
+        });
+
+    }
+
+    setupWorkOrderSearch() {
+        const woInput = document.getElementById('woTopSearch');
+        const suggestionsBox = document.getElementById('woTopSuggestions');
+        const clearBtn = document.getElementById('clearSearch');
+        const woFilterInput = document.querySelector('input[name="work_order"]');
+        
+        const resetSearch = () => {
+            if (woInput) woInput.value = '';
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (suggestionsBox) suggestionsBox.style.display = 'none';
+            if (woFilterInput && woFilterInput.value) {
+                woFilterInput.value = '';
+                this.submitFilters();
+            }
+        };
+
+        woInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            // إلغاء المهلة السابقة
+            if (this.searchTimeout) clearTimeout(this.searchTimeout);
+
+            if (query.length > 0) {
+                if (clearBtn) clearBtn.style.display = 'block';
+            } else {
+                resetSearch();
+                return;
+            }
+
+            // تعيين مهلة جديدة (300ms)
+            this.searchTimeout = setTimeout(async () => {
+                try {
+                    const startDate = document.getElementById('start_date').value;
+                    const endDate = document.getElementById('end_date').value;
+                    
+                    // إظهار رسالة "جاري البحث"
+                    suggestionsBox.innerHTML = '<div class="wo-suggestion-item" style="justify-content: center; color: var(--muted);"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</div>';
+                    suggestionsBox.style.display = 'block';
+
+                    const response = await fetch(`../api/search_work_orders.php?query=${encodeURIComponent(query)}&start_date=${startDate}&end_date=${endDate}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.suggestions.length > 0) {
+                        this.renderWOSuggestions(data.suggestions);
+                    } else {
+                        suggestionsBox.innerHTML = '<div class="wo-suggestion-item" style="justify-content: center; color: var(--muted); flex-direction: column; gap: 8px; padding: 20px;">' + 
+                                                   '<i class="fas fa-search-minus fa-2x"></i>' +
+                                                   '<span>لا توجد نتائج في هذه الفترة</span>' +
+                                                   '<small style="font-size: 0.75rem;">تأكد من اختيار الفترة الصحيحة من الفلاتر</small>' +
+                                                   '</div>';
+                    }
+                } catch (error) {
+                    console.error('Error fetching suggestions:', error);
+                    suggestionsBox.style.display = 'none';
+                }
+            }, 300);
+        });
+
+        if (clearBtn) clearBtn.addEventListener('click', resetSearch);
+
+        // إغلاق الاقتراحات عند النقر في الخارج
+        document.addEventListener('click', (e) => {
+            if (woInput && suggestionsBox) {
+                if (!woInput.contains(e.target) && !suggestionsBox.contains(e.target) && (!clearBtn || !clearBtn.contains(e.target))) {
+                    suggestionsBox.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    renderWOSuggestions(suggestions) {
+        const suggestionsBox = document.getElementById('woTopSuggestions');
+        suggestionsBox.innerHTML = suggestions.map(wo => `
+            <div class="wo-suggestion-item" data-id="${wo.id}" data-title="${wo.title}">
+                <div class="wo-info">
+                    <span class="wo-title">#${wo.id} - ${wo.title}</span>
+                    <span class="wo-customer"><i class="fas fa-user"></i> ${wo.customer_name}</span>
+                </div>
+                <span class="wo-status-badge status-${wo.status}-bg">${wo.status_text}</span>
+            </div>
+        `).join('');
+
+        suggestionsBox.querySelectorAll('.wo-suggestion-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const id = item.dataset.id;
+                const title = item.dataset.title;
+                
+                // تحديث حقل البحث الجانبي
+                const woFilter = document.querySelector('input[name="work_order"]');
+                if (woFilter) {
+                    woFilter.value = id;
+                }
+                
+                // تحديث حقل البحث العلوي
+                const woInput = document.getElementById('woTopSearch');
+                woInput.value = `#${id} - ${title}`;
+                document.getElementById('clearSearch').style.display = 'block';
+                document.getElementById('woTopSuggestions').style.display = 'none';
+                
+                // تطبيق الفلاتر
+                this.submitFilters();
+            });
+        });
+
     }
 
     submitFilters() {
