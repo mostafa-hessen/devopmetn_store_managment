@@ -1009,31 +1009,35 @@ require_once BASE_DIR . 'partials/sidebar.php';
 
 .work-order-search-container {
     flex: 1;
-    position: relative;
-}
-
-.work-order-search-container input {
-    width: 100%;
-    padding: 12px 45px 12px 45px; /* تم زيادة البادينج من الطرفين لمنع التداخل مع الأيقونات */
-    border-radius: 12px;
-    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
     background: var(--surface-2);
-    font-size: 1rem;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 0 15px;
     transition: all 0.3s;
-    font-weight: 600;
+    position: relative; /* ليبقى الـ suggestions تحته */
 }
 
-.work-order-search-container input:focus {
+.work-order-search-container:focus-within {
     border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
     background: var(--surface);
 }
 
+.work-order-search-container input {
+    flex: 1;
+    padding: 12px 10px;
+    border: none !important;
+    background: transparent !important;
+    font-size: 1rem;
+    font-weight: 600;
+    color: inherit;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 .work-order-search-container i.search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
     color: var(--muted);
     font-size: 1.1rem;
 }
@@ -1142,17 +1146,12 @@ require_once BASE_DIR . 'partials/sidebar.php';
 }
 
 .clear-search {
-    position: absolute;
-    left: 15px;
-    top: 50%;
-    transform: translateY(-50%);
     color: #ef4444; /* لون أحمر واضح للمسح */
     cursor: pointer;
     font-size: 1.1rem;
     display: none;
     transition: all 0.2s;
     padding: 5px;
-    z-index: 5;
 }
 
 .clear-search:hover {

@@ -344,21 +344,51 @@ require_once BASE_DIR . 'partials/sidebar.php';
         z-index: 100;
         backdrop-filter: blur(10px);
     }
-    .work-order-search-container { flex: 1; position: relative; }
-    .work-order-search-container input {
-        width: 100%; padding: 12px 45px 12px 45px; border-radius: 12px;
-        border: 2px solid var(--border); background: var(--surface-2);
-        font-size: 1rem; transition: all 0.3s; font-weight: 600;
+    .work-order-search-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        background: var(--surface-2);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 0 15px;
+        transition: all 0.3s;
+        position: relative;
     }
-    .work-order-search-container input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); background: var(--surface); }
-    .work-order-search-container i.search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.1rem; pointer-events: none; }
+    .work-order-search-container:focus-within {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        background: var(--surface);
+    }
+    .work-order-search-container input {
+        flex: 1;
+        padding: 12px 10px;
+        border: none !important;
+        background: transparent !important;
+        font-size: 1rem;
+        font-weight: 600;
+        color: inherit;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    .work-order-search-container i.search-icon {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        pointer-events: none;
+    }
     
     .clear-search-btn {
-        position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
-        color: #ef4444; cursor: pointer; font-size: 1.1rem; display: none;
-        transition: all 0.2s; padding: 5px; z-index: 5;
+        color: #ef4444;
+        cursor: pointer;
+        font-size: 1.1rem;
+        display: none;
+        transition: all 0.2s;
+        padding: 5px;
     }
-    .clear-search-btn:hover { transform: translateY(-50%) scale(1.1); color: #dc2626; }
+    .clear-search-btn:hover {
+        transform: scale(1.1);
+        color: #dc2626;
+    }
 
     .wo-suggestions {
         position: absolute; top: calc(100% + 5px); right: 0; left: 0;
