@@ -113,9 +113,14 @@
                         if (!$res) throw new Exception($conn->error);
                         $rows = $res->fetch_all(MYSQLI_ASSOC);
                     } else {
+                        // تحسين البحث ليدعم الكلمات المتعددة، التطبيع المتقدم، والبحث المرن (Vowel-insensitive)
+                        $words = explode(' ', $q);
+                        $params = [];
+                        $types = '';
+                        
                         $sql = "
                             SELECT p.id, p.product_code, p.name, p.unit_of_measure, p.current_stock, p.reorder_level,
-                            p.selling_price AS product_sale_price,p.retail_price ,
+                            p.selling_price AS product_sale_price, p.retail_price,
                                 COALESCE(b.rem_sum,0) AS remaining_active,
                                 COALESCE(b.val_sum,0) AS stock_value_active,
                                 (SELECT b2.unit_cost FROM batches b2 WHERE b2.product_id = p.id AND b2.status IN ('active','consumed') ORDER BY b2.received_at DESC, b2.created_at DESC LIMIT 1) AS last_purchase_price,
@@ -123,20 +128,64 @@
                                 (SELECT b2.received_at FROM batches b2 WHERE b2.product_id = p.id AND b2.status IN ('active','consumed') ORDER BY b2.received_at DESC, b2.created_at DESC LIMIT 1) AS last_batch_date
                             FROM products p
                             LEFT JOIN (
-                            SELECT product_id, SUM(remaining) AS rem_sum, SUM(remaining * unit_cost) AS val_sum
-                            FROM batches
-                            WHERE status = 'active' AND remaining > 0
-                            GROUP BY product_id
+                                SELECT product_id, SUM(remaining) AS rem_sum, SUM(remaining * unit_cost) AS val_sum
+                                FROM batches
+                                WHERE status = 'active' AND remaining > 0
+                                GROUP BY product_id
                             ) b ON b.product_id = p.id
-                            WHERE (p.name LIKE ? OR p.product_code LIKE ? OR p.id = ?)
-                            ORDER BY p.id DESC
-                            LIMIT 2000
-                        ";
+                            WHERE ";
+
+                        $searchParts = [];
+                        foreach ($words as $word) {
+                            $word = trim($word);
+                            if ($word === '') continue;
+
+                            // تطبيع الكلمة للبحث (تجهيز نسخة مرنة)
+                            $cleanWord = preg_replace('/[أآإ]/u', 'ا', $word);
+                            $cleanWord = preg_replace('/[وي]/u', '', $cleanWord); // إزالة الواو والياء للبحث المرن
+                            
+                            if (mb_strlen($cleanWord) >= 2) {
+                                // إذا كانت الكلمة تحتوي على حرفين صحيحيين على الأقل، نبحث بالنسخة المرنة
+                                $searchParts[] = "(p.name LIKE ? OR p.product_code LIKE ? OR p.id = ? OR p.name LIKE ?)";
+                                $likeStrict = "%{$word}%";
+                                $likeFuzzy = "%";
+                                $chars = mb_str_split($word);
+                                foreach($chars as $c) {
+                                    if (!in_array($c, ['و', 'ي', 'ا', ' '])) $likeFuzzy .= $c . "%";
+                                }
+                                
+                                $word_id = is_numeric($word) ? (int)$word : 0;
+                                $params[] = $likeStrict;
+                                $params[] = $likeStrict;
+                                $params[] = $word_id;
+                                $params[] = $likeFuzzy;
+                                $types .= 'ssis';
+                            } else {
+                                $searchParts[] = "(p.name LIKE ? OR p.product_code LIKE ? OR p.id = ?)";
+                                $like = "%{$word}%";
+                                $word_id = is_numeric($word) ? (int)$word : 0;
+                                $params[] = $like;
+                                $params[] = $like;
+                                $params[] = $word_id;
+                                $types .= 'ssi';
+                            }
+                        }
+                        
+                        if (empty($searchParts)) {
+                            $sql .= "1";
+                        } else {
+                            $sql .= implode(' AND ', $searchParts);
+                        }
+
+                        $sql .= " ORDER BY p.id DESC LIMIT 2000";
+                        
                         $stmt = $conn->prepare($sql);
                         if (!$stmt) throw new Exception($conn->error);
-                        $like = "%{$q}%";
-                        $q_id = is_numeric($q) ? (int)$q : 0;
-                        $stmt->bind_param('ssi', $like, $like, $q_id);
+                        
+                        if (!empty($params)) {
+                            $stmt->bind_param($types, ...$params);
+                        }
+                        
                         $stmt->execute();
                         $res = $stmt->get_result();
                         $rows = $res->fetch_all(MYSQLI_ASSOC);
@@ -2267,13 +2316,30 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                     }, 0);
 
                     return totalStock - reserved;
-                }
+                },
 
-                ,fieldFocus(element) {
+                fieldFocus(element) {
                     if (element) {
                         element.focus();
                         element.select();
-                    }}
+                    }},
+
+                // تطبيع النص العربي للبحث المرن
+                normalizeArabic(text, aggressive = false) {
+                    if (!text) return "";
+                    let normalized = text.toString().toLowerCase()
+                        .replace(/[أآإ]/g, "ا")
+                        .replace(/ة/g, "ه")
+                        .replace(/[ىئ]/g, "ي")
+                        .replace(/[\u064B-\u0652]/g, "") // حذف التشكيل
+                        .replace(/ـ/g, ""); // حذف التطويل
+                    
+                    if (aggressive) {
+                        normalized = normalized.replace(/[وي]/g, ""); // إزالة الواو والياء للبحث الأكثر مرونة
+                    }
+                    
+                    return normalized.trim();
+                }
 
             };
 
@@ -2337,6 +2403,7 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                         const card = document.createElement('div');
                         card.className = cardClass;
                         card.dataset.id = product.id;
+                        card.dataset.code = product.product_code || '';
 
                         if (isOutOfStock) {
                             card.innerHTML = `
@@ -2468,12 +2535,30 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                 // تصفية المنتجات
                 filterProducts(query) {
                     const products = document.querySelectorAll('.product-card');
+                    const normalizedQuery = Helpers.normalizeArabic(query);
+                    const aggressiveQuery = Helpers.normalizeArabic(query, true);
+                    const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+                    const aggWords = aggressiveQuery.split(/\s+/).filter(w => w.length >= 2);
 
                     products.forEach(product => {
                         const nameElement = product.querySelector('h3');
+                        const productData = product.dataset;
+                        
                         if (nameElement) {
-                            const name = nameElement.textContent.toLowerCase();
-                            if (name.includes(query.toLowerCase())) {
+                            const name = Helpers.normalizeArabic(nameElement.textContent);
+                            const aggName = Helpers.normalizeArabic(nameElement.textContent, true);
+                            const code = Helpers.normalizeArabic(productData.code || '');
+                            
+                            // البحث العادي
+                            const isMatch = queryWords.every(word => name.includes(word) || code.includes(word));
+                            
+                            // البحث المرن (إذا لم ينجح العادي وكان هناك حروف صحيحة كافية)
+                            let isFuzzyMatch = false;
+                            if (!isMatch && aggWords.length > 0) {
+                                isFuzzyMatch = aggWords.every(word => aggName.includes(word));
+                            }
+                            
+                            if (isMatch || isFuzzyMatch) {
                                 product.style.display = 'flex';
                             } else {
                                 product.style.display = 'none';
@@ -2536,11 +2621,33 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                             return;
                         }
 
-                        // البحث في المنتجات
+                        // البحث المطوّر: دعم الكلمات المتعددة والبحث المرن (Vowel-insensitive)
+                        const normalizedQuery = Helpers.normalizeArabic(query);
+                        const aggressiveQuery = Helpers.normalizeArabic(query, true);
+                        
+                        const words = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+                        const aggWords = aggressiveQuery.split(/\s+/).filter(w => w.length >= 2);
+
                         searchResults = AppData.products.filter(product => {
-                            return product.name.includes(query) ||
-                                product.product_code.includes(query) ||
-                                (product.barcode && product.barcode.includes(query));
+                            const normalizedName = Helpers.normalizeArabic(product.name);
+                            const aggName = Helpers.normalizeArabic(product.name, true);
+                            const normalizedCode = Helpers.normalizeArabic(product.product_code);
+                            const normalizedBarcode = Helpers.normalizeArabic(product.barcode || '');
+
+                            // تطابق عادي
+                            const isMatch = words.every(word => 
+                                normalizedName.includes(word) || 
+                                normalizedCode.includes(word) || 
+                                normalizedBarcode.includes(word)
+                            );
+
+                            // تطابق مرن (تجاهل الواو والياء)
+                            let isFuzzyMatch = false;
+                            if (!isMatch && aggWords.length > 0) {
+                                isFuzzyMatch = aggWords.every(word => aggName.includes(word));
+                            }
+
+                            return isMatch || isFuzzyMatch;
                         });
 
                         renderSearchResults(query);
@@ -2607,12 +2714,20 @@ calculateDiscountLevel(item, discountValue, discountType, totalBefore) {
                         });
                     }
 
-                    // دالة لتظليل النص المطابق
+                    // دالة لتظليل النص المطابق (تدعم الكلمات المتعددة)
                     function highlightText(text, query) {
                         if (!query) return text;
-
-                        const regex = new RegExp(`(${query})`, 'gi');
-                        return text.replace(regex, '<mark style="background-color: #fff3cd; padding: 0 2px; border-radius: 2px;">$1</mark>');
+                        const words = query.trim().split(/\s+/).filter(w => w.length > 0);
+                        if (words.length === 0) return text;
+                        
+                        let highlighted = text;
+                        words.forEach(word => {
+                            // Escape regex special chars
+                            const safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp(`(${safeWord})`, 'gi');
+                            highlighted = highlighted.replace(regex, '<mark style="background-color: #fff3cd; padding: 0 2px; border-radius: 2px;">$1</mark>');
+                        });
+                        return highlighted;
                     }
 
                     // اختيار المنتج
