@@ -15,9 +15,9 @@ if (!isset($data['csrf']) || $data['csrf'] !== $_SESSION['csrf_token']) {
 // مسارات النسخ الاحتياطي
 $paths = [
     'local'   => 'C:/xampp/htdocs/store_v1/backups/',
-    'drive_d' => 'D:/store_backups/',
-    'monthly' => 'C:/xampp/htdocs/store_v1/backups/monthly/',
-    'drive'   => 'G:/My Drive/store_backups/' // مجلد مزامن مع Google Drive
+    // 'drive_d' => 'D:/store_backups/',
+    // 'monthly' => 'C:/xampp/htdocs/store_v1/backups/monthly/',
+    'drive'   => 'D:/db/' // مجلد مزامن مع Google Drive
 ];
 
 if (!isset($paths[$data['path_key']])) {

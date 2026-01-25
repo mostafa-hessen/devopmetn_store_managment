@@ -962,8 +962,8 @@
         <select id="backupPath" class="form-select">
           <option value="drive">Google Drive</option>
           <option value="local">داخل المشروع</option>
-          <option value="drive_d">Drive D</option>
-          <option value="monthly">نسخ شهرية</option>
+          <!-- <option value="drive_d">Drive D</option>
+          <option value="monthly">نسخ شهرية</option> -->
         </select>
 
         <div class="form-check mt-3">

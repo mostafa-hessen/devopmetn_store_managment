@@ -74,7 +74,8 @@ function update_setting($conn, $setting_name, $setting_value) {
 define('DB_SERVER', 'localhost');
 define('DB_USERNAME', 'root'); //  اسم مستخدم قاعدة البيانات الخاص بك
 define('DB_PASSWORD', '');     // كلمة مرور قاعدة البيانات الخاصة بك
-define('DB_NAME', 'migration_store'); // اسم قاعدة البيانات
+// define('DB_NAME', 'migration_store'); // اسم قاعدة البيانات
+define('DB_NAME', 'production_saied_db'); // اسم قاعدة البيانات
 
 
 // إنشاء توكن CSRF إذا لم يكن موجوداً
