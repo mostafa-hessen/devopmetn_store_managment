@@ -61,6 +61,14 @@
           'priority' => 3
       ],
       [
+          'title' => 'حاسبة الصدقة',
+          'icon' => 'fas fa-hand-holding-heart',
+          'url' => BASE_URL . 'admin/charity.php',
+          'color' => 'success',
+          'badge' => '',
+          'priority' => 3
+      ],
+      [
           'title' => 'المنتجات',
           'icon' => 'fas fa-boxes',
           'url' => BASE_URL . 'admin/manage_products.php',
@@ -931,6 +939,17 @@
               </li>
               
            
+              <!-- قسم الأدوات -->
+              <li class="nav-item mt-3">
+                  <small class="text-white-50 px-3">الأدوات</small>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link <?php echo ($current_page == 'charity.php') ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>admin/charity.php">
+                      <i class="fas fa-hand-holding-heart me-3 text-success"></i>
+                      <span>حاسبة الصدقة</span>
+                  </a>
+              </li>
+
               <!-- قسم الإعدادات -->
               <li class="nav-item mt-3">
                   <small class="text-white-50 px-3">الإعدادات</small>

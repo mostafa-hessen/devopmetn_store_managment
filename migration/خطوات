@@ -620,3 +620,14 @@ GENERATED ALWAYS AS (
 
 ============================================ step 7 =================================
 ALTER TABLE work_orders ADD COLUMN is_archived TINYINT(1) DEFAULT 0 AFTER updated_at;
+
+CREATE TABLE `charity_records` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `amount` decimal(15,2) NOT NULL COMMENT 'المبلغ الأصلي',
+  `percentage` decimal(5,2) NOT NULL COMMENT 'النسبة المئوية',
+  `charity_value` decimal(15,2) NOT NULL COMMENT 'قيمة الصدقة',
+  `notes` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
