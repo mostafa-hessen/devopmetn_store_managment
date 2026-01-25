@@ -1,43 +1,47 @@
 <?php
 // get_work_orders.php
 header('Content-Type: application/json; charset=utf-8');
-    require_once dirname(__DIR__) . '/config.php';
+require_once dirname(__DIR__) . '/config.php';
 
 try {
-    // جمع الفلاتر
     $params = [];
     $paramTypes = "";
     $conditions = [];
     
-    // فلتر حسب العميل (إذا تم تمريره)
+    // فلتر حسب العميل
     if (isset($_GET['customer_id']) && is_numeric($_GET['customer_id'])) {
         $conditions[] = "wo.customer_id = ?";
         $params[] = (int)$_GET['customer_id'];
         $paramTypes .= "i";
     }
-    
-    // باقي الفلاتر (البحث، الحالة، التاريخ) تبقى كما هي...
-    // ... (نفس الكود السابق)
+
+    // فلتر حسب الأرشفة
+    $showArchived = isset($_GET['show_archived']) && $_GET['show_archived'] === '1' ? 1 : 0;
+    $conditions[] = "wo.is_archived = ?";
+    $params[] = $showArchived;
+    $paramTypes .= "i";
     
     // الاستعلام الأساسي
     $sql = "
         SELECT 
-            wo.*,
+            wo.id, wo.customer_id, wo.title, wo.description, wo.status, wo.start_date, wo.notes, wo.created_at, wo.updated_at, wo.is_archived,
             c.name as customer_name,
             c.mobile as customer_mobile,
             u.username as created_by_name,
-            COUNT(DISTINCT io.id) as invoices_count
+            (SELECT COUNT(*) FROM invoices_out WHERE work_order_id = wo.id) as invoices_count,
+            (SELECT SUM(total_after_discount) FROM invoices_out WHERE work_order_id = wo.id AND delivered NOT IN ('canceled', 'reverted')) as calc_total_amount,
+            (SELECT SUM(paid_amount) FROM invoices_out WHERE work_order_id = wo.id AND delivered NOT IN ('canceled', 'reverted')) as calc_total_paid,
+            (SELECT SUM(remaining_amount) FROM invoices_out WHERE work_order_id = wo.id AND delivered NOT IN ('canceled', 'reverted')) as calc_total_remaining
         FROM work_orders wo
         LEFT JOIN customers c ON wo.customer_id = c.id
         LEFT JOIN users u ON wo.created_by = u.id
-        LEFT JOIN invoices_out io ON wo.id = io.work_order_id
     ";
     
     if (!empty($conditions)) {
         $sql .= " WHERE " . implode(" AND ", $conditions);
     }
     
-    $sql .= " GROUP BY wo.id ORDER BY wo.id DESC";
+    $sql .= " ORDER BY wo.id DESC";
     
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -53,56 +57,47 @@ try {
     $workOrders = [];
     
     while ($row = $result->fetch_assoc()) {
-        // ===== جلب الفواتير المرتبطة =====
-$invoices = [];
+        // جلب الفواتير المرتبطة
+        $invoices = [];
+        $invStmt = $conn->prepare("
+            SELECT 
+                id, total_after_discount AS total, paid_amount AS paid, remaining_amount AS remaining,
+                created_at, delivered, total_before_discount, discount_type, discount_value, discount_amount,
+                CASE 
+                    WHEN delivered = 'reverted' THEN 'returned'
+                    WHEN remaining_amount = 0 THEN 'paid'
+                    WHEN paid_amount > 0 AND remaining_amount > 0 THEN 'partial'
+                    ELSE 'pending'
+                END AS status
+            FROM invoices_out
+            WHERE work_order_id = ?
+            ORDER BY id DESC
+        ");
 
-$invStmt = $conn->prepare("
-    SELECT 
-        id,
-        total_after_discount AS total,
-        paid_amount AS paid,
-        remaining_amount AS remaining,
-        created_at,
-        delivered,
-                total_before_discount,
-discount_type,
-discount_value,
-discount_amount,
-         CASE 
-        WHEN delivered = 'reverted' THEN 'returned'
-        WHEN remaining_amount = 0 THEN 'paid'
-        WHEN paid_amount > 0 AND remaining_amount > 0 THEN 'partial'
-        ELSE 'pending'
-    END AS status
-    FROM invoices_out
-    WHERE work_order_id = ?
-    ORDER BY id DESC
-");
+        $invId = (int)$row['id'];
+        $invStmt->bind_param("i", $invId);
+        $invStmt->execute();
+        $invResult = $invStmt->get_result();
 
+        while ($inv = $invResult->fetch_assoc()) {
+            $invoices[] = [
+                'id' => (int)$inv['id'],
+                'total' => (float)$inv['total'],
+                'paid' => (float)$inv['paid'],
+                'remaining' => (float)$inv['remaining'],
+                'status'    => $inv['status'],
+                'created_at' => $inv['created_at'],
+                'total_before_discount' => (float)$inv['total_before_discount'],
+                'discount_type' => $inv['discount_type'],
+                'discount_value' => (float)$inv['discount_value'],
+                'discount_amount' => (float)$inv['discount_amount']
+            ];
+        }
+        $invStmt->close();
 
-$invStmt->bind_param("i", $row['id']);
-$invStmt->execute();
-$invResult = $invStmt->get_result();
-
-while ($inv = $invResult->fetch_assoc()) {
-    $invoices[] = [
-        'id' => (int)$inv['id'],
-        'total' => (float)$inv['total'],
-        'paid' => (float)$inv['paid'],
-        'remaining' => (float)$inv['remaining'],
-        'status'    => $inv['status'],
-        'created_at' => $inv['created_at'],
-        'total_before_discount' => (float)$inv['total_before_discount'],
-        'discount_type' => $inv['discount_type'],
-        'discount_value' => (float)$inv['discount_value'],
-        'discount_amount' => (float)$inv['discount_amount']
-
-    ];
-}
-
-
-$invStmt->close();
-// ===== نهاية جلب الفواتير =====
+        $totalAmt = (float)($row['calc_total_amount'] ?? 0);
+        $totalPaid = (float)($row['calc_total_paid'] ?? 0);
+        $totalRem = (float)($row['calc_total_remaining'] ?? 0);
 
         $workOrders[] = [
             'id' => (int)$row['id'],
@@ -115,26 +110,18 @@ $invStmt->close();
                            ($row['status'] == 'in_progress' ? 'جاري العمل' : 
                            ($row['status'] == 'completed' ? 'مكتمل' : 'ملغي')),
             'start_date' => $row['start_date'],
-            'total_invoice_amount' => (float)$row['total_invoice_amount'],
-            'total_paid' => (float)$row['total_paid'],
-            'total_remaining' => (float)$row['total_remaining'],
-            'progress_percent' => $row['total_invoice_amount'] > 0 
-                ? round(($row['total_paid'] / $row['total_invoice_amount']) * 100, 2) 
-                : 0,
+            'total_invoice_amount' => $totalAmt,
+            'total_paid' => $totalPaid,
+            'total_remaining' => $totalRem,
+            'is_archived' => (int)$row['is_archived'],
+            'progress_percent' => $totalAmt > 0 ? round(($totalPaid / $totalAmt) * 100, 2) : 0,
             'invoices_count' => (int)$row['invoices_count'],
-                'invoices' => $invoices, // المهم
-
+            'invoices' => $invoices,
             'created_at' => $row['created_at']
         ];
-
-
-        
     }
-
-    
-
     $stmt->close();
-    
+
     echo json_encode([
         'success' => true,
         'work_orders' => $workOrders,
@@ -148,6 +135,5 @@ $invStmt->close();
         'message' => 'خطأ في الخادم: ' . $e->getMessage()
     ], JSON_UNESCAPED_UNICODE);
 }
-
+// Clean connection close
 $conn->close();
-?>

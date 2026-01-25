@@ -615,3 +615,8 @@ GENERATED ALWAYS AS (
         ELSE 0
     END
 ) STORED;
+
+
+
+============================================ step 7 =================================
+ALTER TABLE work_orders ADD COLUMN is_archived TINYINT(1) DEFAULT 0 AFTER updated_at;

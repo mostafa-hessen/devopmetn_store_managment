@@ -20,6 +20,9 @@
   $is_customer_8 = ($customer_id == 8);
 
   ?>
+  <script>
+    window.BASE_URL = "<?php echo BASE_URL; ?>";
+  </script>
   
  
  <head>
@@ -1010,7 +1013,7 @@
               <!-- الرصيد المتاح -->
               <div class="mb-3">
                 <label class="form-label">الرصيد المتاح للسحب</label>
-                <div class="p-3 bg-light border rounded">
+                <div class="p-3  border rounded">
                   <strong id="walletAvailableAmount">0.00 ج.م</strong>
                 </div>
               </div>

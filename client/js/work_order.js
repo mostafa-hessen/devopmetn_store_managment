@@ -10,6 +10,7 @@ import { CustomReturnManager } from "./return.js";
 // work-order-manager.js
 const WorkOrderManager = {
     currentCustomerId: null,
+    showArchived: false,
     async init() {
         let customerId = this.getCustomerIdFromURL();
 
@@ -33,7 +34,7 @@ const WorkOrderManager = {
             this.showLoading();
 
             const response = await fetch(
-                `${apis.getCustomerWorkOrders}${encodeURIComponent(this.currentCustomerId)}`,
+                `${apis.getCustomerWorkOrders}${encodeURIComponent(this.currentCustomerId)}&show_archived=${this.showArchived ? 1 : 0}`,
                 {
                     headers: {
                         'Accept': 'application/json',
@@ -67,6 +68,7 @@ const WorkOrderManager = {
                     customer_id: wo.customer_id,
                     customer_name: wo.customer_name,
                     created_at: wo.created_at,
+                    is_archived: wo.is_archived || 0,
                     invoices: wo.invoices || []
                 }));
 
@@ -674,13 +676,20 @@ const WorkOrderManager = {
         if (AppData.workOrders.length === 0) {
             container.innerHTML = `
                 <div class="col-12">
-                    <div class="alert alert-info text-center">
-                        لا توجد شغلانات لعرضها
+                   ${this.renderWorkOrderHeader()}
+                    <div class="alert alert-info text-center mt-3">
+                        لا توجد شغلانات ${this.showArchived ? 'مؤرشفة' : 'نشطة'} لعرضها
                     </div>
                 </div>
             `;
+            this.attachWorkOrderEventListeners(); // هام: تفعيل زر التبديل حتى لو الجدول فاضي
             return;
         }
+
+        container.innerHTML = this.renderWorkOrderHeader();
+        const cardsGrid = document.createElement("div");
+        cardsGrid.className = "row";
+        container.appendChild(cardsGrid);
 
         AppData.workOrders.forEach((workOrder) => {
             const workOrderCard = document.createElement("div");
@@ -736,7 +745,7 @@ const WorkOrderManager = {
         </div>
 
         <!-- شريط التقدم -->
-        <div class="work-order-progress bg-light mb-3 rounded" style="height: 10px;">
+        <div class="work-order-progress  mb-3 rounded" style="height: 10px;">
             <div class="progress-bar bg-success rounded" style="width: ${progressPercent}%"></div>
         </div>
 
@@ -757,7 +766,7 @@ const WorkOrderManager = {
         </div>
 
         <!-- أزرار الإجراء -->
-        <div class="action-buttons d-flex gap-2 mt-3">
+        <div class="action-buttons d-flex gap-2 mt-3 flex-wrap">
             <button class="btn btn-sm btn-outline-info view-work-order" data-work-order-id="${workOrder.id}">
                 <i class="fas fa-eye"></i> عرض
             </button>
@@ -769,6 +778,24 @@ const WorkOrderManager = {
             <button class="btn btn-sm btn-outline-primary print-work-order" data-work-order-id="${workOrder.id}">
                 <i class="fas fa-print"></i> طباعة
             </button>
+
+            ${workOrder.invoices_count === 0 ? `
+            <button class="btn btn-sm btn-outline-danger delete-work-order" data-work-order-id="${workOrder.id}">
+                <i class="fas fa-trash"></i> حذف
+            </button>
+            ` : ''}
+
+            ${totalRemaining === 0 && !workOrder.is_archived ? `
+            <button class="btn btn-sm btn-outline-warning archive-work-order" data-work-order-id="${workOrder.id}">
+                <i class="fas fa-archive"></i> أرشفة
+            </button>
+            ` : ''}
+
+            ${workOrder.is_archived ? `
+            <button class="btn btn-sm btn-outline-secondary unarchive-work-order" data-work-order-id="${workOrder.id}">
+                <i class="fas fa-box-open"></i> استعادة من الأرشيف
+            </button>
+            ` : ''}
         </div>
 
     </div>
@@ -776,7 +803,7 @@ const WorkOrderManager = {
 `;
 
 
-            container.appendChild(workOrderCard);
+            cardsGrid.appendChild(workOrderCard);
         });
 
         // إضافة مستمعي الأحداث
@@ -797,61 +824,139 @@ const WorkOrderManager = {
         document.querySelectorAll(".pay-work-order").forEach((btn) => {
             btn.addEventListener("click", function () {
                 const workOrderId = parseInt(this.getAttribute("data-work-order-id"));
+                PaymentManager.showPaymentModal('workOrder', workOrderId);
+            });
+        });
 
-                // تعيين نوع السداد إلى شغلانة
-                document.getElementById("payWorkOrderRadio").checked = true;
-                document.getElementById("invoicesPaymentSection").style.display = "none";
-                document.getElementById("workOrderPaymentSection").style.display = "block";
+        // زر الأرشفة
+        document.querySelectorAll(".archive-work-order").forEach((btn) => {
+            btn.addEventListener("click", async function () {
+                const workOrderId = parseInt(this.getAttribute("data-work-order-id"));
+                await WorkOrderManager.handleArchiveWorkOrder(workOrderId, 1);
+            });
+        });
 
-                // تحديد الشغلانة
-                PaymentManager.selectWorkOrderForPayment(workOrderId);
-                document.getElementById("workOrderSearch").value = "";
+        // زر استعادة من الأرشيف
+        document.querySelectorAll(".unarchive-work-order").forEach((btn) => {
+            btn.addEventListener("click", async function () {
+                const workOrderId = parseInt(this.getAttribute("data-work-order-id"));
+                await WorkOrderManager.handleArchiveWorkOrder(workOrderId, 0);
+            });
+        });
 
-                // فتح المودال
-                const paymentModal = new bootstrap.Modal(
-                    document.getElementById("paymentModal")
-                );
-                paymentModal.show();
+        // زر الحذف
+        document.querySelectorAll(".delete-work-order").forEach((btn) => {
+            btn.addEventListener("click", async function () {
+                await WorkOrderManager.handleDeleteWorkOrder(workOrderId);
             });
         });
 
         // زر طباعة الشغلانة
         document.querySelectorAll(".print-work-order").forEach((btn) => {
-            btn.addEventListener("click", async function (e) {
-                e.preventDefault();
-                e.stopPropagation();
+            btn.addEventListener("click", function () {
                 const workOrderId = parseInt(this.getAttribute("data-work-order-id"));
-                // نستخدم الـ API للحصول على البيانات قبل الطباعة
-                const result = await WorkOrderManager.fetchWorkOrderDetails(workOrderId);
-                if (result.success) {
-                    PrintManager.printWorkOrderInvoices(workOrderId, result.invoices);
-                }
+                PrintManager.printWorkOrderInvoices(workOrderId);
             });
         });
+
+        // زر إظهار المؤرشف - استخدام تفويض الأحداث على الحاوية لضمان العمل دائماً
+        const container = document.getElementById("workOrdersContainer");
+        if (container && !container.hasAttribute('data-has-toggle-listener')) {
+            container.addEventListener('click', (e) => {
+                const btn = e.target.closest('#toggleArchivedWO');
+                if (btn) {
+                    this.showArchived = !this.showArchived;
+                    this.refresh();
+                }
+            });
+            container.setAttribute('data-has-toggle-listener', 'true');
+        }
+    },
+
+    renderWorkOrderHeader() {
+        return `
+            <div class="col-12 d-flex justify-content-between align-items-center mb-4  p-3 rounded border">
+                <h6 class="mb-0 fw-bold">
+                    <i class="fas fa-tools text-primary me-2"></i> 
+                    قائمة الشغلانات ${this.showArchived ? '(المؤرشفة)' : '(النشطة)'}
+                </h6>
+                <button class="btn btn-sm ${this.showArchived ? 'btn-primary' : 'btn-outline-secondary'}" id="toggleArchivedWO">
+                    <i class="fas ${this.showArchived ? 'fa-box-open' : 'fa-archive'} me-1"></i>
+                    ${this.showArchived ? 'عرض الشغلانات النشطة' : 'عرض الأرشيف'}
+                </button>
+            </div>
+        `;
+    },
+
+    async handleArchiveWorkOrder(id, archive) {
+        const confirmResult = await Swal.fire({
+            title: archive ? 'هل أنت متأكد من أرشفة الشغلانة؟' : 'هل تريد استعادة الشغلانة؟',
+            text: archive ? "الشغلانة ستختفي من القائمة النشطة." : "الشغلانة ستعود للقائمة النشطة.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'نعم',
+            cancelButtonText: 'إلغاء'
+        });
+
+        if (confirmResult.isConfirmed) {
+            try {
+                const response = await fetch(apis.archiveWorkOrder, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, archive })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    Swal.fire('نجاح', result.message, 'success');
+                    this.refresh();
+                } else {
+                    Swal.fire('خطأ', result.message, 'error');
+                }
+            } catch (error) {
+                this.showError('خطأ', 'فشل الاتصال بالخادم');
+            }
+        }
+    },
+
+    async handleDeleteWorkOrder(id) {
+        const confirmResult = await Swal.fire({
+            title: 'هل أنت متأكد من حذف الشغلانة؟',
+            text: "لا يمكن التراجع عن هذا الإجراء!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'حذف نهائي',
+            cancelButtonText: 'إلغاء'
+        });
+
+        if (confirmResult.isConfirmed) {
+            try {
+                const response = await fetch(apis.deleteWorkOrder, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    Swal.fire('تم الحذف', result.message, 'success');
+                    this.refresh();
+                } else {
+                    Swal.fire('خطأ', result.message, 'error');
+                }
+            } catch (error) {
+                this.showError('خطأ', 'فشل الاتصال بالخادم');
+            }
+        }
     },
 
     // عرض تفاصيل الشغلانة (محدث لاستخدام الـ API)
     async showWorkOrderDetails(workOrderId) {
         try {
-
-
             const result = await this.fetchWorkOrderDetails(workOrderId);
 
             if (result.success) {
                 const workOrder = result.workOrder;
-                const invoices = result?.invoices;
-                if (!workOrder) {
-                    throw new Error('الشغلانة غير موجودة');
-                }
-
-
-
-
-                // 3. إنشاء خلية الإجمالي مع عرض الخصم - دي اللي هتتعدل
-
-
-
-
+                const invoices = result?.invoices || [];
 
                 // تحديث البيانات في المودال
                 document.getElementById("workOrderInvoicesName").textContent = workOrder.title;
@@ -868,169 +973,80 @@ const WorkOrderManager = {
 
                 if (invoices.length === 0) {
                     tbody.innerHTML = `
-        <tr>
-            <td colspan="7" class="text-center text-muted">
-                لا توجد فواتير لهذه الشغلانة
-            </td>
-        </tr>
-    `;
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                لا توجد فواتير لهذه الشغلانة
+                            </td>
+                        </tr>
+                    `;
                 }
 
-
-                invoices.length > 0 && invoices.forEach((invoice) => {
-                    // حساب بيانات الخصم لكل فاتورة
+                invoices.forEach((invoice) => {
                     const discountAmount = parseFloat(invoice.discount_amount || 0);
                     const discountValue = parseFloat(invoice.discount_value || 0);
                     const discountType = invoice.discount_type || 'percent';
                     const beforeDiscount = parseFloat(invoice.total_before_discount || invoice.total || 0);
                     const afterDiscount = parseFloat(invoice.total_after_discount || invoice.total || 0);
 
-
                     let totalCellHTML = '';
-
-
-
                     if (discountAmount > 0) {
-                        // حساب نسبة الخصم
-                        let discountPercentage;
-                        if (discountType === 'percent') {
-                            discountPercentage = discountValue;
-                        } else {
-                            discountPercentage = beforeDiscount > 0 ?
-                                ((discountAmount / beforeDiscount) * 100) : 0;
-                        }
-
+                        let discountPercentage = discountType === 'percent' ? discountValue : (beforeDiscount > 0 ? ((discountAmount / beforeDiscount) * 100) : 0);
                         totalCellHTML = `
-            <div class="d-flex flex-column align-items-start">
-                <!-- السعر الأصلي (عليه خط) -->
-                <span class="text-muted text-decoration-line-through" style="font-size: 11px;">
-                    ${beforeDiscount.toFixed(2)}
-                </span>
-                <!-- السعر النهائي -->
-                <span class="fw-bold text-success" style="font-size: 13px;">
-                    ${afterDiscount.toFixed(2)}
-                </span>
-                <!-- بادج الخصم -->
-                <span class="badge bg-danger mt-1" style="font-size: 9px; padding: 2px 6px;">
-                    خصم ${discountPercentage.toFixed(1)}%
-                </span>
-            </div>
-        `;
+                            <div class="d-flex flex-column align-items-start">
+                                <span class="text-muted text-decoration-line-through" style="font-size: 11px;">${beforeDiscount.toFixed(2)}</span>
+                                <span class="fw-bold text-success" style="font-size: 13px;">${afterDiscount.toFixed(2)}</span>
+                                <span class="badge bg-danger mt-1" style="font-size: 9px; padding: 2px 6px;">خصم ${discountPercentage.toFixed(1)}%</span>
+                            </div>
+                        `;
                     } else {
-                        totalCellHTML = `
-            <span class="fw-bold">${afterDiscount.toFixed(2)}</span>
-        `;
+                        totalCellHTML = `<span class="fw-bold">${afterDiscount.toFixed(2)}</span>`;
                     }
-
-                    // استخدم totalCellHTML هنا حسب احتياجك
 
                     const row = document.createElement("tr");
-                    row.style.transition = "all 1s ease-in-out";
                     const statusInfo = AppData.getInvoiceStatusText(invoice.status);
-
-                    // إنشاء tooltip للبنود
-                    // let itemsTooltip = "";
                     const tooltipContainer = this.createTooltipContainer(invoice);
 
-
-
-
-
-
-
-                    // تحديد لون المبلغ المتبقي
-                    let remainingColor = "text-danger";
-                    if (invoice.remaining === 0) {
-                        remainingColor = "text-success";
-                    } else if (invoice.status === "partial") {
-                        remainingColor = "text-warning";
-                    }
+                    let remainingColor = invoice.remaining === 0 ? "text-success" : (invoice.status === "partial" ? "text-warning" : "text-danger");
 
                     row.innerHTML = `
-                        <td class="position-relative" style="position: relative;">
+                        <td class="position-relative">
                             <div class="invoice-item-hover work-order-item-hover" style="position: relative; display: inline-block; cursor: pointer;">
-                                ${invoice?.id}
+                                ${invoice.id}
                                 <br><small class="text-muted">(مرر للعرض)</small>
                                 ${tooltipContainer}
-                           
                             </div>
                         </td>
                         <td>${invoice.created_at}</td>
-                   
-                    <td>  ${totalCellHTML || 0} </td>
+                        <td>${totalCellHTML}</td>
                         <td>${invoice.paid?.toFixed(2)} ج.م</td>
                         <td><span class="${remainingColor} fw-bold">${invoice.remaining?.toFixed(2)} ج.م</span></td>
                         <td><span class="status-badge ${statusInfo.class}">${statusInfo.text}</span></td>
                         <td>
-                <div class="action-buttons">
-                    <button class="btn btn-sm btn-outline-info view-invoice-work-order" 
-                            data-invoice-id="${invoice.id}">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    ${invoice.status !== "paid" && invoice.status !== "returned" ? `
-                    <button class="btn btn-sm btn-outline-success pay-invoice-work-order" 
-                            data-invoice-id="${invoice.id}">
-                        <i class="fas fa-money-bill-wave"></i>
-                    </button>
-                    ` : ""}
-                    ${invoice.status !== "returned" ? `
-                    <button class="btn btn-sm btn-outline-warning custom-return-invoice-work-order" 
-                            data-invoice-id="${invoice.id}">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    ` : ""}
-
-                             ${invoice.status !== "returned" && invoice.status !== "paid" && invoice.status !== "partial"
-                            ? `
-          
-<a class="btn btn-warning btn-sm applyExtraDiscountBtnWorkOrder"
-   href="http://localhost/store_v1/admin/adjust_invoice.php?id=${invoice.id}&customer_id=${this.currentCustomerId}"
-   title="تطبيق خصم إضافي على الفاتورة">
-    <i class="fas fa-tag me-1"></i>
-    خصم إضافي
-</a>
-
-
-                    `
-                            : ""
-                        }
-      
-               
-                  ${invoice.status !== "returned"
-                            ? `
-                        <button class="btn btn-sm btn-outline-secondary print-invoice-work-order" 
-                            data-invoice-id="${invoice.id}">
-                        <i class="fas fa-print"></i>
-                    </button>
-                </div>
-`: ""}
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-outline-info view-invoice-work-order" data-invoice-id="${invoice.id}"><i class="fas fa-eye"></i></button>
+                                ${invoice.status !== "paid" && invoice.status !== "returned" ? `<button class="btn btn-sm btn-outline-success pay-invoice-work-order" data-invoice-id="${invoice.id}"><i class="fas fa-money-bill-wave"></i></button>` : ""}
+                                ${invoice.status !== "returned" ? `<button class="btn btn-sm btn-outline-warning custom-return-invoice-work-order" data-invoice-id="${invoice.id}"><i class="fas fa-undo"></i></button>` : ""}
+                                ${invoice.status !== "returned" && invoice.status !== "paid" && invoice.status !== "partial" ? `
+                                    <a class="btn btn-warning btn-sm" href="${window.BASE_URL || '../'}admin/adjust_invoice.php?id=${invoice.id}&customer_id=${this.currentCustomerId}" title="تطبيق خصم إضافي">
+                                        <i class="fas fa-tag me-1"></i> خصم
+                                    </a>
+                                ` : ""}
+                                ${invoice.status !== "returned" ? `<button class="btn btn-sm btn-outline-secondary print-invoice-work-order" data-invoice-id="${invoice.id}"><i class="fas fa-print"></i></button>` : ""}
+                            </div>
                         </td>
                     `;
 
                     tbody.appendChild(row);
                     this.setupTooltipHover(row, invoice.id);
-                }
+                });
 
-
-
-                );
-
-                // إضافة مستمعي الأحداث للأزرار داخل المودال
-
-
-                // فتح المودال
-                const modal = new bootstrap.Modal(
-                    document.getElementById("workOrderInvoicesModal")
-
-                );
+                const modal = new bootstrap.Modal(document.getElementById("workOrderInvoicesModal"));
                 modal.show();
             } else {
                 throw new Error(result.message);
             }
         } catch (error) {
-            this.showError(`${error.message}`, 'فشل في تحميل التفاصيل ,');
-        } finally {
-            this.hideLoading();
+            this.showError(`${error.message}`, 'فشل في تحميل التفاصيل');
         }
     },
 

@@ -343,23 +343,43 @@ const PaymentManager = {
     // إضافة دالة resetPaymentForm لإعادة تعيين المودال
 
     resetPaymentMethods(containerId, totalElementId) {
-        document.getElementById(containerId).innerHTML = "";
-        document.getElementById(totalElementId).textContent = "0.00 ج.م";
+        const container = document.getElementById(containerId);
+        if (container) container.innerHTML = "";
+
+        const totalElement = document.getElementById(totalElementId);
+        if (totalElement) totalElement.textContent = "0.00 ج.م";
+
         this.addPaymentMethod(containerId, totalElementId);
-        // إعادة تعيين الحقول
-        document.getElementById('invoicesTotalAmount').value = '0.00';
-        document.getElementById('invoicesTotalAmountWorkOrder').value = '0.00';
-        document.getElementById('workOrderTotalAmount').value = '0.00';
-        document.getElementById('totalPaymentMethodsAmount').value = '0.00';
-        document.getElementById('paymentRequiredAmount').value = '0.00';
+
+        // إعادة تعيين الحقول (مع فحص الوجود)
+        const invoicesTotalAmount = document.getElementById('invoicesTotalAmount');
+        if (invoicesTotalAmount) invoicesTotalAmount.value = '0.00';
+
+        const invoicesTotalAmountWorkOrder = document.getElementById('invoicesTotalAmountWorkOrder');
+        if (invoicesTotalAmountWorkOrder) invoicesTotalAmountWorkOrder.value = '0.00';
+
+        const workOrderTotalAmount = document.getElementById('workOrderTotalAmount');
+        if (workOrderTotalAmount) workOrderTotalAmount.value = '0.00';
+
+        const totalPaymentMethodsAmount = document.getElementById('totalPaymentMethodsAmount');
+        if (totalPaymentMethodsAmount) totalPaymentMethodsAmount.value = '0.00';
+
+        const paymentRequiredAmount = document.getElementById('paymentRequiredAmount');
+        if (paymentRequiredAmount) paymentRequiredAmount.value = '0.00';
 
         // إخفاء رسائل التحقق
-        document.getElementById('paymentValid').style.display = 'none';
-        document.getElementById('paymentInvalid').style.display = 'none';
-        document.getElementById('paymentExceeds').style.display = 'none';
+        const paymentValid = document.getElementById('paymentValid');
+        if (paymentValid) paymentValid.style.display = 'none';
+
+        const paymentInvalid = document.getElementById('paymentInvalid');
+        if (paymentInvalid) paymentInvalid.style.display = 'none';
+
+        const paymentExceeds = document.getElementById('paymentExceeds');
+        if (paymentExceeds) paymentExceeds.style.display = 'none';
 
         // تعطيل زر السداد
-        document.getElementById('processPaymentBtn').disabled = true;
+        const processPaymentBtn = document.getElementById('processPaymentBtn');
+        if (processPaymentBtn) processPaymentBtn.disabled = true;
     },
 
     updateManualPaymentTotal() {
@@ -479,26 +499,68 @@ const PaymentManager = {
         });
 
         // إعادة تعيين طرق الدفع
-        document.getElementById('paymentMethodsContainer').innerHTML = '';
-        this.addPaymentMethod();
+        const paymentMethodsContainer = document.getElementById('paymentMethodsContainer');
+        if (paymentMethodsContainer) {
+            paymentMethodsContainer.innerHTML = '';
+            this.addPaymentMethod();
+        }
 
-        // إعادة تعيين الحقول
-        document.getElementById('invoicesTotalAmount').value = '0.00';
-        document.getElementById('invoicesTotalAmountWorkOrder').value = '0.00';
+        // إعادة تعيين الحقول (مع فحص الوجود)
+        const invoicesTotalAmount = document.getElementById('invoicesTotalAmount');
+        if (invoicesTotalAmount) invoicesTotalAmount.value = '0.00';
 
-        document.getElementById('totalRequiredAmount').textContent = 0 + ' ج.م';
+        const invoicesTotalAmountWorkOrder = document.getElementById('invoicesTotalAmountWorkOrder');
+        if (invoicesTotalAmountWorkOrder) invoicesTotalAmountWorkOrder.value = '0.00';
 
-        document.getElementById('workOrderTotalAmount').value = '0.00';
-        document.getElementById('totalPaymentMethodsAmount').value = '0.00';
-        document.getElementById('paymentRequiredAmount').value = '0.00';
+        const totalRequiredAmount = document.getElementById('totalRequiredAmount');
+        if (totalRequiredAmount) totalRequiredAmount.textContent = 0 + ' ج.م';
+
+        const workOrderTotalAmount = document.getElementById('workOrderTotalAmount');
+        if (workOrderTotalAmount) workOrderTotalAmount.value = '0.00';
+
+        const totalPaymentMethodsAmount = document.getElementById('totalPaymentMethodsAmount');
+        if (totalPaymentMethodsAmount) totalPaymentMethodsAmount.value = '0.00';
+
+        const paymentRequiredAmount = document.getElementById('paymentRequiredAmount');
+        if (paymentRequiredAmount) paymentRequiredAmount.value = '0.00';
 
         // إخفاء رسائل التحقق
-        document.getElementById('paymentValid').style.display = 'none';
-        document.getElementById('paymentInvalid').style.display = 'none';
-        document.getElementById('paymentExceeds').style.display = 'none';
+        const paymentValid = document.getElementById('paymentValid');
+        if (paymentValid) paymentValid.style.display = 'none';
+
+        const paymentInvalid = document.getElementById('paymentInvalid');
+        if (paymentInvalid) paymentInvalid.style.display = 'none';
+
+        const paymentExceeds = document.getElementById('paymentExceeds');
+        if (paymentExceeds) paymentExceeds.style.display = 'none';
 
         // تعطيل زر السداد
-        document.getElementById('processPaymentBtn').disabled = true;
+        const processPaymentBtn = document.getElementById('processPaymentBtn');
+        if (processPaymentBtn) processPaymentBtn.disabled = true;
+    },
+
+    showPaymentModal(type, targetId = null) {
+        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+
+        // إعادة تعيين المودال
+        this.resetPaymentModal();
+
+        if (type === 'workOrder') {
+            document.getElementById('payWorkOrderRadio').checked = true;
+            document.getElementById('invoicesPaymentSection').style.display = 'none';
+            document.getElementById('workOrderPaymentSection').style.display = 'block';
+
+            if (targetId) {
+                this.selectWorkOrderForPayment(targetId);
+            }
+        } else {
+            document.getElementById('payInvoicesRadio').checked = true;
+            document.getElementById('invoicesPaymentSection').style.display = 'block';
+            document.getElementById('workOrderPaymentSection').style.display = 'none';
+            this.loadInvoicesForPayment();
+        }
+
+        paymentModal.show();
     },
 
     processManualPayment() {
@@ -657,23 +719,9 @@ const PaymentManager = {
         // فتح المودال
         const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
         paymentModal.show();
-    }
-    , openWorkOrderPayment(workOrderId) {
-        document.getElementById("workOrderPayment").checked = true;
-        document.getElementById("manualPaymentSection").style.display =
-            "none";
-        document.getElementById("workOrderPaymentSection").style.display =
-            "block";
-
-        // تحديد الشغلانة
-        document.getElementById("workOrderPaymentSelect").value = workOrderId;
-        this.updateWorkOrderInvoices(workOrderId);
-
-        // فتح مودال السداد
-        const paymentModal = new bootstrap.Modal(
-            document.getElementById("paymentModal")
-        );
-        paymentModal.show();
+    },
+    openWorkOrderPayment(workOrderId) {
+        this.showPaymentModal('workOrder', workOrderId);
     },
     // في دالة loadInvoicesForPayment داخل PaymentManager
     loadInvoicesForPayment() {
@@ -852,6 +900,9 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
 
         // ✅ إضافة تحذير إذا لم تكن هناك فواتير
         const noInvoicesAlert = document.getElementById('noInvoicesAlert');
+        const invoiceTable = document.getElementById('work-order-payment');
+        const payButton = document.getElementById('processPaymentBtn');
+
         if (relatedInvoices.length === 0) {
             if (noInvoicesAlert) {
                 noInvoicesAlert.style.display = 'block';
@@ -859,30 +910,16 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>تنبيه:</strong> هذه الشغلانة لا تحتوي على فواتير للدفع.
-                    يمكنك إضافة فاتورة جديدة أو اختيار شغلانة أخرى.
                 </div>
             `;
             }
 
-            // إخفاء جدول الفواتير
-            const invoiceTable = document.getElementById('workOrderInvoicesTable');
             if (invoiceTable) invoiceTable.style.display = 'none';
-
-            // تعطيل زر السداد مؤقتاً
-            const payButton = document.getElementById('processWorkOrderPaymentBtn');
             if (payButton) payButton.disabled = true;
 
         } else {
-            // إخفاء التحذير إذا كانت هناك فواتير
             if (noInvoicesAlert) noInvoicesAlert.style.display = 'none';
-
-            // إظهار جدول الفواتير
-            const invoiceTable = document.getElementById('workOrderInvoicesTable');
-            if (invoiceTable) invoiceTable.style.display = 'table';
-
-            // تفعيل زر السداد
-            const payButton = document.getElementById('processWorkOrderPaymentBtn');
-            if (payButton) payButton.disabled = false;
+            if (invoiceTable) invoiceTable.style.display = 'block';
         }
 
         // تحديث جدول فواتير الشغلانة (فقط إذا كانت هناك فواتير)
@@ -924,8 +961,6 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
                 // }
 
                 row.innerHTML = `
-                  <td>
-          
             <td class="position-relative">
                 ${invoice.id}
             </td>
@@ -1003,6 +1038,11 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
     addPaymentMethod() {
 
         const container = document.getElementById('paymentMethodsContainer');
+        if (!container) {
+            console.warn('Payment methods container not found');
+            return;
+        }
+
         const methodCount = container.children.length;
 
         // إذا كانت هذه هي أول طريقة دفع، اجعلها نقدي
@@ -1069,8 +1109,11 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
     },
 
     resetPaymentMethods() {
-        document.getElementById('paymentMethodsContainer').innerHTML = '';
-        PaymentManager.addPaymentMethod();
+        const container = document.getElementById('paymentMethodsContainer');
+        if (container) {
+            container.innerHTML = '';
+            PaymentManager.addPaymentMethod();
+        }
     },
 
     updatePaymentSummary() {
@@ -1193,7 +1236,7 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
         document.getElementById('paymentError').style.display = 'none';
         document.getElementById('processPaymentBtn').disabled = true;
         document.getElementById('invoiceSearch').value = '';
-        
+
     },
 
 
@@ -1321,53 +1364,53 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
     ,
 
     // توزيع على فواتير الشغلانة (مرن)
-//     autoDistributeToWorkOrder(totalPayment) {
-//         const invoices = [];
+    //     autoDistributeToWorkOrder(totalPayment) {
+    //         const invoices = [];
 
-//         document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
-//             const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
-//             const invoice = AppData.invoices.find(i => i.id === invoiceId);
-//             if (invoice) {
-//                 invoices.push({
-//                     invoice: invoice,
-//                     input: input
-//                 });
-//             }
-//         });
+    //         document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
+    //             const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
+    //             const invoice = AppData.invoices.find(i => i.id === invoiceId);
+    //             if (invoice) {
+    //                 invoices.push({
+    //                     invoice: invoice,
+    //                     input: input
+    //                 });
+    //             }
+    //         });
 
-//         // ترتيب الفواتير من الأقدم للأحدث
-//  invoices.sort((a, b) => {
-//             const dateTimeA = new Date(`${a.invoice.date} ${a.invoice.time}`);
-//             const dateTimeB = new Date(`${b.invoice.date} ${b.invoice.time}`);
-//             return dateTimeA - dateTimeB;
-//         });
-//         let remainingPayment = totalPayment;
+    //         // ترتيب الفواتير من الأقدم للأحدث
+    //  invoices.sort((a, b) => {
+    //             const dateTimeA = new Date(`${a.invoice.date} ${a.invoice.time}`);
+    //             const dateTimeB = new Date(`${b.invoice.date} ${b.invoice.time}`);
+    //             return dateTimeA - dateTimeB;
+    //         });
+    //         let remainingPayment = totalPayment;
 
-//         // توزيع المبلغ
-//         invoices.forEach(item => {
-//             if (remainingPayment > 0) {
-//                 const amountToPay = Math.min(item.invoice.remaining, remainingPayment);
-//                 item.input.value = amountToPay.toFixed(2);
-//                 item.input.dispatchEvent(new Event('input'));
-//                 remainingPayment -= amountToPay;
-//             } else {
-//                 item.input.value = 0;
-//                 item.input.dispatchEvent(new Event('input'));
-//             }
-//         });
+    //         // توزيع المبلغ
+    //         invoices.forEach(item => {
+    //             if (remainingPayment > 0) {
+    //                 const amountToPay = Math.min(item.invoice.remaining, remainingPayment);
+    //                 item.input.value = amountToPay.toFixed(2);
+    //                 item.input.dispatchEvent(new Event('input'));
+    //                 remainingPayment -= amountToPay;
+    //             } else {
+    //                 item.input.value = 0;
+    //                 item.input.dispatchEvent(new Event('input'));
+    //             }
+    //         });
 
-//         // إذا بقي مبلغ بعد التوزيع
-//         if (remainingPayment > 0) {
-//             Swal.fire({
-//                 icon: 'warning',
-//                 title: 'تنبيه',
-//                 text: `المبلغ الموجود في طرق الدفع (${totalPayment.toFixed(2)}) أكبر من المطلوب للفواتير المحددة (${(totalPayment - remainingPayment).toFixed(2)}). لم يتم توزيع ${remainingPayment.toFixed(2)} ج.م`,
-//                 confirmButtonText: 'حسناً'
-//             });
-//         }
+    //         // إذا بقي مبلغ بعد التوزيع
+    //         if (remainingPayment > 0) {
+    //             Swal.fire({
+    //                 icon: 'warning',
+    //                 title: 'تنبيه',
+    //                 text: `المبلغ الموجود في طرق الدفع (${totalPayment.toFixed(2)}) أكبر من المطلوب للفواتير المحددة (${(totalPayment - remainingPayment).toFixed(2)}). لم يتم توزيع ${remainingPayment.toFixed(2)} ج.م`,
+    //                 confirmButtonText: 'حسناً'
+    //             });
+    //         }
 
-//         this.validatePayment();
-//     },
+    //         this.validatePayment();
+    //     },
 
     // توزيع على الفواتير العامة
     autoDistributeToInvoices(totalPayment) {
@@ -1384,8 +1427,8 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
         });
 
         // ترتيب الفواتير من الأقدم للأحدث
- selectedInvoices.sort((a, b) => {
-    ('Sorting invoices:', a, b);
+        selectedInvoices.sort((a, b) => {
+            ('Sorting invoices:', a, b);
             const dateTimeA = new Date(`${a.date} ${a.time}`);
             const dateTimeB = new Date(`${b.date} ${b.time}`);
             return dateTimeA - dateTimeB;
@@ -1560,550 +1603,432 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
     // ⭐ استبدال دالة processPayment الحالية بهذه:
 
 
+
     async processPayment() {
         const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
 
-        debugger
         // جمع بيانات السداد
         const paymentData = this.collectPaymentData(paymentType);
 
-        (paymentData);
-
-
-            if (!paymentData) {
-                return;
-            }
-
-            // التحقق النهائي
-            if (!this.validateFinalPayment(paymentData)) {
-                Swal.fire('تحذير', 'البيانات غير صحيحة', 'warning');
-                return;
-            }
-
-            try {
-                // عرض تحميل
-                Swal.fire({
-                    title: 'جاري المعالجة...',
-                    text: 'برجاء الانتظار',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-
-
-
-
-                // ⭐ الإرسال للسيرفر
-                const response = await fetch(apis.processPayment, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(paymentData)
-                });
-
-                const result = await response.json();
-
-               if (result.success) {
-            // أغلق Loading Swal أولاً (لو موجود)
-            // try { Swal.close(); } catch (e) { /* ignore */ }
-
-            const paymentModalEl = document.getElementById('paymentModal');
-            const paymentModal = bootstrap.Modal.getInstance(paymentModalEl);
-
-            // Helper عرض رسالة النجاح بعد تنظيف الصفحة
-            const showSuccess = async () => {
-                // أخيراً عرض رسالة النجاح
-                Swal.fire({
-                    icon: 'success',
-                    title: 'تم السداد',
-                    html: this.generateSuccessMessage(result.data),
-                    confirmButtonText: 'حسناً',
-                    allowOutsideClick: true,
-                    scrollbarPadding: false
-                });
-
-                // تحديث البيانات بعد عرض الرسالة
-                try {
-                    await this.refreshDataAfterPayment(paymentData.customer_id);
-                } catch (e) {
-                    console.error('Refresh error:', e);
-                }
-            };
-
-            // لو فيه مودال: نخفيه ونستنى حدث الإخفاء لننظف ونعرض الرسالة
-            if (paymentModalEl && paymentModal) {
-                // تأكد من إزالة أي listener قديم ثم أضف listener جديد
-                const onHidden = () => {
-                    // تنظيف السك롤 والـ backdrops
-                    this.fixBodyScroll();
-
-                    // عرض الرسالة بعد 50ms (أمان للـ transition)
-                    setTimeout(showSuccess, 50);
-                };
-
-                paymentModalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
-
-                // أخفي المودال (سيطلق حدث hidden.bs.modal)
-                paymentModal.hide();
-
-                // Fail-safe: لو لم يحدث الحدث بعد 700ms، ننفذ العرض والتنظيف
-                setTimeout(() => {
-                    // إذا مازال الـ body عنده modal-open أو مفيش Swal ظاهرة، نفعل fallback
-                    if (document.body.classList.contains('modal-open')) {
-                        this.fixBodyScroll();
-                    }
-                    // لو لسه ما فيش Swal مرئية، اعرض الرسالة
-                    if (!document.querySelector('.swal2-container')) {
-                        showSuccess();
-                    }
-                }, 700);
-
-            } else {
-                // لا يوجد مودال — فقط نظف و اعرض
-                this.fixBodyScroll();
-                await showSuccess();
-            }
-        } else {
-            Swal.fire('خطأ', result.message || 'فشلت عملية السداد', 'error');
+        if (!paymentData) {
+            return;
         }
 
+        // التحقق النهائي
+        if (!this.validateFinalPayment(paymentData)) {
+            Swal.fire('تحذير', 'البيانات غير صحيحة', 'warning');
+            return;
+        }
 
-            } catch (error) {
-                console.error('Error:', error);
-                Swal.fire('خطأ', 'حدث خطأ في الاتصال بالسيرفر', 'error');
+        try {
+            // عرض تحميل
+            Swal.fire({
+                title: 'جاري المعالجة...',
+                text: 'برجاء الانتظار',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // ⭐ الإرسال للسيرفر
+            const response = await fetch(apis.processPayment, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(paymentData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const paymentModalEl = document.getElementById('paymentModal');
+                const paymentModal = bootstrap.Modal.getInstance(paymentModalEl);
+
+                const showSuccess = async () => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم السداد',
+                        html: this.generateSuccessMessage(result.data),
+                        confirmButtonText: 'حسناً',
+                        allowOutsideClick: true,
+                        scrollbarPadding: false
+                    });
+
+                    try {
+                        await this.refreshDataAfterPayment(paymentData.customer_id);
+                    } catch (e) {
+                        console.error('Refresh error:', e);
+                    }
+                };
+
+                if (paymentModalEl && paymentModal) {
+                    const onHidden = () => {
+                        this.fixBodyScroll();
+                        setTimeout(showSuccess, 50);
+                    };
+
+                    paymentModalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                    paymentModal.hide();
+
+                    setTimeout(() => {
+                        if (document.body.classList.contains('modal-open')) {
+                            this.fixBodyScroll();
+                        }
+                        if (!document.querySelector('.swal2-container')) {
+                            showSuccess();
+                        }
+                    }, 700);
+                } else {
+                    this.fixBodyScroll();
+                    await showSuccess();
+                }
+            } else {
+                Swal.fire('خطأ', result.message || 'فشلت عملية السداد', 'error');
             }
-
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire('خطأ', 'حدث خطأ في الاتصال بالسيرفر', 'error');
+        }
     },
 
-    
-    async processPayment() {
-    const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+    collectPaymentData(paymentType) {
+        const customer = AppData.currentCustomer;
+        if (!customer) {
+            Swal.fire('تحذير', 'لم يتم تحديد عميل', 'warning');
+            return null;
+        }
 
-    // جمع بيانات السداد
-    const paymentData = this.collectPaymentData(paymentType);
+        // ⭐ جمع طرق الدفع
+        const payment_methods = [];
+        document.querySelectorAll('.payment-method-item').forEach(item => {
+            const methodSelect = item.querySelector('.payment-method-select');
+            const amountInput = item.querySelector('.payment-method-amount');
+            const notesInput = item.querySelector('.payment-method-notes');
 
-    if (!paymentData) {
-        return;
-    }
+            const methodId = parseInt(methodSelect.value);
+            const amount = parseFloat(amountInput.value) || 0;
+            const notes = notesInput?.value?.trim() || '';
 
-    // التحقق النهائي
-    if (!this.validateFinalPayment(paymentData)) {
-        Swal.fire('تحذير', 'البيانات غير صحيحة', 'warning');
-        return;
-    }
+            if (methodId && amount > 0) {
+                const method = PaymentMethods.find(pm => pm.id === methodId);
+                if (method) {
+                    let methodEnglish;
+                    switch (method.name) {
+                        case 'نقدي': methodEnglish = 'cash'; break;
+                        case 'فيزا': methodEnglish = 'card'; break;
+                        case 'شيك': methodEnglish = 'check'; break;
+                        case 'محفظة': methodEnglish = 'wallet'; break;
+                        default: methodEnglish = 'cash';
+                    }
 
-    try {
-        // عرض تحميل
-        Swal.fire({
-            title: 'جاري المعالجة...',
-            text: 'برجاء الانتظار',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
+                    payment_methods.push({
+                        method: methodEnglish,
+                        amount: amount,
+                        notes: notes
+                    });
+                }
             }
         });
 
-        // ⭐ الإرسال للسيرفر
-        const response = await fetch(apis.processPayment, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(paymentData)
+        if (payment_methods.length === 0) {
+            Swal.fire('تحذير', 'يرجى إدخال طرق دفع', 'warning');
+            return null;
+        }
+
+        // ⭐ البيانات الأساسية
+        const data = {
+            customer_id: customer.id,
+            notes: document.getElementById('paymentNotes')?.value || '',
+            payment_methods: payment_methods
+        };
+
+        // ⭐ حالة الدفع للفواتير العادية
+        if (paymentType === 'invoices') {
+            return this.collectInvoicesPaymentData(data);
+        }
+        // ⭐ حالة الدفع للشغلانة
+        else if (paymentType === 'workOrder') {
+            return this.collectWorkOrderPaymentData(data);
+        }
+
+        return null;
+    },
+
+    // ⭐ دالة جديدة: جمع بيانات فواتير الشغلانة
+    collectWorkOrderPaymentData(baseData) {
+        // الحصول على الفواتير من جدول الشغلانة
+        const invoices = [];
+        let totalAmount = 0;
+        let workOrderId = null;
+
+        document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
+            const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
+            const amount = parseFloat(input.value) || 0;
+
+            if (amount > 0) {
+                const invoice = AppData.invoices.find(i => i.id === invoiceId);
+                if (invoice) {
+                    // استخدام work_order_id الخاص بالفاتورة
+                    if (invoice.work_order_id) {
+                        workOrderId = invoice.work_order_id;
+                    }
+
+                    invoices.push({
+                        id: invoiceId,
+                        amount: amount,
+                        work_order_id: invoice.work_order_id || null
+                    });
+                    totalAmount += amount;
+                }
+            }
         });
 
-        const result = await response.json();
+        if (invoices.length === 0) {
+            Swal.fire('تحذير', 'لم يتم تحديد مبالغ للدفع', 'warning');
+            return null;
+        }
 
-        if (result.success) {
-            const paymentModalEl = document.getElementById('paymentModal');
-            const paymentModal = bootstrap.Modal.getInstance(paymentModalEl);
+        baseData.invoices = invoices;
+        baseData.total_amount = totalAmount;
 
-            const showSuccess = async () => {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'تم السداد',
-                    html: this.generateSuccessMessage(result.data),
-                    confirmButtonText: 'حسناً',
-                    allowOutsideClick: true,
-                    scrollbarPadding: false
-                });
+        // إضافة work_order_id إذا كان هناك شغلانة واحدة
+        if (workOrderId) {
+            baseData.work_order_id = workOrderId;
+        }
 
-                try {
-                    await this.refreshDataAfterPayment(paymentData.customer_id);
-                } catch (e) {
-                    console.error('Refresh error:', e);
-                }
-            };
+        // تحديد نوع الدفع للشغلانة
+        if (invoices.length === 1) {
+            const singleInvoice = invoices[0];
+            baseData.invoice_id = singleInvoice.id;
+            baseData.amount = singleInvoice.amount;
 
-            if (paymentModalEl && paymentModal) {
-                const onHidden = () => {
-                    this.fixBodyScroll();
-                    setTimeout(showSuccess, 50);
-                };
-
-                paymentModalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
-                paymentModal.hide();
-
-                setTimeout(() => {
-                    if (document.body.classList.contains('modal-open')) {
-                        this.fixBodyScroll();
-                    }
-                    if (!document.querySelector('.swal2-container')) {
-                        showSuccess();
-                    }
-                }, 700);
+            if (baseData.payment_methods.length === 1) {
+                baseData.payment_type = 'single';
+                baseData.payment_method = baseData.payment_methods[0].method;
             } else {
-                this.fixBodyScroll();
-                await showSuccess();
+                baseData.payment_type = 'mixed_single';
             }
         } else {
-            Swal.fire('خطأ', result.message || 'فشلت عملية السداد', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        Swal.fire('خطأ', 'حدث خطأ في الاتصال بالسيرفر', 'error');
-    }
-},
+            baseData.payment_type = 'batch';
 
-collectPaymentData(paymentType) {
-    const customer = AppData.currentCustomer;
-    if (!customer) {
-        Swal.fire('تحذير', 'لم يتم تحديد عميل', 'warning');
-        return null;
-    }
-
-    // ⭐ جمع طرق الدفع
-    const payment_methods = [];
-    document.querySelectorAll('.payment-method-item').forEach(item => {
-        const methodSelect = item.querySelector('.payment-method-select');
-        const amountInput = item.querySelector('.payment-method-amount');
-        const notesInput = item.querySelector('.payment-method-notes');
-
-        const methodId = parseInt(methodSelect.value);
-        const amount = parseFloat(amountInput.value) || 0;
-        const notes = notesInput?.value?.trim() || '';
-
-        if (methodId && amount > 0) {
-            const method = PaymentMethods.find(pm => pm.id === methodId);
-            if (method) {
-                let methodEnglish;
-                switch (method.name) {
-                    case 'نقدي': methodEnglish = 'cash'; break;
-                    case 'فيزا': methodEnglish = 'card'; break;
-                    case 'شيك': methodEnglish = 'check'; break;
-                    case 'محفظة': methodEnglish = 'wallet'; break;
-                    default: methodEnglish = 'cash';
-                }
-
-                payment_methods.push({
-                    method: methodEnglish,
-                    amount: amount,
-                    notes: notes
-                });
+            // إذا كانت كل الفواتير تابعة لنفس الشغلانة، يمكن إضافة work_order_id
+            const uniqueWorkOrderIds = [...new Set(invoices.map(inv => inv.work_order_id))];
+            if (uniqueWorkOrderIds.length === 1 && uniqueWorkOrderIds[0]) {
+                baseData.work_order_id = uniqueWorkOrderIds[0];
             }
         }
-    });
 
-    if (payment_methods.length === 0) {
-        Swal.fire('تحذير', 'يرجى إدخال طرق دفع', 'warning');
-        return null;
-    }
+        return baseData;
+    },
 
-    // ⭐ البيانات الأساسية
-    const data = {
-        customer_id: customer.id,
-        notes: document.getElementById('paymentNotes')?.value || '',
-        payment_methods: payment_methods
-    };
+    // ⭐ دالة موجودة بالفعل (للحفاظ على الوظيفة السابقة)
+    collectInvoicesPaymentData(baseData) {
+        const checkedInvoices = Array.from(document.querySelectorAll('.invoice-payment-checkbox:checked'));
 
-    // ⭐ حالة الدفع للفواتير العادية
-    if (paymentType === 'invoices') {
-        return this.collectInvoicesPaymentData(data);
-    } 
-    // ⭐ حالة الدفع للشغلانة
-    else if (paymentType === 'workOrder') {
-        return this.collectWorkOrderPaymentData(data);
-    }
-    
-    return null;
-},
+        if (checkedInvoices.length === 0) {
+            Swal.fire('تحذير', 'لم يتم تحديد فواتير للدفع', 'warning');
+            return null;
+        }
 
-// ⭐ دالة جديدة: جمع بيانات فواتير الشغلانة
-collectWorkOrderPaymentData(baseData) {
-    // الحصول على الفواتير من جدول الشغلانة
-    const invoices = [];
-    let totalAmount = 0;
-    let workOrderId = null;
+        const invoices = [];
+        let totalAmount = 0;
 
-    document.querySelectorAll('.workorder-invoice-payment-amount').forEach(input => {
-        const invoiceId = parseInt(input.getAttribute('data-invoice-id'));
-        const amount = parseFloat(input.value) || 0;
+        checkedInvoices.forEach(checkbox => {
+            const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
+            const amountInput = document.querySelector(`.invoice-payment-amount[data-invoice-id="${invoiceId}"]`);
+            const amount = parseFloat(amountInput.value) || 0;
 
-        if (amount > 0) {
-            const invoice = AppData.invoices.find(i => i.id === invoiceId);
-            if (invoice) {
-                // استخدام work_order_id الخاص بالفاتورة
-                if (invoice.work_order_id) {
-                    workOrderId = invoice.work_order_id;
-                }
-                
+            if (amount > 0) {
+                const workOrderId = this.getInvoiceWorkOrderId(invoiceId);
                 invoices.push({
                     id: invoiceId,
                     amount: amount,
-                    work_order_id: invoice.work_order_id || null
+                    work_order_id: workOrderId
                 });
                 totalAmount += amount;
             }
+        });
+
+        if (invoices.length === 0) {
+            Swal.fire('تحذير', 'لم يتم تحديد مبالغ للدفع', 'warning');
+            return null;
         }
-    });
 
-    if (invoices.length === 0) {
-        Swal.fire('تحذير', 'لم يتم تحديد مبالغ للدفع', 'warning');
-        return null;
-    }
+        baseData.invoices = invoices;
+        baseData.total_amount = totalAmount;
 
-    baseData.invoices = invoices;
-    baseData.total_amount = totalAmount;
-    
-    // إضافة work_order_id إذا كان هناك شغلانة واحدة
-    if (workOrderId) {
-        baseData.work_order_id = workOrderId;
-    }
+        if (invoices.length === 1) {
+            const singleInvoice = invoices[0];
+            baseData.invoice_id = singleInvoice.id;
+            baseData.amount = singleInvoice.amount;
+            baseData.work_order_id = singleInvoice.work_order_id;
 
-    // تحديد نوع الدفع للشغلانة
-    if (invoices.length === 1) {
-        const singleInvoice = invoices[0];
-        baseData.invoice_id = singleInvoice.id;
-        baseData.amount = singleInvoice.amount;
-        
-        if (baseData.payment_methods.length === 1) {
-            baseData.payment_type = 'single';
-            baseData.payment_method = baseData.payment_methods[0].method;
+            if (baseData.payment_methods.length === 1) {
+                baseData.payment_type = 'single';
+                baseData.payment_method = baseData.payment_methods[0].method;
+            } else {
+                baseData.payment_type = 'mixed_single';
+            }
         } else {
-            baseData.payment_type = 'mixed_single';
+            baseData.payment_type = 'batch';
         }
-    } else {
-        baseData.payment_type = 'batch';
-        
-        // إذا كانت كل الفواتير تابعة لنفس الشغلانة، يمكن إضافة work_order_id
-        const uniqueWorkOrderIds = [...new Set(invoices.map(inv => inv.work_order_id))];
-        if (uniqueWorkOrderIds.length === 1 && uniqueWorkOrderIds[0]) {
-            baseData.work_order_id = uniqueWorkOrderIds[0];
-        }
-    }
 
-    return baseData;
-},
+        return baseData;
+    },
 
-// ⭐ دالة موجودة بالفعل (للحفاظ على الوظيفة السابقة)
-collectInvoicesPaymentData(baseData) {
-    const checkedInvoices = Array.from(document.querySelectorAll('.invoice-payment-checkbox:checked'));
+    // ⭐ دالة التحقق النهائي المعدلة
+    validateFinalPayment(paymentData) {
+        const paymentMethods = paymentData.payment_methods || [];
+        const invoices = paymentData.invoices || [];
 
-    if (checkedInvoices.length === 0) {
-        Swal.fire('تحذير', 'لم يتم تحديد فواتير للدفع', 'warning');
-        return null;
-    }
+        const totalPayment = paymentMethods.reduce((sum, pm) => sum + (pm.amount || 0), 0);
+        const totalInvoices = invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-    const invoices = [];
-    let totalAmount = 0;
-
-    checkedInvoices.forEach(checkbox => {
-        const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
-        const amountInput = document.querySelector(`.invoice-payment-amount[data-invoice-id="${invoiceId}"]`);
-        const amount = parseFloat(amountInput.value) || 0;
-
-        if (amount > 0) {
-            const workOrderId = this.getInvoiceWorkOrderId(invoiceId);
-            invoices.push({
-                id: invoiceId,
-                amount: amount,
-                work_order_id: workOrderId
-            });
-            totalAmount += amount;
-        }
-    });
-
-    if (invoices.length === 0) {
-        Swal.fire('تحذير', 'لم يتم تحديد مبالغ للدفع', 'warning');
-        return null;
-    }
-
-    baseData.invoices = invoices;
-    baseData.total_amount = totalAmount;
-
-    if (invoices.length === 1) {
-        const singleInvoice = invoices[0];
-        baseData.invoice_id = singleInvoice.id;
-        baseData.amount = singleInvoice.amount;
-        baseData.work_order_id = singleInvoice.work_order_id;
-
-        if (baseData.payment_methods.length === 1) {
-            baseData.payment_type = 'single';
-            baseData.payment_method = baseData.payment_methods[0].method;
-        } else {
-            baseData.payment_type = 'mixed_single';
-        }
-    } else {
-        baseData.payment_type = 'batch';
-    }
-
-    return baseData;
-},
-
-// ⭐ دالة التحقق النهائي المعدلة
-validateFinalPayment(paymentData) {
-    const paymentMethods = paymentData.payment_methods || [];
-    const invoices = paymentData.invoices || [];
-
-    const totalPayment = paymentMethods.reduce((sum, pm) => sum + (pm.amount || 0), 0);
-    const totalInvoices = invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-
-    if (Math.abs(totalPayment - totalInvoices) > 0.01) {
-        Swal.fire('خطأ', `المبلغ المدخل (${totalPayment.toFixed(2)}) لا يساوي المطلوب (${totalInvoices.toFixed(2)})`, 'error');
-        return false;
-    }
-
-    const walletPayment = paymentMethods
-        .filter(pm => pm.method === 'wallet')
-        .reduce((sum, pm) => sum + (pm.amount || 0), 0);
-
-    if (walletPayment > 0) {
-        const walletBalance = AppData.currentCustomer?.wallet || 0;
-        if (walletPayment > walletBalance) {
-            Swal.fire('خطأ', `رصيد المحفظة غير كافي. المتوفر: ${walletBalance.toFixed(2)}`, 'error');
+        if (Math.abs(totalPayment - totalInvoices) > 0.01) {
+            Swal.fire('خطأ', `المبلغ المدخل (${totalPayment.toFixed(2)}) لا يساوي المطلوب (${totalInvoices.toFixed(2)})`, 'error');
             return false;
         }
-    }
 
-    return true;
-},
+        const walletPayment = paymentMethods
+            .filter(pm => pm.method === 'wallet')
+            .reduce((sum, pm) => sum + (pm.amount || 0), 0);
 
-// collectPaymentData(paymentType) {
+        if (walletPayment > 0) {
+            const walletBalance = AppData.currentCustomer?.wallet || 0;
+            if (walletPayment > walletBalance) {
+                Swal.fire('خطأ', `رصيد المحفظة غير كافي. المتوفر: ${walletBalance.toFixed(2)}`, 'error');
+                return false;
+            }
+        }
 
-//     console.log(paymentType);
+        return true;
+    },
+
+    // collectPaymentData(paymentType) {
+
+    //     console.log(paymentType);
 
 
-//     const customer = AppData.currentCustomer;
-//     if (!customer) {
-//         Swal.fire('تحذير', 'لم يتم تحديد عميل', 'warning');
-//         return null;
-//     }
+    //     const customer = AppData.currentCustomer;
+    //     if (!customer) {
+    //         Swal.fire('تحذير', 'لم يتم تحديد عميل', 'warning');
+    //         return null;
+    //     }
 
-//     // ⭐ جمع طرق الدفع
-//     const payment_methods = [];
-//     document.querySelectorAll('.payment-method-item').forEach(item => {
-//         const methodSelect = item.querySelector('.payment-method-select');
-//         const amountInput = item.querySelector('.payment-method-amount');
-//         const notesInput = item.querySelector('.payment-method-notes');
+    //     // ⭐ جمع طرق الدفع
+    //     const payment_methods = [];
+    //     document.querySelectorAll('.payment-method-item').forEach(item => {
+    //         const methodSelect = item.querySelector('.payment-method-select');
+    //         const amountInput = item.querySelector('.payment-method-amount');
+    //         const notesInput = item.querySelector('.payment-method-notes');
 
-//         const methodId = parseInt(methodSelect.value);
-//         const amount = parseFloat(amountInput.value) || 0;
-//         const notes = notesInput?.value?.trim() || '';
+    //         const methodId = parseInt(methodSelect.value);
+    //         const amount = parseFloat(amountInput.value) || 0;
+    //         const notes = notesInput?.value?.trim() || '';
 
-//         if (methodId && amount > 0) {
-//             const method = PaymentMethods.find(pm => pm.id === methodId);
-//             if (method) {
-//                 let methodEnglish;
-//                 switch (method.name) {
-//                     case 'نقدي': methodEnglish = 'cash'; break;
-//                     case 'فيزا': methodEnglish = 'card'; break;
-//                     case 'شيك': methodEnglish = 'check'; break;
-//                     case 'محفظة': methodEnglish = 'wallet'; break;
-//                     default: methodEnglish = 'cash';
-//                 }
+    //         if (methodId && amount > 0) {
+    //             const method = PaymentMethods.find(pm => pm.id === methodId);
+    //             if (method) {
+    //                 let methodEnglish;
+    //                 switch (method.name) {
+    //                     case 'نقدي': methodEnglish = 'cash'; break;
+    //                     case 'فيزا': methodEnglish = 'card'; break;
+    //                     case 'شيك': methodEnglish = 'check'; break;
+    //                     case 'محفظة': methodEnglish = 'wallet'; break;
+    //                     default: methodEnglish = 'cash';
+    //                 }
 
-//                 payment_methods.push({
-//                     method: methodEnglish,
-//                     amount: amount,
-//                     notes: notes
-//                 });
-//             }
-//         }
-//     });
+    //                 payment_methods.push({
+    //                     method: methodEnglish,
+    //                     amount: amount,
+    //                     notes: notes
+    //                 });
+    //             }
+    //         }
+    //     });
 
-//     if (payment_methods.length === 0) {
-//         Swal.fire('تحذير', 'يرجى إدخال طرق دفع', 'warning');
-//         return null;
-//     }
+    //     if (payment_methods.length === 0) {
+    //         Swal.fire('تحذير', 'يرجى إدخال طرق دفع', 'warning');
+    //         return null;
+    //     }
 
-//     // ⭐ البيانات الأساسية
-//     const data = {
-//         customer_id: customer.id,
-//         notes: document.getElementById('paymentNotes')?.value || '',
-//         payment_methods: payment_methods
-//     };
+    //     // ⭐ البيانات الأساسية
+    //     const data = {
+    //         customer_id: customer.id,
+    //         notes: document.getElementById('paymentNotes')?.value || '',
+    //         payment_methods: payment_methods
+    //     };
 
-//     // ⭐ حالة الدفع للفواتير العادية
-//     if (paymentType === 'invoices') {
-//         const checkedInvoices = Array.from(document.querySelectorAll('.invoice-payment-checkbox:checked'));
+    //     // ⭐ حالة الدفع للفواتير العادية
+    //     if (paymentType === 'invoices') {
+    //         const checkedInvoices = Array.from(document.querySelectorAll('.invoice-payment-checkbox:checked'));
 
-//         if (checkedInvoices.length === 0) {
-//             Swal.fire('تحذير', 'لم يتم تحديد فواتير للدفع', 'warning');
-//             return null;
-//         }
+    //         if (checkedInvoices.length === 0) {
+    //             Swal.fire('تحذير', 'لم يتم تحديد فواتير للدفع', 'warning');
+    //             return null;
+    //         }
 
-//         const invoices = [];
-//         let totalAmount = 0;
+    //         const invoices = [];
+    //         let totalAmount = 0;
 
-//         checkedInvoices.forEach(checkbox => {
-//             const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
-//             const amountInput = document.querySelector(`.invoice-payment-amount[data-invoice-id="${invoiceId}"]`);
-//             const amount = parseFloat(amountInput.value) || 0;
+    //         checkedInvoices.forEach(checkbox => {
+    //             const invoiceId = parseInt(checkbox.getAttribute('data-invoice-id'));
+    //             const amountInput = document.querySelector(`.invoice-payment-amount[data-invoice-id="${invoiceId}"]`);
+    //             const amount = parseFloat(amountInput.value) || 0;
 
-//             if (amount > 0) {
-//                 const workOrderId = this.getInvoiceWorkOrderId(invoiceId);
-//                 invoices.push({
-//                     id: invoiceId,
-//                     amount: amount,
-//                     work_order_id: workOrderId // ⭐ نرسل مع كل فاتورة
-//                 });
-//                 totalAmount += amount;
-//             }
-//         });
+    //             if (amount > 0) {
+    //                 const workOrderId = this.getInvoiceWorkOrderId(invoiceId);
+    //                 invoices.push({
+    //                     id: invoiceId,
+    //                     amount: amount,
+    //                     work_order_id: workOrderId // ⭐ نرسل مع كل فاتورة
+    //                 });
+    //                 totalAmount += amount;
+    //             }
+    //         });
 
-//         if (invoices.length === 0) {
-//             Swal.fire('تحذير', 'لم يتم تحديد مبالغ للدفع', 'warning');
-//             return null;
-//         }
+    //         if (invoices.length === 0) {
+    //             Swal.fire('تحذير', 'لم يتم تحديد مبالغ للدفع', 'warning');
+    //             return null;
+    //         }
 
-//         data.invoices = invoices;
-//         data.total_amount = totalAmount;
+    //         data.invoices = invoices;
+    //         data.total_amount = totalAmount;
 
-//         // ⭐ تحديد نوع الدفع
-//         if (invoices.length === 1) {
-//             const singleInvoice = invoices[0];
-//             data.invoice_id = singleInvoice.id;
-//             data.amount = singleInvoice.amount;
-//             data.work_order_id = singleInvoice.work_order_id;
+    //         // ⭐ تحديد نوع الدفع
+    //         if (invoices.length === 1) {
+    //             const singleInvoice = invoices[0];
+    //             data.invoice_id = singleInvoice.id;
+    //             data.amount = singleInvoice.amount;
+    //             data.work_order_id = singleInvoice.work_order_id;
 
-//             if (payment_methods.length === 1) {
-//                 data.payment_type = 'single'; // فاتورة واحدة + طريقة واحدة
-//                 data.payment_method = payment_methods[0].method;
-//             } else {
-//                 data.payment_type = 'mixed_single'; // فاتورة واحدة + طرق متعددة
-//             }
-//         } else {
-//             // ⭐ فواتير متعددة
-//             data.payment_type = 'batch';
-//         }
-//     }
+    //             if (payment_methods.length === 1) {
+    //                 data.payment_type = 'single'; // فاتورة واحدة + طريقة واحدة
+    //                 data.payment_method = payment_methods[0].method;
+    //             } else {
+    //                 data.payment_type = 'mixed_single'; // فاتورة واحدة + طرق متعددة
+    //             }
+    //         } else {
+    //             // ⭐ فواتير متعددة
+    //             data.payment_type = 'batch';
+    //         }
+    //     }
 
-//     return data;
-// }
-// ,
+    //     return data;
+    // }
+    // ,
 
-// ⭐ دالة مساعدة للحصول على work_order_id الخاص بالفاتورة
-getInvoiceWorkOrderId(invoiceId) {
-                const invoiceData = AppData.invoices.find(inv => inv.id === invoiceId);
+    // ⭐ دالة مساعدة للحصول على work_order_id الخاص بالفاتورة
+    getInvoiceWorkOrderId(invoiceId) {
+        const invoiceData = AppData.invoices.find(inv => inv.id === invoiceId);
 
-               const workOrderId = invoiceData ? (invoiceData.work_order_id || null) : null;
+        const workOrderId = invoiceData ? (invoiceData.work_order_id || null) : null;
 
-    
-    return workOrderId;
-},
+
+        return workOrderId;
+    },
     // ⭐ دالة جديدة: التحقق النهائي
     // validateFinalPayment(paymentData) {
     //     // استخدام مصفوفة فارغة كقيمة افتراضية
@@ -2161,7 +2086,7 @@ getInvoiceWorkOrderId(invoiceId) {
         }
     },
 
-  
+
     generateSuccessMessage(data) {
         // حاول قراءة الإجمالي من أي حقل ممكن
         const total = Number(

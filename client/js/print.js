@@ -1460,7 +1460,7 @@ const PrintManager = {
     },
     // في PrintManager:
     printWorkOrderInvoices(workOrderId) {
-        const workOrder = AppData.workOrders.find(wo => wo.id === workOrderId);
+        const workOrder = AppData.workOrders.find(wo => wo.id == workOrderId);
         if (!workOrder) {
             Swal.fire('خطأ', 'الشغلانة غير موجودة', 'error');
             return;
@@ -1469,7 +1469,7 @@ const PrintManager = {
         const relatedInvoices = AppData.invoices.filter(inv => {
             console.log(inv.status);
 
-            return inv.work_order_id === workOrderId && inv.status !== 'returned';
+            return inv.work_order_id == workOrderId && inv.status !== 'returned';
         });
 
 
