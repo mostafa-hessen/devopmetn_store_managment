@@ -4064,24 +4064,37 @@ showConfirmModal() {
                     </button>
                 `;
                         } else {
+                            // إنشاء واجهة البحث المخصص
+                            const currentTitle = AppState.currentWorkOrder ? AppState.currentWorkOrder.title : '';
                             html = `
-                    <select class="form-select" id="work-order-select">
-                        <option value="">-- اختر شغلانة --</option>
-                        ${AppState.availableWorkOrders.map(wo => `
-                            <option value="${wo.id}" ${AppState.currentWorkOrder?.id === wo.id ? 'selected' : ''}>
-                                ${wo.title} (${wo.status === 'pending' ? 'قيد الانتظار' : 
-                                        wo.status === 'in_progress' ? 'قيد التنفيذ' : 
-                                        wo.status === 'completed' ? 'مكتمل' : 'ملغى'})
-                            </option>
-                        `).join('')}
-                    </select>
-                    <div style="margin-top: 10px; display: flex; gap: 8px;">
-                       
-                        <button class="btn btn-primary btn-sm" id="create-work-order-btn">
-                            <i class="fas fa-plus"></i> إنشاء جديدة
-                        </button>
-                    </div>
-                `;
+                            <div class="work-order-search-wrapper" style="position: relative; margin-bottom: 10px;">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" 
+                                           id="work-order-search-input" 
+                                           class="form-control" 
+                                           placeholder="بحث في الشغلانات..." 
+                                           value="${currentTitle}"
+                                           autocomplete="off">
+                                    ${AppState.currentWorkOrder ? `
+                                    <button class="btn btn-outline-secondary" type="button" id="clear-work-order-btn">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    ` : ''}
+                                </div>
+                                    <div id="work-order-search-results" class="search-results-dropdown" 
+                                     style="display: none; position: absolute; width: 100%; max-height: 200px; 
+                                            overflow-y: auto; background: var(--bg); border: 1px solid #ddd; 
+                                            z-index: 1000; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 10px; display: flex; gap: 8px;">
+                                <button class="btn btn-primary btn-sm" id="create-work-order-btn" style="width: 100%;">
+                                    <i class="fas fa-plus"></i> إنشاء جديدة
+                                </button>
+                            </div>
+                        `;
                         }
 
                         controls.innerHTML = html;
@@ -4094,36 +4107,91 @@ showConfirmModal() {
                 },
 
                 setupWorkOrderEvents() {
-                    // حدث تغيير الشغلانة
-                    const select = document.getElementById('work-order-select');
-                    if (select) {
-                        select.addEventListener('change', (e) => {
-                            const workOrderId = parseInt(e.target.value);
-                            if (workOrderId) {
-                                const workOrder = AppState.availableWorkOrders.find(wo => wo.id === workOrderId);
-                                AppState.currentWorkOrder = workOrder;
+                    const searchInput = document.getElementById('work-order-search-input');
+                    const resultsContainer = document.getElementById('work-order-search-results');
+                    const clearBtn = document.getElementById('clear-work-order-btn');
 
+                    if (searchInput && resultsContainer) {
+                        // دالة لعرض النتائج
+                        const renderResults = (query = '') => {
+                            const filtered = AppState.availableWorkOrders.filter(wo => {
+                                const term = query.toLowerCase();
+                                return wo.title.toLowerCase().includes(term) || 
+                                       (wo.description && wo.description.toLowerCase().includes(term));
+                            });
 
-                                Helpers.showToast(`تم ربط الفاتورة بالشغلانة: ${workOrder.title}`, 'success');
+                            if (filtered.length === 0) {
+                                resultsContainer.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">لا توجد نتائج</div>';
                             } else {
+                                resultsContainer.innerHTML = filtered.map(wo => `
+                                    <div class="search-result-item" data-id="${wo.id}" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;">
+                                        <div style="font-weight: bold;">${wo.title}</div>
+                                        <small style="color: #666;">
+                                            ${wo.status === 'pending' ? 'قيد الانتظار' : 
+                                              wo.status === 'in_progress' ? 'قيد التنفيذ' : 
+                                              wo.status === 'completed' ? 'مكتمل' : 'ملغى'}
+                                            ${wo.description ? ' - ' + wo.description : ''}
+                                        </small>
+                                    </div>
+                                `).join('');
+                                
+                                // إعادة ربط أحداث النقر
+                                resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
+                                    item.addEventListener('click', () => {
+                                        const id = parseInt(item.dataset.id);
+                                        const workOrder = AppState.availableWorkOrders.find(wo => wo.id === id);
+                                        if (workOrder) {
+                                            AppState.currentWorkOrder = workOrder;
+                                            UI.updateWorkOrderSection(); // إعادة رسم القسم
+                                            Helpers.showToast(`تم ربط الفاتورة بالشغلانة: ${workOrder.title}`, 'success');
+                                        }
+                                        resultsContainer.style.display = 'none';
+                                    });
+                                    
+                                    // تأثير Hover
+                                    item.addEventListener('mouseover', () => item.style.backgroundColor = '#f8f9fa');
+                                    item.addEventListener('mouseout', () => item.style.backgroundColor = 'transparent');
+                                });
+                            }
+                            resultsContainer.style.display = 'block';
+                        };
+
+                        // عند التركيز (Focus)
+                        searchInput.addEventListener('focus', () => {
+                            renderResults(searchInput.value === (AppState.currentWorkOrder?.title || '') ? '' : searchInput.value);
+                        });
+
+                        // عند الكتابة (Input)
+                        searchInput.addEventListener('input', (e) => {
+                            // إذا المسح المستخدم النص، نلغي الاختيار الحالي
+                            if (e.target.value === '' && AppState.currentWorkOrder) {
                                 AppState.currentWorkOrder = null;
+                            }
+                            renderResults(e.target.value);
+                        });
+
+                        // إغلاق القائمة عند النقر خارجها
+                        document.addEventListener('click', (e) => {
+                            if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+                                resultsContainer.style.display = 'none';
                             }
                         });
                     }
 
-                    // حدث إنشاء شغلانة جديدة
+                    // زر المسح (X)
+                    if (clearBtn) {
+                        clearBtn.addEventListener('click', () => {
+                            AppState.currentWorkOrder = null;
+                            UI.updateWorkOrderSection();
+                            Helpers.showToast('تم إلغاء ربط الشغلانة', 'info');
+                        });
+                    }
+
+                    // زر حدث إنشاء شغلانة جديدة
                     const createBtn = document.getElementById('create-work-order-btn');
                     if (createBtn) {
                         createBtn.addEventListener('click', () => {
                             this.showCreateWorkOrderModal();
-                        });
-                    }
-
-                    // حدث تحديث القائمة
-                    const refreshBtn = document.getElementById('refresh-work-orders-btn');
-                    if (refreshBtn) {
-                        refreshBtn.addEventListener('click', async () => {
-                            await this.loadWorkOrdersForCurrentCustomer();
                         });
                     }
                 },

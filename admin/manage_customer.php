@@ -89,26 +89,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_customer'])) {
 }
 
 // --- جلب الإحصائيات الإجمالية ---
-$stats_sql = "SELECT 
-    COUNT(DISTINCT c.id) AS total_customers,
+$stats_sql = "SELECT
+    (SELECT COUNT(*) FROM customers) AS total_customers,
 
-    SUM(
-        CASE 
-            WHEN i.remaining_amount > 0 
-             AND i.delivered != 'canceled'
-            THEN i.remaining_amount 
-            ELSE 0 
-        END
+    (SELECT 
+        SUM(
+            CASE 
+                WHEN remaining_amount > 0  AND delivered NOT IN ('canceled', 'reverted')
+
+                THEN remaining_amount 
+                ELSE 0 
+            END
+        )
+     FROM invoices_out
     ) AS total_debts,
 
-    SUM(c.wallet) AS total_wallet,
+    (SELECT SUM(wallet) FROM customers) AS total_wallet,
 
-    SUM(CASE WHEN c.wallet > 0 THEN c.wallet ELSE 0 END) AS total_positive_wallet,
-    SUM(CASE WHEN c.wallet < 0 THEN ABS(c.wallet) ELSE 0 END) AS total_negative_wallet
+    (SELECT SUM(wallet) FROM customers WHERE wallet > 0) AS total_positive_wallet,
 
-FROM customers c
-LEFT JOIN invoices_out i 
-    ON i.customer_id = c.id";
+    (SELECT SUM(ABS(wallet)) FROM customers WHERE wallet < 0) AS total_negative_wallet;
+";
 
 $stats = [];
 if ($res_stats = $conn->query($stats_sql)) {
