@@ -1,16 +1,9 @@
 {
   "status": "commited",
-  "type": "frontend",
+  "type": "backend",
   "scope": "codebase",
-  "localEndpoint": "http://localhost:80/store_v1",
-  "executionArgs": {
-    "projectName": "store_v1",
-    "projectPath": "c:\\xampp\\htdocs\\store_v1",
-    "testIds": [],
-    "additionalInstruction": "Test the feature in admin/adjust_invoice.php?id=1.\n1. Perform login as admin (user: saied_hamdy).\n2. Navigate to /store_v1/admin/adjust_invoice.php?id=1.\n3. Verify that invoice data is loaded correctly.\n4. Try to apply a small discount to an item and save.\n5. Verify success message.\nNote: Project path is /store_v1 relative to localhost:80.",
-    "envs": {
-      "API_KEY": "sk-user-TGizkXTuUWu86me3OgB-y3xShRDUxLJfzu-oO-wx7tpvvbiaSBwoShuCCchp0NmoxJ1CozG7OZ000sjKMAqVz06Nijux7RfVOOgexJJRJ3eeHZxHfbjjl8y6FqVgt4kSZAU"
-    }
-  },
-  "proxy": "http://878792c2-cf8e-4272-8f6f-73f7f025387e:CRSwJt910hfS29ErpV9lrcE53lxRZ1Jr@tun.testsprite.com:8080"
+  "localEndpoint": "http://localhost:80",
+  "backendAuthType": "basic token",
+  "backendUsername": "saied",
+  "backendPassword": "123456"
 }

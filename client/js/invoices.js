@@ -9,15 +9,21 @@ import apis from "./constant/api_links.js";
 
 const InvoiceManager = {
   isLoading: false,
+  isInitialized: false,
   currentCustomerId: null,
   currentInvoiceIdForDiscount: null,
 
 
   async init() {
+    if (this.isInitialized) {
+      await this.loadCustomerInvoices();
+      return;
+    }
     await this.loadCustomerInvoices();
     this.setupGlobalListeners();
     this.setupTooltipStyles();
     this.attachExtraDiscountListener();
+    this.isInitialized = true;
   },
 
   // داخل InvoiceManager

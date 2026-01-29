@@ -11,10 +11,10 @@ import { CustomReturnManager } from "./return.js";
 const WorkOrderManager = {
     currentCustomerId: null,
     showArchived: false,
+    isInitialized: false,
     async init() {
         let customerId = this.getCustomerIdFromURL();
 
-        ;
         if (!customerId) {
             console.error('Customer ID is required');
             return;
@@ -22,8 +22,11 @@ const WorkOrderManager = {
 
         this.currentCustomerId = customerId;
         await this.fetchWorkOrders();
-        //    this.attachInvoiceEventListeners();
-        await this.eventy();
+
+        if (!this.isInitialized) {
+            await this.eventy();
+            this.isInitialized = true;
+        }
     },
 
 

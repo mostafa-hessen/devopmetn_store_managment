@@ -6,14 +6,19 @@ import { splitDateTime } from './helper.js';
 
 const CustomerTransactionManager = {
     isLoading: false,
+    isInitialized: false,
     activeTab: 'transaction', // wallet, returns, statement
-    
+
     async init(tab = 'transaction') {
         this.activeTab = tab;
         await this.loadTabData(tab);
-        this.setupTransactionDateFilters();
+
+        if (!this.isInitialized) {
+            this.setupTransactionDateFilters();
+            this.isInitialized = true;
+        }
     },
-    
+
     // // جلب البيانات حسب التبويب
     async loadTabData(tab) {
         try {
@@ -22,16 +27,16 @@ const CustomerTransactionManager = {
                 console.error('❌ Customer not found');
                 return;
             }
-            
+
             this.isLoading = true;
             this.showTabLoading(tab);
-            
+
             // بناء رابط API مع الفلاتر
             let apiUrl = `${apis.getCustomerTransactions}${customer.id}`;
-            
+
             // إضافة فلاتر حسب التبويب
             const params = new URLSearchParams();
-            
+
             // فلاتر التاريخ المشتركة
             if (AppData.activeFilters.dateFrom) {
                 params.append('date_from', AppData.activeFilters.dateFrom);
@@ -39,33 +44,33 @@ const CustomerTransactionManager = {
             if (AppData.activeFilters.dateTo) {
                 params.append('date_to', AppData.activeFilters.dateTo);
             }
-            
+
             // فلتر التبويب النشط
             if (tab === 'returns') {
                 params.append('type', 'return');
             }
             // للتبويبات الأخرى، نعرض جميع الحركات
             params.append('include_summary', '1');
-            
+
             // بناء URL كامل
             if (params.toString()) {
                 apiUrl += `&${params.toString()}`;
             }
-            
+
             // جلب البيانات
             const response = await fetch(apiUrl);
             const data = await response.json();
-            
+
             if (data.success) {
                 // حفظ البيانات في AppData
                 this.saveTabData(tab, data);
-                
+
                 // تحديث الواجهة
                 this.updateTabTable(tab, data.transactions);
-                
+
                 // تحديث الـ summary
-              
-                
+
+
                 // تحديث رصيد العميل من آخر حركة
                 if (data.transactions && data.transactions.length > 0) {
                     this.updateCustomerBalance(data.transactions[0]);
@@ -73,26 +78,26 @@ const CustomerTransactionManager = {
             } else {
                 this.showTabError(tab, data.message);
             }
-            
+
         } catch (error) {
         } finally {
             this.isLoading = false;
         }
     },
-    
+
     // حفظ البيانات في AppData حسب التبويب
     saveTabData(tab, data) {
         AppData.customerTransactions = data.transactions || [];
         AppData.transactionSummary = data.summary || {};
-        
+
         if (tab === 'returns') {
             AppData.returnTransactions = data.transactions.filter(t => t.type === 'return');
         }
     },
-    
+
     // تحديث جدول التبويب
     updateTabTable(tab, transactions) {
-        switch(tab) {
+        switch (tab) {
             case 'transaction':
                 this.updateTransactionTable(transactions);
                 break;
@@ -104,16 +109,16 @@ const CustomerTransactionManager = {
                 break;
         }
     },
-    
- 
+
+
 
     // تحديث جدول المحفظة مع إضافة الديون
     updateTransactionTable(transactions) {
         const tbody = document.getElementById("transactionTableBody");
         if (!tbody) return;
-        
+
         tbody.innerHTML = "";
-        
+
         if (!transactions || transactions.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -125,20 +130,20 @@ const CustomerTransactionManager = {
             `;
             return;
         }
-        
+
         transactions.forEach((transaction) => {
             const row = document.createElement("tr");
-            
-            
+
+
             // استخدام transaction_date بدلاً من created_at
-            
+
 
 
 
             const { date: createdDate, time: createdTime } = splitDateTime(transaction.created_at);
             const { date: transactionDate, time: transactionTime } = splitDateTime(transaction.transaction_date);
 
-            
+
             row.innerHTML = `
                 <td>
                     <div class="fw-semibold">${createdDate}</div>
@@ -194,11 +199,11 @@ const CustomerTransactionManager = {
                     <small class="text-muted">${transaction.transaction_date || transaction.created_at}</small>
                 </td>
             `;
-            
+
             tbody.appendChild(row);
         });
     },
-    
+
     // الحصول على مرجع الفاتورة
     getInvoiceReference(transaction) {
         if (transaction.invoice_number) {
@@ -209,27 +214,27 @@ const CustomerTransactionManager = {
         }
         return '';
     },
-    
+
     // تحديث جدول المرتجعات
     updateReturnsTable(transactions) {
         const tbody = document.getElementById("returnsTableBody");
         if (!tbody) return;
-        
+
         tbody.innerHTML = "";
-        
-        
-        
-        
-   
+
+
+
+
+
     },
-    
+
     // // تحديث جدول كشف الحساب
     updateStatementTable(transactions) {
         const tbody = document.getElementById("statementTableBody");
         if (!tbody) return;
-        
+
         tbody.innerHTML = "";
-        
+
         if (!transactions || transactions.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -241,19 +246,19 @@ const CustomerTransactionManager = {
             `;
             return;
         }
-        
+
         // حساب الأرصدة الجارية
         let runningWalletBalance = 0;
         let runningDebtBalance = 0;
-        
+
         transactions.forEach((transaction) => {
             const row = document.createElement("tr");
             const transactionDate = transaction.transaction_date || transaction.date;
-            
+
             // تحديث الأرصدة الجارية
             runningWalletBalance = transaction.wallet_after;
             runningDebtBalance = transaction.debt_after || 0;
-            
+
             row.innerHTML = `
                 <td>
                     <div class="fw-semibold">${transactionDate}</div>
@@ -290,15 +295,15 @@ const CustomerTransactionManager = {
                     ${this.getTransactionActions(transaction)}
                 </td>
             `;
-            
+
             tbody.appendChild(row);
         });
     },
-    
+
     // الحصول على أزرار الإجراءات للحركة
     getTransactionActions(transaction) {
         let actions = '';
-        
+
         if (transaction.invoice_number) {
             actions += `
                 <button class="btn btn-sm btn-outline-primary me-1" 
@@ -307,7 +312,7 @@ const CustomerTransactionManager = {
                 </button>
             `;
         }
-        
+
         if (['payment', 'deposit'].includes(transaction.type)) {
             actions += `
                 <button class="btn btn-sm btn-outline-success" 
@@ -316,15 +321,15 @@ const CustomerTransactionManager = {
                 </button>
             `;
         }
-        
+
         return actions || '-';
     },
-    
-  
-    
-   
+
+
+
+
     // // ========== دوال مساعدة ==========
-    
+
     showTabLoading(tab) {
         const tbody = this.getTabBody(tab);
         if (tbody) {
@@ -340,41 +345,41 @@ const CustomerTransactionManager = {
             `;
         }
     },
-    
-  
-  
-    
+
+
+
+
     getTabBody(tab) {
-        switch(tab) {
+        switch (tab) {
             case 'transaction': return document.getElementById("transactionTableBody");
             case 'returns': return document.getElementById("returnsTableBody");
             case 'statement': return document.getElementById("statementTableBody");
             default: return null;
         }
     },
-    
-  
-    
-   
+
+
+
+
     setupTransactionDateFilters() {
         // فلتر تاريخ الحركة
         const transactionDateFrom = document.getElementById('transactionDateFrom');
         const transactionDateTo = document.getElementById('transactionDateTo');
-        
+
         if (transactionDateFrom) {
             transactionDateFrom.addEventListener('change', (e) => {
                 AppData.activeFilters.transactionDateFrom = e.target.value;
                 this.applyFilters();
             });
         }
-        
+
         if (transactionDateTo) {
             transactionDateTo.addEventListener('change', (e) => {
                 AppData.activeFilters.transactionDateTo = e.target.value;
                 this.applyFilters();
             });
         }
-        
+
         // زر مسح الفلاتر
         const clearFiltersBtn = document.getElementById('clearTransactionFilters');
         if (clearFiltersBtn) {
@@ -383,11 +388,11 @@ const CustomerTransactionManager = {
             });
         }
     },
-    
+
     applyFilters() {
         this.loadTabData(this.activeTab);
     },
-    
+
     clearFilters() {
         // مسح الفلاتر من AppData
         AppData.activeFilters = {
@@ -397,7 +402,7 @@ const CustomerTransactionManager = {
             transactionDateTo: null,
             type: null
         };
-        
+
         // مسح حقول الإدخال
         document.querySelectorAll('.transaction-filter').forEach(input => {
             if (input.type === 'date' || input.type === 'text') {
@@ -406,11 +411,11 @@ const CustomerTransactionManager = {
                 input.selectedIndex = 0;
             }
         });
-        
+
         // إعادة تحميل البيانات
         this.loadTabData(this.activeTab);
     },
-    
+
     // // دالة لإضافة حركة جديدة
     // async addTransaction(transactionData) {
     //     try {
@@ -418,7 +423,7 @@ const CustomerTransactionManager = {
     //         if (!transactionData.transaction_date) {
     //             transactionData.transaction_date = new Date().toISOString().split('T')[0];
     //         }
-            
+
     //         const response = await fetch(apis.addTransaction, {
     //             method: 'POST',
     //             headers: {
@@ -426,9 +431,9 @@ const CustomerTransactionManager = {
     //             },
     //             body: JSON.stringify(transactionData)
     //         });
-            
+
     //         const data = await response.json();
-            
+
     //         if (data.success) {
     //             // إعادة تحميل البيانات
     //             await this.loadTabData(this.activeTab);
@@ -442,37 +447,37 @@ const CustomerTransactionManager = {
     //     }
     // },
 
-    
 
-    
-  
 
-        getStatementTransactions(dateFrom, dateTo) {
-          let transactions = [...AppData.customerTransactions];
 
-          
 
-          if (dateFrom) {
+
+    getStatementTransactions(dateFrom, dateTo) {
+        let transactions = [...AppData.customerTransactions];
+
+
+
+        if (dateFrom) {
             transactions = transactions.filter((t) => t.date
- >= dateFrom);
-          }
+                >= dateFrom);
+        }
 
-          if (dateTo) {
+        if (dateTo) {
             transactions = transactions.filter((t) => t.date
- <= dateTo);
-          }
+                <= dateTo);
+        }
 
-          return transactions;
-        },
+        return transactions;
+    },
 
-           getTransactionTypeText(type) {
-          const typeMap = {
+    getTransactionTypeText(type) {
+        const typeMap = {
             payment: "سداد",
             deposit: "إيداع",
             return: "مرتجع",
-          };
-          return typeMap[type] || type;
-        },
+        };
+        return typeMap[type] || type;
+    },
 };
 
 export default CustomerTransactionManager;

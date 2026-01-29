@@ -11,9 +11,13 @@ import WorkOrderManager from './work_order.js';
 import UIManager from './ui.js';
 // import { log } from 'winjs';
 const PaymentManager = {
+    isInitialized: false,
+    isLoading: false,
     init() {
-        this.setupPaymentEventListeners();
-
+        if (!this.isInitialized) {
+            this.setupPaymentEventListeners();
+            this.isInitialized = true;
+        }
     },
     setupPaymentEventListeners() {
         // تغيير نوع السداد
@@ -1605,6 +1609,8 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
 
 
     async processPayment() {
+        if (this.isLoading) return;
+
         const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
 
         // جمع بيانات السداد
@@ -1621,6 +1627,7 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
         }
 
         try {
+            this.isLoading = true;
             // عرض تحميل
             Swal.fire({
                 title: 'جاري المعالجة...',
@@ -1690,6 +1697,8 @@ ${invoice.workOrderName ? `<br><small class="text-muted"><i class="fas fa-tools 
         } catch (error) {
             console.error('Error:', error);
             Swal.fire('خطأ', 'حدث خطأ في الاتصال بالسيرفر', 'error');
+        } finally {
+            this.isLoading = false;
         }
     },
 

@@ -13,11 +13,17 @@ import { updateInvoiceStats } from "./helper.js";
 
 
 const ReturnManager = {
+    isInitialized: false,
     async init() {
+        if (this.isInitialized) {
+            await this.loadReturnsData();
+            return;
+        }
         this.setupReturnStyles();
         await this.loadReturnsData();
         this.setupTableEventListeners();
         this.setupSearchListener();
+        this.isInitialized = true;
     },
 
     setupSearchListener() {
