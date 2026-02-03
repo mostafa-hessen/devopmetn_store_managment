@@ -523,7 +523,7 @@ function displayItems() {
         const currentDiscount =item.returned_quantity>0 ?item.discount_amount / item.quantity : item.discount_amount || 0;
         // حساب الإجمالي بناءً على الكمية المتبقية وسعر الوحدة بعد الخصم
         const unitPriceAfterDiscount = item.unit_price_after_discount || 0;
-        const currentTotalAfter = currentQuantity * unitPriceAfterDiscount;
+        const currentTotalAfter =currentQuantity * unitPriceAfterDiscount;
         const returnedQty = item.returned_quantity || 0;
         const isFullyReturned = returnedQty >= item.quantity;
         const isLocked = returnedQty > 0;
@@ -537,7 +537,7 @@ function displayItems() {
         }
         
         // حساب تفاصيل الخصم
-        const unitDiscount = (item.selling_price || 0) - (item.unit_price_after_discount || 0);
+        const unitDiscount =  (item.selling_price || 0) - (item.unit_price_after_discount || 0);
         const activeDiscount = (item.available_for_return || 0) * unitDiscount;
         const totalHistoryDiscount = (item.quantity || 0) * unitDiscount;
         

@@ -263,6 +263,7 @@ $balance_after = $financials['balance'];
     }
 
     function recalcInvoiceTotals($conn, $invoice_id)
+
     {
         $stmt = $conn->prepare("
             SELECT id, quantity, returned_quantity, unit_price_after_discount, cost_price_per_unit
@@ -283,6 +284,7 @@ $balance_after = $financials['balance'];
             $total_after_discount += $item['unit_price_after_discount'] * $effective_qty;
         }
 
+        
         $profit_amount = $total_after_discount - $total_cost;
 
         $stmt = $conn->prepare("

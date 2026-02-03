@@ -88,7 +88,7 @@
 
             // 1) products (with aggregates)
             if ($action === 'products') {
-                $q = trim($_GET['q'] ?? '');
+                $q = trim($_REQUEST['q'] ?? '');
                 try {
                     if ($q === '') {
                         $sql = "
@@ -227,7 +227,7 @@
 
             // 3) customers list/search
             if ($action === 'customers') {
-                $q = trim($_GET['q'] ?? '');
+                $q = trim($_REQUEST['q'] ?? '');
                 try {
                     if ($q === '') {
                         $res = $conn->query("SELECT id,name,mobile,city,address FROM customers ORDER BY name LIMIT 200");
@@ -1928,10 +1928,9 @@
                     return result;
                 },
                 // جلب العملاء
+                
                 async loadCustomers(search = '') {
-                    const result = await this.request('customers', {
-                        q: search
-                    });
+                    const result = await this.request('customers', { q: search });
                     if (result.ok) {
                         AppData.customers = result.customers;
                         return result.customers;

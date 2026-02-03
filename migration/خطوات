@@ -127,7 +127,7 @@ ALTER TABLE invoice_out_items
 ADD unit_price_after_discount DECIMAL(10,2)
 GENERATED ALWAYS AS (
     CASE 
-        WHEN quantity >= 1 THEN total_after_discount / quantity
+        WHEN quantity > 0 THEN total_after_discount / quantity
         ELSE total_after_discount
     END
 ) STORED;
@@ -631,3 +631,22 @@ CREATE TABLE `charity_records` (
   `created_by` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+=====================================step  8 =================================
+
+
+معالجه خطا حساب الوحده 
+ALTER TABLE invoice_out_items
+DROP COLUMN unit_price_after_discount;
+
+
+
+ALTER TABLE invoice_out_items
+ADD COLUMN unit_price_after_discount DECIMAL(10,2)
+GENERATED ALWAYS AS (
+    CASE 
+        WHEN quantity > 0 THEN total_after_discount / quantity
+        ELSE total_after_discount
+    END
+) STORED;

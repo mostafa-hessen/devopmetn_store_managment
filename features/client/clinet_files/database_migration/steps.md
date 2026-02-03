@@ -592,7 +592,7 @@ ALTER TABLE invoice_out_items
 ADD unit_price_after_discount DECIMAL(10,2)
 GENERATED ALWAYS AS (
     CASE 
-        WHEN quantity >= 1 THEN total_after_discount / quantity
+        WHEN quantity > 0 THEN total_after_discount / quantity
         ELSE total_after_discount
     END
 ) STORED;
