@@ -83,6 +83,9 @@
             case 'statistics':
                 getStatistics($conn);
                 break;
+            case 'search_product_invoices':
+                searchProductInvoices($conn);
+                break;
             default:
                 echo json_encode([
                     "success" => false,
@@ -229,6 +232,7 @@
         $search_invoice_id = isset($_GET['invoice_out_id']) ? intval($_GET['invoice_out_id']) : 0;
     $date_from = isset($_GET['date_from']) ? trim($_GET['date_from']) : '';
     $date_to   = isset($_GET['date_to']) ? trim($_GET['date_to']) : '';
+    $product_batch_search = isset($_GET['product_batch_search']) ? trim($_GET['product_batch_search']) : '';
 
         // بناء الاستعلام مع الفلترة
         $sql = "
@@ -315,6 +319,22 @@ WHERE 1=1
         $types .= 's';
     }
 
+    if (!empty($product_batch_search)) {
+        $conds[] = "pi.id IN (
+            SELECT pii.purchase_invoice_id
+            FROM purchase_invoice_items pii
+            LEFT JOIN products p ON p.id = pii.product_id
+            LEFT JOIN batches b ON b.source_invoice_id = pii.purchase_invoice_id AND b.product_id = pii.product_id
+            WHERE p.name LIKE ? OR p.product_code LIKE ? OR b.id = ?
+        )";
+        $params[] = "%" . $product_batch_search . "%";
+        $params[] = "%" . $product_batch_search . "%";
+        
+        $batch_id_search = ltrim(str_ireplace('b', '', strtolower($product_batch_search)), '0');
+        $params[] = is_numeric($batch_id_search) ? (int)$batch_id_search : -1;
+        
+        $types .= 'ssi';
+    }
 
         if (!empty($conds)) {
             $sql .= " AND " . implode(" AND ", $conds);
@@ -536,6 +556,49 @@ echo json_encode([
             ],
             "html_template" => "supplier_invoice_print"
         ], JSON_UNESCAPED_UNICODE);
+    }
+
+    // ==================== وظائف البحث الذكي ====================
+    function searchProductInvoices($conn) {
+        $term = isset($_GET['term']) ? trim($_GET['term']) : '';
+        if (empty($term)) {
+            echo json_encode(['success' => true, 'results' => []], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $sql = "SELECT DISTINCT 
+                    pi.id AS invoice_id, 
+                    pi.supplier_invoice_number, 
+                    p.name AS product_name, 
+                    b.id AS batch_id 
+                FROM purchase_invoices pi
+                JOIN purchase_invoice_items pii ON pi.id = pii.purchase_invoice_id
+                JOIN products p ON p.id = pii.product_id
+                LEFT JOIN batches b ON b.source_invoice_id = pi.id AND b.product_id = p.id
+                WHERE p.name LIKE ? OR p.product_code LIKE ? OR b.id = ?
+                LIMIT 15";
+
+        $results = [];
+        if ($stmt = $conn->prepare($sql)) {
+            $like_term = "%" . $term . "%";
+            $batch_id_search = ltrim(str_ireplace('b', '', strtolower($term)), '0');
+            $batch_id_val = is_numeric($batch_id_search) ? (int)$batch_id_search : -1;
+            
+            $stmt->bind_param("ssi", $like_term, $like_term, $batch_id_val);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $results[] = [
+                    'invoice_id' => $row['invoice_id'],
+                    'invoice_number' => $row['supplier_invoice_number'],
+                    'product_name' => $row['product_name'],
+                    'batch_id' => $row['batch_id'] ? 'B' . str_pad($row['batch_id'], 4, '0', STR_PAD_LEFT) : null
+                ];
+            }
+            $stmt->close();
+        }
+        
+        echo json_encode(['success' => true, 'results' => $results], JSON_UNESCAPED_UNICODE);
     }
 
     // ==================== وظائف معالجة POST ====================

@@ -66,7 +66,7 @@
           'url' => BASE_URL . 'admin/charity.php',
           'color' => 'success',
           'badge' => '',
-          'priority' => 3
+          'priority' => 4
       ],
       [
           'title' => 'المنتجات',
@@ -74,7 +74,7 @@
           'url' => BASE_URL . 'admin/manage_products.php',
           'color' => 'info',
           'badge' => '',
-          'priority' => 4
+          'priority' => 3
       ],
       [
           'title' => 'المشتريات',

@@ -94,7 +94,7 @@
                 display: none;
                 align-items: flex-start;
                 justify-content: center;
-                z-index: 1100;
+                z-index: 99999;
                 overflow-y: auto;
                 padding: 20px 0;
             }
@@ -215,6 +215,8 @@
             
             .advanced-filter {
                 transition: all 0.3s ease;
+                position: relative;
+                z-index: 50;
             }
             
             .advanced-filter:hover {
@@ -371,6 +373,50 @@
             
             .stat-value {
                 animation: countUp 0.5s ease-out;
+            }
+
+            /* Search Dropdown Styles */
+            .search-dropdown {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 0 0 8px 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+                z-index: 9999 !important;
+                max-height: 250px;
+                overflow-y: auto;
+                display: none;
+                margin-top: 2px;
+            }
+            .search-dropdown-item {
+                padding: 10px 15px;
+                border-bottom: 1px solid #f3f4f6;
+                cursor: pointer;
+                display: flex;
+                flex-direction: column;
+                text-align: right;
+            }
+            .search-dropdown-item:last-child {
+                border-bottom: none;
+            }
+            .search-dropdown-item:hover {
+                background: #f9fafb;
+            }
+            .search-dropdown-item .invoice-num {
+                font-weight: bold;
+                color: #0b84ff;
+                font-size: 13px;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .search-dropdown-item .item-desc {
+                font-size: 12px;
+                color: #6b7280;
+                margin-top: 4px;
             }
             
             /* Tab improvements */
@@ -567,6 +613,18 @@
                                         placeholder="رقم الفاتورة"
                                         onkeyup="FilterManager.debouncedSearch('invoices')">
                                     <i class="fas fa-hashtag"></i>
+                                </div>
+                            </div>
+
+                            <div class="filter-group" style="position: relative; z-index: 9999;">
+                                <label><i class="fas fa-box"></i> المنتج / الدفعة</label>
+                                <div class="search-input-with-icon" style="position: relative;">
+                                    <input type="text" class="form-input" id="productBatchSearchFilter" 
+                                        placeholder="اسم المنتج أو الدفعة..."
+                                        onkeyup="FilterManager.handleProductSearchInput(this.value, 'invoices')"
+                                        autocomplete="off">
+                                    <i class="fas fa-search"></i>
+                                    <div id="productBatchSearchDropdown" class="search-dropdown"></div>
                                 </div>
                             </div>
                             
@@ -1061,6 +1119,7 @@ const RETURN_TYPES_Colors = {
             const FilterManager = {
                 activeFilters: {},
                 searchTimeouts: {},
+                productSearchTimeout: null,
                 
                 init() {
                     this.generateYearOptions();
@@ -1226,6 +1285,11 @@ const RETURN_TYPES_Colors = {
                 debouncedSearch(tab) {
                     clearTimeout(this.searchTimeouts[tab]);
                     this.searchTimeouts[tab] = setTimeout(() => {
+                        // Close dropdown when typing normally triggers normal search
+                        const dropdown = document.getElementById('productBatchSearchDropdown');
+                        if (dropdown && !document.activeElement.closest('.search-input-with-icon')) {
+                            dropdown.style.display = 'none';
+                        }
                         if (tab === 'invoices') {
                             PurchaseManager.loadInvoices();
                         } else {
@@ -1261,6 +1325,7 @@ const RETURN_TYPES_Colors = {
                     if (tab === 'invoices') {
                         filters.supplier = document.getElementById('supplierNameFilter').value;
                         filters.invoiceId = document.getElementById('invoiceIdFilter').value;
+                        filters.productBatchSearch = document.getElementById('productBatchSearchFilter').value;
                         filters.dateFrom = document.getElementById('dateFromFilter').value;
                         filters.dateTo = document.getElementById('dateToFilter').value;
                         filters.status = document.getElementById('statusFilter').value;
@@ -1304,6 +1369,7 @@ const RETURN_TYPES_Colors = {
                     const labels = {
                         supplier: `المورد: ${value}`,
                         invoiceId: `رقم الفاتورة: ${value}`,
+                        productBatchSearch: `المنتج/الدفعة: ${value}`,
                         originalInvoiceId: `الفاتورة الأصلية: ${value}`,
                         returnNumber: `رقم المرتجع: ${value}`,
                         dateFrom: `من: ${this.formatDisplayDate(value)}`,
@@ -1331,6 +1397,9 @@ const RETURN_TYPES_Colors = {
                                 break;
                             case 'invoiceId':
                                 document.getElementById('invoiceIdFilter').value = '';
+                                break;
+                            case 'productBatchSearch':
+                                document.getElementById('productBatchSearchFilter').value = '';
                                 break;
                             case 'dateFrom':
                                 // إعادة إلى أول العام الحالي
@@ -1386,6 +1455,7 @@ const RETURN_TYPES_Colors = {
                     if (tab === 'invoices') {
                         document.getElementById('supplierNameFilter').value = '';
                         document.getElementById('invoiceIdFilter').value = '';
+                        document.getElementById('productBatchSearchFilter').value = '';
                         document.getElementById('statusFilter').value = '';
                         document.getElementById('yearFilter').value = '';
                         
@@ -1428,6 +1498,60 @@ const RETURN_TYPES_Colors = {
                     this.resetTabFilters('invoices');
                     this.resetTabFilters('returns');
                     document.getElementById('smartFiltersContainer').classList.add('hidden');
+                },
+
+                async handleProductSearchInput(value, tab) {
+                    // Start typical filtering directly
+                    this.debouncedSearch(tab);
+                    
+                    const dropdown = document.getElementById('productBatchSearchDropdown');
+                    if (!dropdown) return;
+                    
+                    if (!value.trim()) {
+                        dropdown.style.display = 'none';
+                        return;
+                    }
+
+                    clearTimeout(this.productSearchTimeout);
+                    this.productSearchTimeout = setTimeout(async () => {
+                        dropdown.innerHTML = '<div style="padding:10px;text-align:center;font-size:12px;color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</div>';
+                        dropdown.style.display = 'block';
+                        
+                        try {
+                            const res = await APIManager.searchProductInvoices(value);
+                            if (res.success && res.results && res.results.length > 0) {
+                                let html = '';
+                                res.results.forEach(item => {
+                                    const batchText = item.batch_id ? `<span class="batch-returned-qty">دفعة: ${item.batch_id}</span>` : '';
+                                    html += `
+                                        <div class="search-dropdown-item" onclick="FilterManager.selectProductInvoiceSearch('${item.invoice_id}', '${item.product_name}')">
+                                            <div class="invoice-num"><i class="fas fa-hashtag"></i> فاتورة رقم ${item.invoice_number || item.invoice_id}</div>
+                                            <div class="item-desc">
+                                                <i class="fas fa-box" style="margin-left: 5px;"></i>${item.product_name}
+                                                ${batchText}
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                                dropdown.innerHTML = html;
+                            } else {
+                                dropdown.innerHTML = '<div style="padding:10px;text-align:center;font-size:12px;color:#ef4444;"><i class="fas fa-info-circle"></i> لا توجد فواتير مطابقة</div>';
+                            }
+                        } catch (e) {
+                            dropdown.innerHTML = '<div style="padding:10px;text-align:center;font-size:12px;color:#ef4444;">خطأ في البحث</div>';
+                        }
+                    }, 400);
+                },
+
+                selectProductInvoiceSearch(invoiceId, productName) {
+                    const dropdown = document.getElementById('productBatchSearchDropdown');
+                    if (dropdown) dropdown.style.display = 'none';
+                    
+                    // Set the invoice ID filter and trigger search
+                    document.getElementById('invoiceIdFilter').value = invoiceId;
+                    
+                    // Trigger search
+                    this.onFilterChange('invoices');
                 }
             };
 
@@ -1473,11 +1597,16 @@ const RETURN_TYPES_Colors = {
                     const params = {};
                     if (filters.supplierName) params.supplier_name = filters.supplierName;
                     if (filters.invoiceId) params.invoice_out_id = filters.invoiceId;
+                    if (filters.productBatchSearch) params.product_batch_search = filters.productBatchSearch;
                     if (filters.dateFrom) params.date_from = filters.dateFrom;
                     if (filters.dateTo) params.date_to = filters.dateTo;
                     if (filters.status) params.status_filter_val = filters.status;
                     
                     return await this.callAPI(API_BASE_URL, 'list_invoices', params);
+                },
+
+                async searchProductInvoices(term) {
+                    return await this.callAPI(API_BASE_URL, 'search_product_invoices', { term: term });
                 },
 
                 async fetchInvoiceDetails(invoiceId) {
@@ -1918,6 +2047,7 @@ const RETURN_TYPES_Colors = {
                         const filters = {
                             supplierName: document.getElementById('supplierNameFilter').value,
                             invoiceId: document.getElementById('invoiceIdFilter').value,
+                            productBatchSearch: document.getElementById('productBatchSearchFilter').value,
                             dateFrom: document.getElementById('dateFromFilter').value,
                             dateTo: document.getElementById('dateToFilter').value,
                             status: document.getElementById('statusFilter').value
