@@ -370,7 +370,7 @@ const PrintManager = {
                     ${item.id}
                 </td>
 
-                <td style="width:40%; text-align:right; padding-right:5px;">
+                <td style="width:50%; text-align:right; padding-right:5px;">
                     ${item.product_name}
                 </td>
 
@@ -378,11 +378,7 @@ const PrintManager = {
                     ${remainingQuantity.toFixed(2)}
                 </td>
 
-                <td style="width:15%; text-align:left; padding-left:5px;">
-                    ${item.selling_price.toFixed(2)}
-                </td>
-
-                <td style="width:20%; text-align:left; padding-left:5px;">
+                <td style="width:25%; text-align:left; padding-left:5px;">
                     ${itemTotal.toFixed(2)}
                 </td>
             </tr>
@@ -636,7 +632,6 @@ const PrintManager = {
                         <th>#</th>
                         <th>المنتج</th>
                         <th>الكمية</th>
-                        <th>السعر</th>
                         <th>الإجمالي</th>
                     </tr>
                 </thead>
@@ -1135,7 +1130,6 @@ const PrintManager = {
                     ${item.name}
                 </td>
                 <td style="width:15%; text-align:center;">${item.quantity.toFixed(2)}</td>
-                <td style="width:15%; text-align:center;">${item.price?.toFixed(2)}</td>
                 <td style="width:20%; text-align:left; padding-left:5px;">
                     ${item.total.toFixed(2)} 
                 </td>
@@ -1383,7 +1377,6 @@ const PrintManager = {
                         <th>#</th>
                         <th>المنتج</th>
                         <th>الكمية</th>
-                        <th>س. البيع</th>
                         <th>الإجمالي</th>
                     </tr>
                 </thead>
